@@ -25,24 +25,27 @@ public class AiFoundryService : IAiFoundryService
         _client = new ChatCompletionsClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
     }
 
-    public async Task<List<int>> DetectDocumentBoundariesAsync(Stream pdfStream, int totalPages)
+    public async Task<List<int>> DetectDocumentBoundariesAsync(string ocrText, int totalPages)
     {
-        _logger.LogInformation("Detecting document boundaries for PDF with {TotalPages} pages", totalPages);
+        _logger.LogInformation("Detecting document boundaries for PDF with {TotalPages} pages using OCR text", totalPages);
 
         try
         {
-            var systemPrompt = @"You are an AI assistant that analyzes PDF documents to detect logical document boundaries. 
+            var systemPrompt = @"You are an AI assistant that analyzes OCR-extracted text from PDF documents to detect logical document boundaries. 
 A single PDF may contain multiple independent documents. Each document may have one or more pages.
-Your task is to identify the starting page number of each document in the PDF.
+Your task is to identify the starting page number of each document in the PDF based on the OCR text.
 Return only a comma-separated list of page numbers (starting from 1) where each document begins.
 For example, if there are 3 documents starting at pages 1, 5, and 10, return: 1,5,10";
 
-            var userPrompt = $@"Analyze a PDF with {totalPages} pages and identify where each logical document begins.
+            var userPrompt = $@"Analyze the following OCR text extracted from a PDF with {totalPages} pages and identify where each logical document begins.
 Consider factors like:
 - Title pages or headers indicating a new document
 - Consistent formatting within a document
 - Changes in content type or structure
 - Page breaks that suggest document boundaries
+
+OCR Text:
+{ocrText}
 
 Return the starting page numbers as a comma-separated list.";
 
@@ -72,7 +75,7 @@ Return the starting page numbers as a comma-separated list.";
         }
     }
 
-    private List<int> ParseBoundaries(string content, int totalPages)
+    internal List<int> ParseBoundaries(string content, int totalPages)
     {
         var boundaries = new List<int>();
         

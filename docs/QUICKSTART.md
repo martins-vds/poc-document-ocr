@@ -256,8 +256,15 @@ cat result.json
 # Clean build
 dotnet clean && dotnet build
 
-# Run tests (if added)
+# Run tests
+cd tests
 dotnet test
+
+# Run tests with verbose output
+dotnet test --verbosity normal
+
+# Build and test in one command (from repository root)
+dotnet build && cd tests && dotnet test
 
 # View function help
 func --help

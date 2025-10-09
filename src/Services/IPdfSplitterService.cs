@@ -2,5 +2,5 @@ namespace DocumentOcrProcessor.Services;
 
 public interface IPdfSplitterService
 {
-    Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream);
+    Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream, string ocrText);
 }

@@ -7,15 +7,15 @@ namespace DocumentOcrProcessor.Services;
 public class PdfSplitterService : IPdfSplitterService
 {
     private readonly ILogger<PdfSplitterService> _logger;
-    private readonly IAiFoundryService _aiFoundryService;
+    private readonly IDocumentBoundaryDetectionStrategy _detectionStrategy;
 
-    public PdfSplitterService(ILogger<PdfSplitterService> logger, IAiFoundryService aiFoundryService)
+    public PdfSplitterService(ILogger<PdfSplitterService> logger, IDocumentBoundaryDetectionStrategy detectionStrategy)
     {
         _logger = logger;
-        _aiFoundryService = aiFoundryService;
+        _detectionStrategy = detectionStrategy;
     }
 
-    public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream)
+    public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream, List<int>? manualBoundaries = null)
     {
         _logger.LogInformation("Starting PDF split operation");
         var documents = new List<Stream>();
@@ -27,7 +27,7 @@ public class PdfSplitterService : IPdfSplitterService
             var totalPages = inputDocument.PageCount;
             _logger.LogInformation("PDF has {TotalPages} pages", totalPages);
 
-            var documentBoundaries = await _aiFoundryService.DetectDocumentBoundariesAsync(pdfStream, totalPages);
+            var documentBoundaries = await _detectionStrategy.DetectDocumentBoundariesAsync(pdfStream, totalPages, manualBoundaries);
             _logger.LogInformation("Detected {Count} documents", documentBoundaries.Count);
 
             for (int i = 0; i < documentBoundaries.Count; i++)

@@ -5,13 +5,12 @@ using Microsoft.Extensions.Logging;
 
 namespace DocumentOcrProcessor.Services;
 
-[Obsolete("Use AiBoundaryDetectionStrategy instead. This class is kept for backward compatibility.")]
-public class AiFoundryService : IAiFoundryService
+public class AiBoundaryDetectionStrategy : IDocumentBoundaryDetectionStrategy
 {
-    private readonly ILogger<AiFoundryService> _logger;
+    private readonly ILogger<AiBoundaryDetectionStrategy> _logger;
     private readonly ChatCompletionsClient _client;
 
-    public AiFoundryService(ILogger<AiFoundryService> logger, IConfiguration configuration)
+    public AiBoundaryDetectionStrategy(ILogger<AiBoundaryDetectionStrategy> logger, IConfiguration configuration)
     {
         _logger = logger;
         var endpoint = configuration["AzureAiFoundry:Endpoint"];
@@ -25,9 +24,9 @@ public class AiFoundryService : IAiFoundryService
         _client = new ChatCompletionsClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
     }
 
-    public async Task<List<int>> DetectDocumentBoundariesAsync(Stream pdfStream, int totalPages)
+    public async Task<List<int>> DetectDocumentBoundariesAsync(Stream pdfStream, int totalPages, List<int>? manualBoundaries = null)
     {
-        _logger.LogInformation("Detecting document boundaries for PDF with {TotalPages} pages", totalPages);
+        _logger.LogInformation("Using AI to detect document boundaries for PDF with {TotalPages} pages", totalPages);
 
         try
         {

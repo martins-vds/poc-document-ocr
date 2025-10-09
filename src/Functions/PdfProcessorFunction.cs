@@ -56,7 +56,7 @@ public class PdfProcessorFunction
             using var pdfStream = new MemoryStream();
             await blobClient.DownloadToAsync(pdfStream);
 
-            var splitDocuments = await _pdfSplitterService.SplitPdfIntoDocumentsAsync(pdfStream);
+            var splitDocuments = await _pdfSplitterService.SplitPdfIntoDocumentsAsync(pdfStream, message.ManualBoundaries);
             _logger.LogInformation("Split PDF into {Count} documents", splitDocuments.Count);
 
             var processingResult = new ProcessingResult

@@ -3,7 +3,6 @@ using Azure.Storage.Blobs;
 using DocumentOcrProcessor.Models;
 using DocumentOcrProcessor.Services;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace DocumentOcrProcessor.Functions;
@@ -13,18 +12,18 @@ public class PdfProcessorFunction
     private readonly ILogger<PdfProcessorFunction> _logger;
     private readonly IPdfSplitterService _pdfSplitterService;
     private readonly IDocumentIntelligenceService _documentIntelligenceService;
-    private readonly IConfiguration _configuration;
+    private readonly IBlobStorageService _blobStorageService;
 
     public PdfProcessorFunction(
         ILogger<PdfProcessorFunction> logger,
         IPdfSplitterService pdfSplitterService,
         IDocumentIntelligenceService documentIntelligenceService,
-        IConfiguration configuration)
+        IBlobStorageService blobStorageService)
     {
         _logger = logger;
         _pdfSplitterService = pdfSplitterService;
         _documentIntelligenceService = documentIntelligenceService;
-        _configuration = configuration;
+        _blobStorageService = blobStorageService;
     }
 
     [Function("PdfProcessorFunction")]
@@ -42,19 +41,7 @@ public class PdfProcessorFunction
                 return;
             }
 
-            var connectionString = _configuration["AzureWebJobsStorage"];
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new InvalidOperationException("AzureWebJobsStorage connection string is missing");
-            }
-
-            var blobServiceClient = new BlobServiceClient(connectionString);
-            var containerClient = blobServiceClient.GetBlobContainerClient(message.ContainerName);
-            var blobClient = containerClient.GetBlobClient(message.BlobName);
-
-            _logger.LogInformation("Downloading blob: {BlobName}", message.BlobName);
-            using var pdfStream = new MemoryStream();
-            await blobClient.DownloadToAsync(pdfStream);
+            using var pdfStream = await _blobStorageService.DownloadBlobAsync(message.ContainerName, message.BlobName);
 
             _logger.LogInformation("Performing OCR on entire PDF");
             var entirePdfOcrResult = await _documentIntelligenceService.AnalyzeDocumentAsync(pdfStream);
@@ -70,8 +57,7 @@ public class PdfProcessorFunction
                 TotalDocuments = splitDocuments.Count
             };
 
-            var outputContainerClient = blobServiceClient.GetBlobContainerClient("processed-documents");
-            await outputContainerClient.CreateIfNotExistsAsync();
+            var outputContainerClient = await _blobStorageService.GetContainerClientAsync("processed-documents");
 
             for (int i = 0; i < splitDocuments.Count; i++)
             {

@@ -15,5 +15,6 @@ builder.Services
 builder.Services.AddScoped<IPdfSplitterService, PdfSplitterService>();
 builder.Services.AddScoped<IAiFoundryService, AiFoundryService>();
 builder.Services.AddScoped<IDocumentIntelligenceService, DocumentIntelligenceService>();
+builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
 builder.Build().Run();

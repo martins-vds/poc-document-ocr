@@ -56,22 +56,35 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
 - Extracts PDF attachment
 - Uploads PDF to Azure Storage Blob container
 - Sends message to Storage Queue with blob reference
+- Can optionally include manual page boundaries in queue message
 
 ### 2. Azure Function (Queue Triggered)
 - Triggered by messages in the queue
 - Downloads PDF from blob storage
 - Orchestrates the document processing workflow
+- Uses configured strategy for boundary detection
 - Saves results back to blob storage
 
-### 3. AI Foundry Service
+### 3. Document Boundary Detection Strategies
+The application supports two strategies for detecting document boundaries:
+
+#### AI Boundary Detection Strategy (Default)
 - Analyzes PDF structure to detect document boundaries
-- Uses GPT models to intelligently identify where documents start
+- Uses GPT models via Azure AI Foundry to intelligently identify where documents start
 - Returns page numbers where new documents begin
+- Fallback: treats PDF as single document if AI fails
+
+#### Manual Boundary Detection Strategy
+- Uses page boundaries provided in the queue message
+- Validates page numbers against PDF page count
+- No external service calls required
+- Useful when document structure is known in advance
 
 ### 4. PDF Splitter Service
 - Uses PdfSharp library to manipulate PDF files
-- Splits PDF at boundaries detected by AI Foundry
+- Splits PDF at boundaries detected by the configured strategy
 - Creates individual PDF files for each document
+- Accepts optional manual boundaries from queue message
 
 ### 5. Document Intelligence Service
 - Uses Azure Document Intelligence (Form Recognizer)
@@ -85,10 +98,22 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
 ## Data Flow
 
 1. **Input**: Queue message with blob reference
+   
+   AI-Based Detection:
    ```json
    {
      "BlobName": "upload-2025-01-10.pdf",
      "ContainerName": "uploaded-pdfs"
+   }
+   ```
+   
+   Manual Detection:
+   ```json
+   {
+     "BlobName": "upload-2025-01-10.pdf",
+     "ContainerName": "uploaded-pdfs",
+     "UseManualDetection": true,
+     "ManualBoundaries": [1, 5, 10]
    }
    ```
 

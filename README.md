@@ -50,21 +50,48 @@ Update the `local.settings.json` file with your Azure service endpoints and API 
         "AzureAiFoundry:Endpoint": "https://your-ai-foundry-endpoint.openai.azure.com",
         "AzureAiFoundry:ApiKey": "your-ai-foundry-api-key",
         "DocumentIntelligence:Endpoint": "https://your-document-intelligence-endpoint.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "your-document-intelligence-api-key"
+        "DocumentIntelligence:ApiKey": "your-document-intelligence-api-key",
+        "DocumentBoundaryDetection:UseManual": "false"
     }
 }
 ```
+
+### Document Boundary Detection Strategies
+
+The application supports two strategies for detecting document boundaries:
+
+1. **AI-Based Detection (Default)**: Uses Azure AI Foundry to automatically detect where documents begin based on content analysis
+   - Set `"DocumentBoundaryDetection:UseManual": "false"` (or omit the setting)
+   - Requires Azure AI Foundry configuration
+
+2. **Manual Detection**: Uses page numbers provided in the queue message
+   - Set `"DocumentBoundaryDetection:UseManual": "true"`
+   - Include `ManualBoundaries` array in the queue message
+   - Does not require Azure AI Foundry configuration
 
 ## Queue Message Format
 
 The function expects queue messages in the following JSON format:
 
+### AI-Based Detection (Default)
 ```json
 {
     "BlobName": "document.pdf",
     "ContainerName": "uploaded-pdfs"
 }
 ```
+
+### Manual Boundary Detection
+```json
+{
+    "BlobName": "document.pdf",
+    "ContainerName": "uploaded-pdfs",
+    "UseManualDetection": true,
+    "ManualBoundaries": [1, 5, 10]
+}
+```
+
+The `ManualBoundaries` array specifies the starting page numbers (1-based) where each document begins. For example, `[1, 5, 10]` would split the PDF into three documents: pages 1-4, 5-9, and 10 to the end.
 
 ## Building and Running
 

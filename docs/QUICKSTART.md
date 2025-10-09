@@ -37,10 +37,13 @@ Edit `local.settings.json` and replace the placeholders:
         "AzureAiFoundry:Endpoint": "https://YOUR-RESOURCE.openai.azure.com",
         "AzureAiFoundry:ApiKey": "YOUR-API-KEY",
         "DocumentIntelligence:Endpoint": "https://YOUR-RESOURCE.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "YOUR-API-KEY"
+        "DocumentIntelligence:ApiKey": "YOUR-API-KEY",
+        "DocumentBoundaryDetection:UseManual": "false"
     }
 }
 ```
+
+**Note**: Set `DocumentBoundaryDetection:UseManual` to `"true"` if you want to use manual page boundaries from queue messages instead of AI-based detection. This is useful when you know the document structure in advance or want to avoid AI service costs.
 
 ### 3. Start Azure Storage Emulator
 
@@ -142,6 +145,7 @@ az storage blob upload \
 
 2. **Send a message to the queue**:
 
+**Option A: Using AI-based boundary detection (default)**:
 ```bash
 # Using Azure CLI
 az storage message put \
@@ -149,6 +153,16 @@ az storage message put \
   --use-emulator \
   --queue-name pdf-processing-queue \
   --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
+```
+
+**Option B: Using manual boundary detection**:
+```bash
+# Using Azure CLI - specify page boundaries manually
+az storage message put \
+  --account-name devstoreaccount1 \
+  --use-emulator \
+  --queue-name pdf-processing-queue \
+  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","UseManualDetection":true,"ManualBoundaries":[1,5,10]}'
 ```
 
 Or using PowerShell:

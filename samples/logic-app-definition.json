@@ -1,0 +1,117 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "$connections": {
+      "defaultValue": {},
+      "type": "Object"
+    }
+  },
+  "triggers": {
+    "When_a_new_email_arrives": {
+      "type": "ApiConnectionWebhook",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['office365']['connectionId']"
+          }
+        },
+        "body": {
+          "NotificationUrl": "@{listCallbackUrl()}"
+        },
+        "path": "/Mail/OnNewEmail",
+        "queries": {
+          "importance": "Any",
+          "fetchOnlyWithAttachment": true,
+          "includeAttachments": true,
+          "folderPath": "Inbox"
+        }
+      },
+      "splitOn": "@triggerBody()?['value']"
+    }
+  },
+  "actions": {
+    "Filter_PDF_attachments": {
+      "type": "Query",
+      "inputs": {
+        "from": "@triggerBody()?['attachments']",
+        "where": "@endsWith(item()?['name'], '.pdf')"
+      },
+      "runAfter": {}
+    },
+    "For_each_PDF_attachment": {
+      "type": "Foreach",
+      "foreach": "@body('Filter_PDF_attachments')",
+      "actions": {
+        "Generate_unique_filename": {
+          "type": "Compose",
+          "inputs": "@{formatDateTime(utcNow(), 'yyyyMMdd-HHmmss')}-@{items('For_each_PDF_attachment')?['name']}",
+          "runAfter": {}
+        },
+        "Upload_PDF_to_blob_storage": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connection": {
+                "name": "@parameters('$connections')['azureblob']['connectionId']"
+              }
+            },
+            "method": "post",
+            "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/files",
+            "queries": {
+              "folderPath": "/uploaded-pdfs",
+              "name": "@outputs('Generate_unique_filename')",
+              "queryParametersSingleEncoded": true
+            },
+            "body": "@base64ToBinary(items('For_each_PDF_attachment')?['contentBytes'])"
+          },
+          "runAfter": {
+            "Generate_unique_filename": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Send_message_to_queue": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connection": {
+                "name": "@parameters('$connections')['azurequeues']['connectionId']"
+              }
+            },
+            "method": "post",
+            "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/queues/@{encodeURIComponent('pdf-processing-queue')}/messages",
+            "body": {
+              "MessageText": "@{json(concat('{\"BlobName\":\"', outputs('Generate_unique_filename'), '\",\"ContainerName\":\"uploaded-pdfs\"}'))}"
+            }
+          },
+          "runAfter": {
+            "Upload_PDF_to_blob_storage": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Log_success": {
+          "type": "Compose",
+          "inputs": {
+            "status": "success",
+            "filename": "@outputs('Generate_unique_filename')",
+            "originalFilename": "@items('For_each_PDF_attachment')?['name']",
+            "timestamp": "@utcNow()"
+          },
+          "runAfter": {
+            "Send_message_to_queue": [
+              "Succeeded"
+            ]
+          }
+        }
+      },
+      "runAfter": {
+        "Filter_PDF_attachments": [
+          "Succeeded"
+        ]
+      }
+    }
+  },
+  "outputs": {}
+}

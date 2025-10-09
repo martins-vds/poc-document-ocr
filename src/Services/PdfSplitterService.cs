@@ -15,7 +15,7 @@ public class PdfSplitterService : IPdfSplitterService
         _aiFoundryService = aiFoundryService;
     }
 
-    public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream)
+    public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream, string ocrText)
     {
         _logger.LogInformation("Starting PDF split operation");
         var documents = new List<Stream>();
@@ -27,7 +27,7 @@ public class PdfSplitterService : IPdfSplitterService
             var totalPages = inputDocument.PageCount;
             _logger.LogInformation("PDF has {TotalPages} pages", totalPages);
 
-            var documentBoundaries = await _aiFoundryService.DetectDocumentBoundariesAsync(pdfStream, totalPages);
+            var documentBoundaries = await _aiFoundryService.DetectDocumentBoundariesAsync(ocrText, totalPages);
             _logger.LogInformation("Detected {Count} documents", documentBoundaries.Count);
 
             for (int i = 0; i < documentBoundaries.Count; i++)

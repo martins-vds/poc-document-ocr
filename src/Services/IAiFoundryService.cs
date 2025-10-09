@@ -2,5 +2,5 @@ namespace DocumentOcrProcessor.Services;
 
 public interface IAiFoundryService
 {
-    Task<List<int>> DetectDocumentBoundariesAsync(Stream pdfStream, int totalPages);
+    Task<List<int>> DetectDocumentBoundariesAsync(string ocrText, int totalPages);
 }

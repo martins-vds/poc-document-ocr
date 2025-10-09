@@ -2,6 +2,13 @@
 
 This is an Azure Functions application that processes PDF files containing multiple documents. The solution uses Azure AI Foundry and Azure Document Intelligence to split PDFs into individual documents and extract information from them.
 
+## Documentation
+
+- [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
+- [Architecture](docs/ARCHITECTURE.md) - System design and components
+- [Deployment](docs/DEPLOYMENT.md) - Azure deployment instructions
+- [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
+
 ## Architecture
 
 The application follows this workflow:
@@ -21,6 +28,7 @@ The application follows this workflow:
 - **PdfSplitterService**: Splits multi-document PDFs into individual documents using AI-detected boundaries
 - **AiFoundryService**: Uses Azure AI Foundry to intelligently detect where documents begin in a PDF
 - **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from documents
+- **BlobStorageService**: Handles all blob storage operations for uploading and downloading files
 
 ### Models
 
@@ -81,8 +89,15 @@ The function expects queue messages in the following JSON format:
    dotnet build
    ```
 
-3. Run locally:
+3. Run tests:
    ```bash
+   cd ../tests
+   dotnet test
+   ```
+
+4. Run locally:
+   ```bash
+   cd ../src
    func start
    ```
 

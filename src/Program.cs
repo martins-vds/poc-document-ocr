@@ -1,0 +1,19 @@
+using DocumentOcrProcessor.Services;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = FunctionsApplication.CreateBuilder(args);
+
+builder.ConfigureFunctionsWebApplication();
+
+builder.Services
+    .AddApplicationInsightsTelemetryWorkerService()
+    .ConfigureFunctionsApplicationInsights();
+
+builder.Services.AddScoped<IPdfSplitterService, PdfSplitterService>();
+builder.Services.AddScoped<IAiFoundryService, AiFoundryService>();
+builder.Services.AddScoped<IDocumentIntelligenceService, DocumentIntelligenceService>();
+
+builder.Build().Run();

@@ -56,7 +56,12 @@ public class PdfProcessorFunction
             using var pdfStream = new MemoryStream();
             await blobClient.DownloadToAsync(pdfStream);
 
-            var splitDocuments = await _pdfSplitterService.SplitPdfIntoDocumentsAsync(pdfStream);
+            _logger.LogInformation("Performing OCR on entire PDF");
+            var entirePdfOcrResult = await _documentIntelligenceService.AnalyzeDocumentAsync(pdfStream);
+            var ocrText = entirePdfOcrResult.ContainsKey("Content") ? entirePdfOcrResult["Content"].ToString() : string.Empty;
+            _logger.LogInformation("OCR completed for entire PDF");
+
+            var splitDocuments = await _pdfSplitterService.SplitPdfIntoDocumentsAsync(pdfStream, ocrText ?? string.Empty);
             _logger.LogInformation("Split PDF into {Count} documents", splitDocuments.Count);
 
             var processingResult = new ProcessingResult

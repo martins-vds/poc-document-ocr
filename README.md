@@ -2,6 +2,13 @@
 
 This is an Azure Functions application that processes PDF files containing multiple documents. The solution uses Azure AI Foundry and Azure Document Intelligence to split PDFs into individual documents and extract information from them.
 
+## Documentation
+
+- [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
+- [Architecture](docs/ARCHITECTURE.md) - System design and components
+- [Deployment](docs/DEPLOYMENT.md) - Azure deployment instructions
+- [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
+
 ## Architecture
 
 The application follows this workflow:

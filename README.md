@@ -21,6 +21,7 @@ The application follows this workflow:
 - **PdfSplitterService**: Splits multi-document PDFs into individual documents using AI-detected boundaries
 - **AiFoundryService**: Uses Azure AI Foundry to intelligently detect where documents begin in a PDF
 - **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from documents
+- **BlobStorageService**: Handles all blob storage operations for uploading and downloading files
 
 ### Models
 
@@ -81,8 +82,15 @@ The function expects queue messages in the following JSON format:
    dotnet build
    ```
 
-3. Run locally:
+3. Run tests:
    ```bash
+   cd ../tests
+   dotnet test
+   ```
+
+4. Run locally:
+   ```bash
+   cd ../src
    func start
    ```
 

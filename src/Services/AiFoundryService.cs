@@ -74,7 +74,7 @@ Return the starting page numbers as a comma-separated list.";
         }
     }
 
-    private List<int> ParseBoundaries(string content, int totalPages)
+    internal List<int> ParseBoundaries(string content, int totalPages)
     {
         var boundaries = new List<int>();
         

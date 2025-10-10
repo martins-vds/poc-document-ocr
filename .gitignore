@@ -90,3 +90,4 @@ env/
 # Utility script outputs
 utils/output/
 utils/test_output/
+*.pdf

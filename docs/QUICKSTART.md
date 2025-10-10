@@ -43,7 +43,7 @@ Edit `local.settings.json` and replace the placeholders:
 }
 ```
 
-**Note**: Set `DocumentBoundaryDetection:UseManual` to `"true"` if you want to use manual page boundaries from queue messages instead of AI-based detection. This is useful when you know the document structure in advance or want to avoid AI service costs.
+**Note**: Set `DocumentBoundaryDetection:UseManual` to `"true"` if you want to use manual boundary detection strategy instead of AI-based detection. You can extend the `ManualBoundaryDetectionStrategy` class to implement your own custom logic for detecting document boundaries. This is useful when you have specific requirements or want to avoid AI service costs.
 
 ### 3. Start Azure Storage Emulator
 
@@ -157,12 +157,12 @@ az storage message put \
 
 **Option B: Using manual boundary detection**:
 ```bash
-# Using Azure CLI - specify page boundaries manually
+# Using Azure CLI - use manual detection strategy
 az storage message put \
   --account-name devstoreaccount1 \
   --use-emulator \
   --queue-name pdf-processing-queue \
-  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","UseManualDetection":true,"ManualBoundaries":[1,5,10]}'
+  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","UseManualDetection":true}'
 ```
 
 Or using PowerShell:

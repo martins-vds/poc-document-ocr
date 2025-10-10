@@ -72,9 +72,10 @@ The application supports two strategies for detecting document boundaries:
    - Set `"DocumentBoundaryDetection:UseManual": "false"` (or omit the setting)
    - Requires Azure AI Foundry configuration
 
-2. **Manual Detection**: Uses page numbers provided in the queue message
+2. **Manual Detection**: Allows you to implement custom boundary detection logic
    - Set `"DocumentBoundaryDetection:UseManual": "true"`
-   - Include `ManualBoundaries` array in the queue message
+   - Set `UseManualDetection: true` in the queue message
+   - Extend `ManualBoundaryDetectionStrategy` class to implement your own detection logic
    - Does not require Azure AI Foundry configuration
 
 ## Queue Message Format
@@ -94,12 +95,11 @@ The function expects queue messages in the following JSON format:
 {
     "BlobName": "document.pdf",
     "ContainerName": "uploaded-pdfs",
-    "UseManualDetection": true,
-    "ManualBoundaries": [1, 5, 10]
+    "UseManualDetection": true
 }
 ```
 
-The `ManualBoundaries` array specifies the starting page numbers (1-based) where each document begins. For example, `[1, 5, 10]` would split the PDF into three documents: pages 1-4, 5-9, and 10 to the end.
+When `UseManualDetection` is set to `true`, the system will use the `ManualBoundaryDetectionStrategy`. By default, this treats the PDF as a single document. You can extend this class to implement your own custom boundary detection logic based on your specific requirements.
 
 ## Building and Running
 

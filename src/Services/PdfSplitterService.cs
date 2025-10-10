@@ -7,12 +7,12 @@ namespace DocumentOcrProcessor.Services;
 public class PdfSplitterService : IPdfSplitterService
 {
     private readonly ILogger<PdfSplitterService> _logger;
-    private readonly IDocumentBoundaryDetectionStrategy _detectionStrategy;
+    private readonly IAiFoundryService _aiFoundryService;
 
-    public PdfSplitterService(ILogger<PdfSplitterService> logger, IDocumentBoundaryDetectionStrategy detectionStrategy)
+    public PdfSplitterService(ILogger<PdfSplitterService> logger, IAiFoundryService aiFoundryService)
     {
         _logger = logger;
-        _detectionStrategy = detectionStrategy;
+        _aiFoundryService = aiFoundryService;
     }
 
     public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream, string ocrText)

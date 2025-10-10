@@ -56,7 +56,7 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
 - Extracts PDF attachment
 - Uploads PDF to Azure Storage Blob container
 - Sends message to Storage Queue with blob reference
-- Can optionally include manual page boundaries in queue message
+- Can optionally set `UseManualDetection` flag for custom boundary detection
 
 ### 2. Azure Function (Queue Triggered)
 - Triggered by messages in the queue
@@ -75,16 +75,15 @@ The application supports two strategies for detecting document boundaries:
 - Fallback: treats PDF as single document if AI fails
 
 #### Manual Boundary Detection Strategy
-- Uses page boundaries provided in the queue message
-- Validates page numbers against PDF page count
+- Default implementation treats PDF as a single document
+- Can be extended to implement custom boundary detection logic
 - No external service calls required
-- Useful when document structure is known in advance
+- Useful when you need custom document splitting logic based on your specific requirements
 
 ### 4. PDF Splitter Service
 - Uses PdfSharp library to manipulate PDF files
 - Splits PDF at boundaries detected by the configured strategy
 - Creates individual PDF files for each document
-- Accepts optional manual boundaries from queue message
 
 ### 5. Document Intelligence Service
 - Uses Azure Document Intelligence (Form Recognizer)
@@ -112,8 +111,7 @@ The application supports two strategies for detecting document boundaries:
    {
      "BlobName": "upload-2025-01-10.pdf",
      "ContainerName": "uploaded-pdfs",
-     "UseManualDetection": true,
-     "ManualBoundaries": [1, 5, 10]
+     "UseManualDetection": true
    }
    ```
 

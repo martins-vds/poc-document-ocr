@@ -24,7 +24,7 @@ public class AiBoundaryDetectionStrategy : IDocumentBoundaryDetectionStrategy
         _client = new ChatCompletionsClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
     }
 
-    public async Task<List<int>> DetectDocumentBoundariesAsync(Stream pdfStream, int totalPages, List<int>? manualBoundaries = null)
+    public async Task<List<int>> DetectDocumentBoundariesAsync(Stream pdfStream, int totalPages)
     {
         _logger.LogInformation("Using AI to detect document boundaries for PDF with {TotalPages} pages", totalPages);
 

@@ -48,7 +48,7 @@ public class PdfProcessorFunction
             var ocrText = entirePdfOcrResult.ContainsKey("Content") ? entirePdfOcrResult["Content"].ToString() : string.Empty;
             _logger.LogInformation("OCR completed for entire PDF");
 
-            var splitDocuments = await _pdfSplitterService.SplitPdfIntoDocumentsAsync(pdfStream, ocrText ?? string.Empty);
+            var splitDocuments = await _pdfSplitterService.SplitPdfIntoDocumentsAsync(pdfStream, ocrText ?? string.Empty, message.UseManualDetection);
             _logger.LogInformation("Split PDF into {Count} documents", splitDocuments.Count);
 
             var processingResult = new ProcessingResult

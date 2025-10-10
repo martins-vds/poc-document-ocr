@@ -7,15 +7,25 @@ namespace DocumentOcrProcessor.Services;
 public class PdfSplitterService : IPdfSplitterService
 {
     private readonly ILogger<PdfSplitterService> _logger;
-    private readonly IAiFoundryService _aiFoundryService;
+    private readonly AiBoundaryDetectionStrategy _aiBoundaryStrategy;
+    private readonly ManualBoundaryDetectionStrategy _manualBoundaryStrategy;
 
-    public PdfSplitterService(ILogger<PdfSplitterService> logger, IAiFoundryService aiFoundryService)
+    public PdfSplitterService(
+        ILogger<PdfSplitterService> logger, 
+        AiBoundaryDetectionStrategy aiBoundaryStrategy,
+        ManualBoundaryDetectionStrategy manualBoundaryStrategy)
     {
         _logger = logger;
-        _aiFoundryService = aiFoundryService;
+        _aiBoundaryStrategy = aiBoundaryStrategy;
+        _manualBoundaryStrategy = manualBoundaryStrategy;
     }
 
     public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream, string ocrText)
+    {
+        return await SplitPdfIntoDocumentsAsync(pdfStream, ocrText, useManualDetection: false);
+    }
+
+    public async Task<List<Stream>> SplitPdfIntoDocumentsAsync(Stream pdfStream, string ocrText, bool useManualDetection)
     {
         _logger.LogInformation("Starting PDF split operation");
         var documents = new List<Stream>();
@@ -27,7 +37,12 @@ public class PdfSplitterService : IPdfSplitterService
             var totalPages = inputDocument.PageCount;
             _logger.LogInformation("PDF has {TotalPages} pages", totalPages);
 
-            var documentBoundaries = await _aiFoundryService.DetectDocumentBoundariesAsync(ocrText, totalPages);
+            // Select strategy based on configuration
+            IDocumentBoundaryDetectionStrategy strategy = useManualDetection 
+                ? _manualBoundaryStrategy 
+                : _aiBoundaryStrategy;
+
+            var documentBoundaries = await strategy.DetectDocumentBoundariesAsync(pdfStream, totalPages);
             _logger.LogInformation("Detected {Count} documents", documentBoundaries.Count);
 
             for (int i = 0; i < documentBoundaries.Count; i++)

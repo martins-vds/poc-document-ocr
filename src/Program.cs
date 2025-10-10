@@ -15,8 +15,11 @@ builder.Services
     .ConfigureFunctionsApplicationInsights();
 
 builder.Services.AddScoped<IPdfSplitterService, PdfSplitterService>();
-builder.Services.AddScoped<IAiFoundryService, AiFoundryService>();
 builder.Services.AddScoped<IDocumentIntelligenceService, DocumentIntelligenceService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+
+// Register document boundary detection strategies
+builder.Services.AddScoped<AiBoundaryDetectionStrategy>();
+builder.Services.AddScoped<ManualBoundaryDetectionStrategy>();
 
 builder.Build().Run();

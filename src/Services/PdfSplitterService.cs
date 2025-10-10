@@ -42,7 +42,6 @@ public class PdfSplitterService : IPdfSplitterService
                 ? _manualBoundaryStrategy 
                 : _aiBoundaryStrategy;
 
-            pdfStream.Position = 0;
             var documentBoundaries = await strategy.DetectDocumentBoundariesAsync(pdfStream, totalPages);
             _logger.LogInformation("Detected {Count} documents", documentBoundaries.Count);
 

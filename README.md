@@ -58,21 +58,48 @@ Update the `local.settings.json` file with your Azure service endpoints and API 
         "AzureAiFoundry:Endpoint": "https://your-ai-foundry-endpoint.openai.azure.com",
         "AzureAiFoundry:ApiKey": "your-ai-foundry-api-key",
         "DocumentIntelligence:Endpoint": "https://your-document-intelligence-endpoint.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "your-document-intelligence-api-key"
+        "DocumentIntelligence:ApiKey": "your-document-intelligence-api-key",
+        "DocumentBoundaryDetection:UseManual": "false"
     }
 }
 ```
+
+### Document Boundary Detection Strategies
+
+The application supports two strategies for detecting document boundaries:
+
+1. **AI-Based Detection (Default)**: Uses Azure AI Foundry to automatically detect where documents begin based on content analysis
+   - Set `"DocumentBoundaryDetection:UseManual": "false"` (or omit the setting)
+   - Requires Azure AI Foundry configuration
+
+2. **Manual Detection**: Allows you to implement custom boundary detection logic
+   - Set `"DocumentBoundaryDetection:UseManual": "true"`
+   - Set `UseManualDetection: true` in the queue message
+   - Extend `ManualBoundaryDetectionStrategy` class to implement your own detection logic
+   - Does not require Azure AI Foundry configuration
 
 ## Queue Message Format
 
 The function expects queue messages in the following JSON format:
 
+### AI-Based Detection (Default)
 ```json
 {
     "BlobName": "document.pdf",
     "ContainerName": "uploaded-pdfs"
 }
 ```
+
+### Manual Boundary Detection
+```json
+{
+    "BlobName": "document.pdf",
+    "ContainerName": "uploaded-pdfs",
+    "UseManualDetection": true
+}
+```
+
+When `UseManualDetection` is set to `true`, the system will use the `ManualBoundaryDetectionStrategy`. By default, this treats the PDF as a single document. You can extend this class to implement your own custom boundary detection logic based on your specific requirements.
 
 ## Building and Running
 

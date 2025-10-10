@@ -6,6 +6,7 @@
         "AzureAiFoundry:Endpoint": "https://<your-ai-foundry-endpoint>.openai.azure.com",
         "AzureAiFoundry:ApiKey": "<your-ai-foundry-api-key>",
         "DocumentIntelligence:Endpoint": "https://<your-document-intelligence-endpoint>.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "<your-document-intelligence-api-key>"
+        "DocumentIntelligence:ApiKey": "<your-document-intelligence-api-key>",
+        "DocumentBoundaryDetection:UseManual": "false"
     }
 }

@@ -37,10 +37,13 @@ Edit `local.settings.json` and replace the placeholders:
         "AzureAiFoundry:Endpoint": "https://YOUR-RESOURCE.openai.azure.com",
         "AzureAiFoundry:ApiKey": "YOUR-API-KEY",
         "DocumentIntelligence:Endpoint": "https://YOUR-RESOURCE.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "YOUR-API-KEY"
+        "DocumentIntelligence:ApiKey": "YOUR-API-KEY",
+        "DocumentBoundaryDetection:UseManual": "false"
     }
 }
 ```
+
+**Note**: Set `DocumentBoundaryDetection:UseManual` to `"true"` if you want to use manual boundary detection strategy instead of AI-based detection. You can extend the `ManualBoundaryDetectionStrategy` class to implement your own custom logic for detecting document boundaries. This is useful when you have specific requirements or want to avoid AI service costs.
 
 ### 3. Start Azure Storage Emulator
 
@@ -142,6 +145,7 @@ az storage blob upload \
 
 2. **Send a message to the queue**:
 
+**Option A: Using AI-based boundary detection (default)**:
 ```bash
 # Using Azure CLI
 az storage message put \
@@ -149,6 +153,16 @@ az storage message put \
   --use-emulator \
   --queue-name pdf-processing-queue \
   --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
+```
+
+**Option B: Using manual boundary detection**:
+```bash
+# Using Azure CLI - use manual detection strategy
+az storage message put \
+  --account-name devstoreaccount1 \
+  --use-emulator \
+  --queue-name pdf-processing-queue \
+  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","UseManualDetection":true}'
 ```
 
 Or using PowerShell:

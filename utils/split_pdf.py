@@ -18,6 +18,14 @@ import os
 import sys
 from pathlib import Path
 
+try:
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.errors import PdfReadError
+except ImportError:
+    print("Error: pypdf library is not installed.", file=sys.stderr)
+    print("Please install it using: pip install pypdf", file=sys.stderr)
+    sys.exit(1)
+
 
 def split_pdf(input_path, output_dir):
     """
@@ -30,16 +38,9 @@ def split_pdf(input_path, output_dir):
     Returns:
         int: Number of pages extracted
     """
-    try:
-        from pypdf import PdfReader, PdfWriter
-    except ImportError:
-        print("Error: pypdf library is not installed.")
-        print("Please install it using: pip install pypdf")
-        sys.exit(1)
-    
     # Validate input file
     if not os.path.isfile(input_path):
-        print(f"Error: Input file '{input_path}' does not exist.")
+        print(f"Error: Input file '{input_path}' does not exist.", file=sys.stderr)
         sys.exit(1)
     
     # Create output directory if it doesn't exist
@@ -76,8 +77,14 @@ def split_pdf(input_path, output_dir):
         print(f"\nSuccessfully split {total_pages} pages into '{output_dir}'")
         return total_pages
         
+    except PdfReadError as e:
+        print(f"Error: Invalid or corrupted PDF file: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+    except PermissionError as e:
+        print(f"Error: Permission denied: {str(e)}", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
-        print(f"Error processing PDF: {str(e)}")
+        print(f"Error processing PDF: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
 

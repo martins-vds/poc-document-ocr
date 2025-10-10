@@ -8,7 +8,7 @@ A Python utility that splits a multi-page PDF into individual single-page PDF fi
 
 ### Prerequisites
 
-- Python 3.6 or higher
+- Python 3.8 or higher
 - pypdf library
 
 ### Installation

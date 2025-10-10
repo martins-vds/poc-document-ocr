@@ -101,6 +101,14 @@ The function expects queue messages in the following JSON format:
 
 When `UseManualDetection` is set to `true`, the system will use the `ManualBoundaryDetectionStrategy`. By default, this treats the PDF as a single document. You can extend this class to implement your own custom boundary detection logic based on your specific requirements.
 
+## Utility Scripts
+
+A collection of helpful utility scripts is available in the [`utils`](utils/) directory:
+
+- **PDF Splitter** (`utils/split_pdf.py`): Python script to split a multi-page PDF into individual single-page PDF files
+  - Useful for creating test data and preparing PDFs for processing
+  - See [`utils/README.md`](utils/README.md) for usage instructions
+
 ## Building and Running
 
 ### Local Development

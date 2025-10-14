@@ -92,7 +92,44 @@ DOC_KEY=$(az cognitiveservices account keys list \
   --output tsv)
 ```
 
-### 1.6 Create Function App
+### 1.6 Create Cosmos DB Account and Database
+
+```bash
+# Create Cosmos DB account
+az cosmosdb create \
+  --name cosmos-document-ocr \
+  --resource-group rg-document-ocr \
+  --locations regionName=eastus
+
+# Create database
+az cosmosdb sql database create \
+  --account-name cosmos-document-ocr \
+  --resource-group rg-document-ocr \
+  --name DocumentOcrDb
+
+# Create container with partition key
+az cosmosdb sql container create \
+  --account-name cosmos-document-ocr \
+  --resource-group rg-document-ocr \
+  --database-name DocumentOcrDb \
+  --name ProcessedDocuments \
+  --partition-key-path "/identifier"
+
+# Get endpoint and key
+COSMOS_ENDPOINT=$(az cosmosdb show \
+  --name cosmos-document-ocr \
+  --resource-group rg-document-ocr \
+  --query documentEndpoint \
+  --output tsv)
+
+COSMOS_KEY=$(az cosmosdb keys list \
+  --name cosmos-document-ocr \
+  --resource-group rg-document-ocr \
+  --query primaryMasterKey \
+  --output tsv)
+```
+
+### 1.7 Create Function App
 
 ```bash
 az functionapp create \
@@ -115,7 +152,11 @@ az functionapp config appsettings set \
     "AzureAiFoundry:Endpoint=$AI_ENDPOINT" \
     "AzureAiFoundry:ApiKey=$AI_KEY" \
     "DocumentIntelligence:Endpoint=$DOC_ENDPOINT" \
-    "DocumentIntelligence:ApiKey=$DOC_KEY"
+    "DocumentIntelligence:ApiKey=$DOC_KEY" \
+    "CosmosDb:Endpoint=$COSMOS_ENDPOINT" \
+    "CosmosDb:Key=$COSMOS_KEY" \
+    "CosmosDb:DatabaseName=DocumentOcrDb" \
+    "CosmosDb:ContainerName=ProcessedDocuments"
 ```
 
 ## Step 3: Deploy Function Code

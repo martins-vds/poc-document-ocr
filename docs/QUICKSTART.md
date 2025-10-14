@@ -38,7 +38,11 @@ Edit `local.settings.json` and replace the placeholders:
         "AzureAiFoundry:ApiKey": "YOUR-API-KEY",
         "DocumentIntelligence:Endpoint": "https://YOUR-RESOURCE.cognitiveservices.azure.com/",
         "DocumentIntelligence:ApiKey": "YOUR-API-KEY",
-        "DocumentBoundaryDetection:UseManual": "false"
+        "DocumentBoundaryDetection:UseManual": "false",
+        "CosmosDb:Endpoint": "https://YOUR-COSMOSDB-ACCOUNT.documents.azure.com:443/",
+        "CosmosDb:Key": "YOUR-COSMOSDB-KEY",
+        "CosmosDb:DatabaseName": "DocumentOcrDb",
+        "CosmosDb:ContainerName": "ProcessedDocuments"
     }
 }
 ```

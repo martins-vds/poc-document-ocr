@@ -7,6 +7,10 @@
         "AzureAiFoundry:ApiKey": "<your-ai-foundry-api-key>",
         "DocumentIntelligence:Endpoint": "https://<your-document-intelligence-endpoint>.cognitiveservices.azure.com/",
         "DocumentIntelligence:ApiKey": "<your-document-intelligence-api-key>",
-        "DocumentBoundaryDetection:UseManual": "false"
+        "DocumentBoundaryDetection:UseManual": "false",
+        "CosmosDb:Endpoint": "https://<your-cosmosdb-account>.documents.azure.com:443/",
+        "CosmosDb:Key": "<your-cosmosdb-key>",
+        "CosmosDb:DatabaseName": "DocumentOcrDb",
+        "CosmosDb:ContainerName": "ProcessedDocuments"
     }
 }

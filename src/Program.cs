@@ -20,6 +20,7 @@ builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IPdfToImageService, PdfToImageService>();
 builder.Services.AddScoped<IDocumentAggregatorService, DocumentAggregatorService>();
 builder.Services.AddScoped<IImageToPdfService, ImageToPdfService>();
+builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();
 
 // Register document boundary detection strategies
 builder.Services.AddScoped<AiBoundaryDetectionStrategy>();

@@ -46,13 +46,15 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
                           │ Service          │
                           │ (PdfSharp)       │
                           └────────┬─────────┘
-                                   ▼
-                          ┌──────────────────┐
-                          │ Azure Storage    │
-                          │ Processed Docs   │
-                          │ - PDFs           │
-                          │ - JSON Results   │
-                          └──────────────────┘
+                                   │
+                        ┌──────────┴──────────┐
+                        ▼                     ▼
+               ┌──────────────────┐  ┌──────────────────┐
+               │ Azure Storage    │  │ Cosmos DB        │
+               │ Processed Docs   │  │ OCR Results      │
+               │ - PDFs           │  │ - Metadata       │
+               │ - JSON Results   │  │ - Extracted Data │
+               └──────────────────┘  └──────────────────┘
 ```
 
 ## Component Details
@@ -102,6 +104,13 @@ The application groups pages into documents based on identifier fields found in 
 - Uses PdfSharp library to create multi-page PDFs
 - Preserves page order based on original page numbers
 
+### 7. Cosmos DB Service
+- Persists OCR results for each processed document
+- Stores document metadata, extracted data, and reference to PDF blob
+- Uses document identifier as partition key for efficient querying
+- Enables downstream applications (web UI, review workflows) to access processed documents
+- Provides queryable storage for analytics and reporting
+
 ## Data Flow
 
 1. **Input**: Queue message with blob reference
@@ -135,6 +144,9 @@ The application groups pages into documents based on identifier fields found in 
 3. **Output**: 
    - Individual PDF files: `{original}_doc_{n}.pdf`
    - Result JSON: `{original}_result.json`
+   - Cosmos DB records for each document
+   
+   Result JSON Structure:
    ```json
    {
      "OriginalFileName": "upload-2025-01-10.pdf",
@@ -150,6 +162,23 @@ The application groups pages into documents based on identifier fields found in 
          "OutputBlobName": "upload-2025-01-10_doc_1.pdf"
        }
      ]
+   }
+   ```
+   
+   Cosmos DB Entity Structure:
+   ```json
+   {
+     "id": "unique-guid",
+     "documentNumber": 1,
+     "originalFileName": "upload-2025-01-10.pdf",
+     "identifier": "4314",
+     "pageCount": 3,
+     "pageNumbers": [1, 2, 5],
+     "pdfBlobUrl": "https://storage.blob.core.windows.net/processed-documents/upload-2025-01-10_doc_1.pdf",
+     "extractedData": {...},
+     "processedAt": "2025-01-10T12:00:00Z",
+     "containerName": "processed-documents",
+     "blobName": "upload-2025-01-10_doc_1.pdf"
    }
    ```
 

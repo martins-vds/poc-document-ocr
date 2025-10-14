@@ -167,7 +167,7 @@ The result JSON contains:
 - For each document:
   - Document number
   - Page count
-  - Extracted data (text, key-value pairs, tables)
+  - Extracted data (structured fields from Document Intelligence)
   - Output blob name
 
 ## Example Result
@@ -182,12 +182,27 @@ The result JSON contains:
       "DocumentNumber": 1,
       "PageCount": 2,
       "ExtractedData": {
-        "Content": "...",
-        "KeyValuePairs": {
-          "Invoice Number": "INV-001",
-          "Date": "2025-01-10"
-        },
-        "Tables": [...]
+        "PageCount": 2,
+        "Fields": {
+          "fileTkNumber": {
+            "type": "String",
+            "valueString": "12345",
+            "content": "12345",
+            "confidence": 0.98
+          },
+          "accusedName": {
+            "type": "String",
+            "valueString": "John Doe",
+            "content": "John Doe",
+            "confidence": 0.95
+          },
+          "signedOn": {
+            "type": "Date",
+            "valueDate": "2025-01-10T00:00:00Z",
+            "content": "January 10, 2025",
+            "confidence": 0.92
+          }
+        }
       },
       "OutputBlobName": "multi-document_doc_1.pdf"
     }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Document OCR Processor is built on Azure Functions with a queue-triggered architecture that processes PDF files containing multiple documents.
+The Document OCR Processor is built on Azure Functions with a queue-triggered architecture that processes PDF files containing multiple documents. It converts PDF pages to images, performs OCR analysis on each page, and aggregates pages into documents based on identifier fields.
 
 ## Architecture Diagram
 
@@ -34,12 +34,18 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
                 ┌────────────────────┼────────────────────┐
                 ▼                    ▼                    ▼
         ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-        │ Azure AI     │    │ PDF Splitter │    │ Azure Doc    │
-        │ Foundry      │    │ Service      │    │ Intelligence │
-        │ (Boundaries) │    │ (PdfSharp)   │    │ (OCR/Parse)  │
+        │ PDF to Image │    │   Document   │    │ Azure Doc    │
+        │ Service      │    │  Aggregator  │    │ Intelligence │
+        │ (PDFtoImage) │    │  Service     │    │ (OCR/Parse)  │
         └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
                │                   │                   │
                └───────────────────┼───────────────────┘
+                                   ▼
+                          ┌──────────────────┐
+                          │ Image to PDF     │
+                          │ Service          │
+                          │ (PdfSharp)       │
+                          └────────┬─────────┘
                                    ▼
                           ┌──────────────────┐
                           │ Azure Storage    │
@@ -56,49 +62,51 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
 - Extracts PDF attachment
 - Uploads PDF to Azure Storage Blob container
 - Sends message to Storage Queue with blob reference
-- Can optionally set `UseManualDetection` flag for custom boundary detection
+- Can optionally specify custom identifier field name
 
 ### 2. Azure Function (Queue Triggered)
 - Triggered by messages in the queue
 - Downloads PDF from blob storage
-- Orchestrates the document processing workflow
-- Uses configured strategy for boundary detection
-- Saves results back to blob storage
+- Orchestrates the document processing workflow:
+  1. Convert PDF pages to images
+  2. Submit images for OCR analysis
+  3. Aggregate pages by identifier (specified in queue message via `IdentifierFieldName`)
+  4. Create PDFs from aggregated pages
+  5. Upload results to storage
 
-### 3. Document Boundary Detection Strategies
-The application supports two strategies for detecting document boundaries:
+### 3. PDF to Image Service
+- Converts each PDF page into a PNG image
+- Uses PDFtoImage library with PDFium rendering engine
+- Produces high-quality images suitable for OCR processing
 
-#### AI Boundary Detection Strategy (Default)
-- Analyzes PDF structure to detect document boundaries
-- Uses GPT models via Azure AI Foundry to intelligently identify where documents start
-- Returns page numbers where new documents begin
-- Fallback: treats PDF as single document if AI fails
+### 4. Document Aggregation Strategy
+The application groups pages into documents based on identifier fields found in OCR results:
 
-#### Manual Boundary Detection Strategy
-- Default implementation treats PDF as a single document
-- Can be extended to implement custom boundary detection logic
-- No external service calls required
-- Useful when you need custom document splitting logic based on your specific requirements
-
-### 4. PDF Splitter Service
-- Uses PdfSharp library to manipulate PDF files
-- Splits PDF at boundaries detected by the configured strategy
-- Creates individual PDF files for each document
+- Extracts identifier field from each page's OCR data
+- Groups pages with matching identifiers into the same document
+- Configurable field name (default: "identifier")
+- Pages without identifiers (field not found, empty, or null) are treated as separate single-page documents using `page_{number}` as the identifier
 
 ### 5. Document Intelligence Service
 - Uses Azure Document Intelligence (Form Recognizer)
+- Analyzes each page image individually
 - Extracts:
   - Raw text content
-  - Key-value pairs (structured fields)
+  - Key-value pairs (structured fields including identifiers)
   - Tables
   - Document metadata
-- Returns structured JSON data
+- Returns structured JSON data per page
+
+### 6. Image to PDF Service
+- Creates PDF documents from collections of page images
+- Uses PdfSharp library to create multi-page PDFs
+- Preserves page order based on original page numbers
 
 ## Data Flow
 
 1. **Input**: Queue message with blob reference
    
-   AI-Based Detection:
+   Default identifier:
    ```json
    {
      "BlobName": "upload-2025-01-10.pdf",
@@ -106,20 +114,22 @@ The application supports two strategies for detecting document boundaries:
    }
    ```
    
-   Manual Detection:
+   Custom identifier field:
    ```json
    {
      "BlobName": "upload-2025-01-10.pdf",
      "ContainerName": "uploaded-pdfs",
-     "UseManualDetection": true
+     "IdentifierFieldName": "documentId"
    }
    ```
 
 2. **Processing**:
    - Download PDF from blob storage
-   - AI analysis to find document boundaries
-   - Split PDF into individual documents
-   - Analyze each document with Document Intelligence
+   - Convert each page to an image
+   - Submit images for OCR analysis (batch processing)
+   - Extract identifier field from each page's OCR results
+   - Group pages by identifier value
+   - Create PDF for each document group
    - Upload results to processed-documents container
 
 3. **Output**: 
@@ -128,9 +138,18 @@ The application supports two strategies for detecting document boundaries:
    ```json
    {
      "OriginalFileName": "upload-2025-01-10.pdf",
-     "TotalDocuments": 3,
+     "TotalDocuments": 2,
      "ProcessedAt": "2025-01-10T12:00:00Z",
-     "Documents": [...]
+     "Documents": [
+       {
+         "DocumentNumber": 1,
+         "PageCount": 3,
+         "PageNumbers": [1, 2, 5],
+         "Identifier": "4314",
+         "ExtractedData": {...},
+         "OutputBlobName": "upload-2025-01-10_doc_1.pdf"
+       }
+     ]
    }
    ```
 

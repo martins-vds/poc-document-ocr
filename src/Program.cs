@@ -17,6 +17,9 @@ builder.Services
 builder.Services.AddScoped<IPdfSplitterService, PdfSplitterService>();
 builder.Services.AddScoped<IDocumentIntelligenceService, DocumentIntelligenceService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+builder.Services.AddScoped<IPdfToImageService, PdfToImageService>();
+builder.Services.AddScoped<IDocumentAggregatorService, DocumentAggregatorService>();
+builder.Services.AddScoped<IImageToPdfService, ImageToPdfService>();
 
 // Register document boundary detection strategies
 builder.Services.AddScoped<AiBoundaryDetectionStrategy>();

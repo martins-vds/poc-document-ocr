@@ -61,4 +61,4 @@ When adding new tests:
 - **Service Tests**: 2
 - **Model Tests**: 7
 
-Critical business logic in model initialization and service configuration is covered.
+Critical model validation, default value initialization, and service configuration validation are covered.

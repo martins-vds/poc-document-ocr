@@ -1,6 +1,6 @@
 # Document OCR Processor
 
-This is an Azure Functions application that processes PDF files containing multiple documents. The solution uses Azure AI Foundry and Azure Document Intelligence to split PDFs into individual documents and extract information from them.
+This is an Azure Functions application that processes PDF files containing multiple documents. The solution uses Azure Document Intelligence to analyze individual pages and then aggregates them into documents based on a configurable identifier field.
 
 ## Documentation
 
@@ -16,23 +16,27 @@ The application follows this workflow:
 1. **Email Receipt**: An email with a PDF attachment is received
 2. **Logic App Processing**: A Logic App uploads the PDF to Azure Storage and sends a message to a Storage Queue
 3. **Azure Function Trigger**: An Azure Function is triggered by the queue message
-4. **Document Splitting**: The function uses Azure AI Foundry to detect document boundaries within the PDF
-5. **PDF Splitting**: The PDF is split into individual documents based on detected boundaries
-6. **Document Analysis**: Each document is analyzed using Azure Document Intelligence to extract information
-7. **Results Storage**: Individual documents and analysis results are saved to Azure Storage
+4. **Page Image Conversion**: The PDF is split into individual page images
+5. **Batch OCR Analysis**: Each page image is submitted to Azure Document Intelligence for OCR analysis
+6. **Document Aggregation**: Pages are grouped into documents based on a configurable identifier field (e.g., document ID)
+7. **PDF Creation**: Individual PDFs are created for each aggregated document
+8. **Results Storage**: Individual documents and analysis results are saved to Azure Storage
 
 ## Components
 
 ### Services
 
-- **PdfSplitterService**: Splits multi-document PDFs into individual documents using AI-detected boundaries
-- **AiFoundryService**: Uses Azure AI Foundry to intelligently detect where documents begin in a PDF
-- **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from documents
+- **PdfToImageService**: Converts PDF pages into individual PNG images for processing
+- **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from document images
+- **DocumentAggregatorService**: Groups pages into documents based on identifier fields found in OCR results
+- **ImageToPdfService**: Creates PDF documents from collections of page images
 - **BlobStorageService**: Handles all blob storage operations for uploading and downloading files
 
 ### Models
 
-- **QueueMessage**: Represents the message received from the queue with blob information
+- **QueueMessage**: Represents the message received from the queue with blob information and identifier field name
+- **PageOcrResult**: Contains OCR results for an individual page
+- **AggregatedDocument**: Groups pages by their identifier
 - **DocumentResult**: Contains the extracted data and metadata for a single document
 - **ProcessingResult**: Contains the complete processing results for all documents in a PDF
 
@@ -64,25 +68,21 @@ Update the `local.settings.json` file with your Azure service endpoints and API 
 }
 ```
 
-### Document Boundary Detection Strategies
+### Document Aggregation by Identifier
 
-The application supports two strategies for detecting document boundaries:
+The application aggregates pages into documents by extracting an identifier field from each page's OCR results. Pages with the same identifier value are grouped into the same document.
 
-1. **AI-Based Detection (Default)**: Uses Azure AI Foundry to automatically detect where documents begin based on content analysis
-   - Set `"DocumentBoundaryDetection:UseManual": "false"` (or omit the setting)
-   - Requires Azure AI Foundry configuration
-
-2. **Manual Detection**: Allows you to implement custom boundary detection logic
-   - Set `"DocumentBoundaryDetection:UseManual": "true"`
-   - Set `UseManualDetection: true` in the queue message
-   - Extend `ManualBoundaryDetectionStrategy` class to implement your own detection logic
-   - Does not require Azure AI Foundry configuration
+**Key Features:**
+- Configurable identifier field name (default: "identifier")
+- Automatically groups pages by identifier
+- Pages without a valid identifier are treated as individual documents
+- Supports any string-based identifier field
 
 ## Queue Message Format
 
 The function expects queue messages in the following JSON format:
 
-### AI-Based Detection (Default)
+### Basic Usage (Default Identifier)
 ```json
 {
     "BlobName": "document.pdf",
@@ -90,16 +90,20 @@ The function expects queue messages in the following JSON format:
 }
 ```
 
-### Manual Boundary Detection
+This uses the default identifier field name "identifier".
+
+### Custom Identifier Field
 ```json
 {
     "BlobName": "document.pdf",
     "ContainerName": "uploaded-pdfs",
-    "UseManualDetection": true
+    "IdentifierFieldName": "documentId"
 }
 ```
 
-When `UseManualDetection` is set to `true`, the system will use the `ManualBoundaryDetectionStrategy`. By default, this treats the PDF as a single document. You can extend this class to implement your own custom boundary detection logic based on your specific requirements.
+This tells the processor to look for a field named "documentId" in the OCR results to group pages into documents.
+
+**Example:** If page 1 has `documentId: "4314"` and page 32 also has `documentId: "4314"`, both pages will be grouped into the same document PDF.
 
 ## Utility Scripts
 

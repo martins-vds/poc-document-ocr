@@ -14,7 +14,6 @@ builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
 
-builder.Services.AddScoped<IPdfSplitterService, PdfSplitterService>();
 builder.Services.AddScoped<IDocumentIntelligenceService, DocumentIntelligenceService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IPdfToImageService, PdfToImageService>();
@@ -37,9 +36,5 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();
-
-// Register document boundary detection strategies
-builder.Services.AddScoped<AiBoundaryDetectionStrategy>();
-builder.Services.AddScoped<ManualBoundaryDetectionStrategy>();
 
 builder.Build().Run();

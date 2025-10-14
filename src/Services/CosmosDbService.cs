@@ -31,11 +31,9 @@ public class CosmosDbService : ICosmosDbService
         }
         catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            _logger.LogError(ex, "Cosmos DB container not found. Please ensure the database and container exist. Database: {Database}, Container: {Container}", 
-                _container.Database.Id, _container.Id);
-            throw new InvalidOperationException(
-                $"Cosmos DB container not found. Please create the database and container as documented in DEPLOYMENT.md. Database: {_container.Database.Id}, Container: {_container.Id}", 
-                ex);
+            _logger.LogError(ex, "Cosmos DB container not found. Please ensure the database and container exist. Database: {Database}, Container: {Container}", _container.Database.Id, _container.Id);
+            var errorMessage = $"Cosmos DB container not found. Please create the database and container as documented in DEPLOYMENT.md. Database: {_container.Database.Id}, Container: {_container.Id}";
+            throw new InvalidOperationException(errorMessage, ex);
         }
         catch (CosmosException ex)
         {

@@ -105,9 +105,14 @@ When `UseManualDetection` is set to `true`, the system will use the `ManualBound
 
 A collection of helpful utility scripts is available in the [`utils`](utils/) directory:
 
+- **Base64 File Encoder** (`utils/encode_base64.py`): Python script to encode any file to base64 representation
+  - Useful for encoding files for API requests, JSON embedding, and testing base64 file handling
+  - No additional dependencies required (uses built-in Python libraries)
 - **PDF Splitter** (`utils/split_pdf.py`): Python script to split a multi-page PDF into individual single-page PDF files
   - Useful for creating test data and preparing PDFs for processing
-  - See [`utils/README.md`](utils/README.md) for usage instructions
+  - Requires pypdf library
+
+See [`utils/README.md`](utils/README.md) for detailed usage instructions for all utility scripts.
 
 ## Building and Running
 

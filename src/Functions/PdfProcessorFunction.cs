@@ -9,12 +9,15 @@ namespace DocumentOcrProcessor.Functions;
 
 public class PdfProcessorFunction
 {
+    private const string ProcessedDocumentsContainer = "processed-documents";
+    
     private readonly ILogger<PdfProcessorFunction> _logger;
     private readonly IPdfToImageService _pdfToImageService;
     private readonly IDocumentIntelligenceService _documentIntelligenceService;
     private readonly IDocumentAggregatorService _documentAggregatorService;
     private readonly IImageToPdfService _imageToPdfService;
     private readonly IBlobStorageService _blobStorageService;
+    private readonly ICosmosDbService _cosmosDbService;
 
     public PdfProcessorFunction(
         ILogger<PdfProcessorFunction> logger,
@@ -22,7 +25,8 @@ public class PdfProcessorFunction
         IDocumentIntelligenceService documentIntelligenceService,
         IDocumentAggregatorService documentAggregatorService,
         IImageToPdfService imageToPdfService,
-        IBlobStorageService blobStorageService)
+        IBlobStorageService blobStorageService,
+        ICosmosDbService cosmosDbService)
     {
         _logger = logger;
         _pdfToImageService = pdfToImageService;
@@ -30,6 +34,7 @@ public class PdfProcessorFunction
         _documentAggregatorService = documentAggregatorService;
         _imageToPdfService = imageToPdfService;
         _blobStorageService = blobStorageService;
+        _cosmosDbService = cosmosDbService;
     }
 
     [Function("PdfProcessorFunction")]
@@ -91,7 +96,7 @@ public class PdfProcessorFunction
                 TotalDocuments = aggregatedDocuments.Count
             };
 
-            var outputContainerClient = await _blobStorageService.GetContainerClientAsync("processed-documents");
+            var outputContainerClient = await _blobStorageService.GetContainerClientAsync(ProcessedDocumentsContainer);
 
             for (int i = 0; i < aggregatedDocuments.Count; i++)
             {
@@ -130,6 +135,25 @@ public class PdfProcessorFunction
 
                 processingResult.Documents.Add(documentResult);
                 _logger.LogInformation("Saved document {Number} to blob: {BlobName}", documentNumber, outputBlobName);
+
+                // Persist to Cosmos DB
+                var blobUrl = outputBlobClient.Uri.ToString();
+                var cosmosEntity = new DocumentOcrEntity
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DocumentNumber = documentNumber,
+                    OriginalFileName = message.BlobName,
+                    Identifier = aggregatedDoc.Identifier,
+                    PageCount = aggregatedDoc.Pages.Count,
+                    PageNumbers = aggregatedDoc.Pages.Select(p => p.PageNumber).OrderBy(p => p).ToList(),
+                    PdfBlobUrl = blobUrl,
+                    ExtractedData = combinedExtractedData,
+                    ProcessedAt = DateTime.UtcNow,
+                    ContainerName = ProcessedDocumentsContainer,
+                    BlobName = outputBlobName
+                };
+
+                await _cosmosDbService.CreateDocumentAsync(cosmosEntity);
 
                 pdfStreamResult.Dispose();
             }

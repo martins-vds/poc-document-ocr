@@ -21,6 +21,23 @@ builder.Services.AddScoped<IPdfToImageService, PdfToImageService>();
 builder.Services.AddScoped<IDocumentAggregatorService, DocumentAggregatorService>();
 builder.Services.AddScoped<IImageToPdfService, ImageToPdfService>();
 
+// Register Cosmos DB client as singleton
+builder.Services.AddSingleton(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var endpoint = configuration["CosmosDb:Endpoint"];
+    var key = configuration["CosmosDb:Key"];
+
+    if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(key))
+    {
+        throw new InvalidOperationException("Cosmos DB configuration is missing. Please configure CosmosDb:Endpoint and CosmosDb:Key.");
+    }
+
+    return new Microsoft.Azure.Cosmos.CosmosClient(endpoint, key);
+});
+
+builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();
+
 // Register document boundary detection strategies
 builder.Services.AddScoped<AiBoundaryDetectionStrategy>();
 builder.Services.AddScoped<ManualBoundaryDetectionStrategy>();

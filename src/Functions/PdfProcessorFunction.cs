@@ -9,6 +9,8 @@ namespace DocumentOcrProcessor.Functions;
 
 public class PdfProcessorFunction
 {
+    private const string ProcessedDocumentsContainer = "processed-documents";
+    
     private readonly ILogger<PdfProcessorFunction> _logger;
     private readonly IPdfToImageService _pdfToImageService;
     private readonly IDocumentIntelligenceService _documentIntelligenceService;
@@ -94,7 +96,7 @@ public class PdfProcessorFunction
                 TotalDocuments = aggregatedDocuments.Count
             };
 
-            var outputContainerClient = await _blobStorageService.GetContainerClientAsync("processed-documents");
+            var outputContainerClient = await _blobStorageService.GetContainerClientAsync(ProcessedDocumentsContainer);
 
             for (int i = 0; i < aggregatedDocuments.Count; i++)
             {
@@ -147,7 +149,7 @@ public class PdfProcessorFunction
                     PdfBlobUrl = blobUrl,
                     ExtractedData = combinedExtractedData,
                     ProcessedAt = DateTime.UtcNow,
-                    ContainerName = "processed-documents",
+                    ContainerName = ProcessedDocumentsContainer,
                     BlobName = outputBlobName
                 };
 

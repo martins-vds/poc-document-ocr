@@ -108,6 +108,11 @@ A collection of helpful utility scripts is available in the [`utils`](utils/) di
 - **Base64 File Encoder** (`utils/encode_base64.py`): Python script to encode any file to base64 representation
   - Useful for encoding files for API requests, JSON embedding, and testing base64 file handling
   - No additional dependencies required (uses built-in Python libraries)
+- **JSON Schema Generator** (`utils/generate_json_schema.py`): Python script to generate JSON schemas from JSON files
+  - Analyzes JSON structure and generates compliant JSON Schema Draft 7 specifications
+  - Uses the robust `genson` library for professional schema generation with advanced features
+  - Useful for API documentation, data validation, and testing JSON data compliance
+  - Requires genson library (`pip install genson`)
 - **PDF Splitter** (`utils/split_pdf.py`): Python script to split a multi-page PDF into individual single-page PDF files
   - Useful for creating test data and preparing PDFs for processing
   - Requires pypdf library

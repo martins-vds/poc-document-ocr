@@ -1,6 +1,6 @@
 # Utility Scripts
 
-This directory contains utility scripts for working with files and PDFs.
+This directory contains utility scripts for working with files, PDFs, and JSON data.
 
 ## Base64 File Encoder (`encode_base64.py`)
 
@@ -68,6 +68,100 @@ This utility is helpful for:
 - Testing the Document OCR Processor with base64-encoded PDFs
 - Converting files for web applications or data URIs
 - Preparing test data for applications that expect base64 input
+
+## JSON Schema Generator (`generate_json_schema.py`)
+
+A Python utility that reads a JSON file and generates a JSON schema based on the structure and data types found in the JSON data. This utility uses the `genson` library for robust and professional schema generation.
+
+### Schema Prerequisites
+
+- Python 3.8 or higher
+- genson library
+
+### Schema Installation
+
+Install the required Python dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Or install genson directly:
+
+```bash
+pip install genson
+```
+
+### Schema Usage
+
+Basic usage:
+
+```bash
+python generate_json_schema.py <input_json_file>
+```
+
+### Schema Examples
+
+Generate schema for a JSON file:
+
+```bash
+python generate_json_schema.py data.json
+```
+
+Generate schema for configuration file:
+
+```bash
+python generate_json_schema.py config.json
+```
+
+Save schema output to a file:
+
+```bash
+python generate_json_schema.py data.json > schema.json
+```
+
+Generate schema with full path:
+
+```bash
+python generate_json_schema.py /path/to/file.json
+```
+
+### Schema Command Options
+
+- `input_json_file`: Path to the input JSON file to analyze (required)
+- `-h, --help`: Show help message
+- `-v, --version`: Show version information
+
+### Schema Output Format
+
+The script outputs the JSON schema to stdout (console), while status messages are sent to stderr. The generated schema follows the JSON Schema Draft 7 specification and includes:
+
+- **Advanced Type Inference**: Automatically detects and properly handles all JSON types
+- **Schema Merging**: Combines multiple examples to create comprehensive schemas
+- **Optional Properties**: Intelligently determines which properties are required vs optional
+- **Complex Structures**: Handles deeply nested objects and arrays with mixed types
+- **Pattern Recognition**: Identifies common patterns and constraints in the data
+
+### Genson Library Features
+
+The utility leverages the `genson` library which provides:
+
+- **Robust Type Detection**: More accurate than manual type inference
+- **Schema Optimization**: Generates clean, minimal schemas without redundancy
+- **Standards Compliance**: Full JSON Schema Draft 7 specification support
+- **Performance**: Efficient processing of large JSON files
+- **Flexibility**: Handles edge cases and complex data structures gracefully
+
+### Schema Use Cases
+
+This utility is helpful for:
+
+- **API Documentation**: Creating precise schema definitions for REST APIs
+- **Data Validation**: Generating validation rules for JSON configuration files
+- **Testing Frameworks**: Creating schemas for automated JSON data validation
+- **Documentation**: Generating comprehensive data structure documentation
+- **Integration**: Helping other systems understand JSON data formats
+- **Azure Function Development**: Validating input/output schemas for the Document OCR Processor
 
 ## PDF Splitter (`split_pdf.py`)
 

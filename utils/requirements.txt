@@ -1,2 +1,5 @@
 # Python dependencies for PDF utilities
 pypdf>=3.0.0
+
+# Python dependencies for JSON schema generation
+genson>=1.2.0

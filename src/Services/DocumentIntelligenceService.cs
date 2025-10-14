@@ -77,7 +77,10 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var dateValue = fieldValue.Value.AsDate();
                                 fieldData["valueDate"] = dateValue;
                             }
-                            catch { }
+                            catch (InvalidOperationException ex)
+                            {
+                                _logger.LogWarning("Failed to extract date value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
                             break;
                         case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Time:
                             try
@@ -85,7 +88,10 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var timeValue = fieldValue.Value.AsTime();
                                 fieldData["valueTime"] = timeValue;
                             }
-                            catch { }
+                            catch (InvalidOperationException ex)
+                            {
+                                _logger.LogWarning("Failed to extract time value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
                             break;
                         case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.PhoneNumber:
                             var phoneValue = fieldValue.Value.AsPhoneNumber();
@@ -98,7 +104,10 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var doubleValue = fieldValue.Value.AsDouble();
                                 fieldData["valueNumber"] = doubleValue;
                             }
-                            catch { }
+                            catch (InvalidOperationException ex)
+                            {
+                                _logger.LogWarning("Failed to extract double value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
                             break;
                         case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Int64:
                             try
@@ -106,10 +115,14 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var int64Value = fieldValue.Value.AsInt64();
                                 fieldData["valueInteger"] = int64Value;
                             }
-                            catch { }
+                            catch (InvalidOperationException ex)
+                            {
+                                _logger.LogWarning("Failed to extract integer value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
                             break;
                         case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Signature:
-                            fieldData["valueSignature"] = fieldValue.FieldType.ToString();
+                            // Signature fields indicate presence of a signature, not the actual signature data
+                            fieldData["valueSignature"] = "present";
                             break;
                     }
 

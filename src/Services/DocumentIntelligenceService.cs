@@ -7,6 +7,7 @@ namespace DocumentOcrProcessor.Services;
 
 public class DocumentIntelligenceService : IDocumentIntelligenceService
 {
+    private const string SignaturePresent = "present";
     private readonly ILogger<DocumentIntelligenceService> _logger;
     private readonly DocumentAnalysisClient _client;
 
@@ -38,41 +39,103 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
             _logger.LogInformation("Document analysis completed. Found {PageCount} pages", result.Pages.Count);
 
             extractedData["PageCount"] = result.Pages.Count;
-            extractedData["Content"] = result.Content;
 
-            if (result.KeyValuePairs.Count > 0)
+            // Extract fields from the first document if available
+            if (result.Documents.Count > 0)
             {
-                var keyValuePairs = new Dictionary<string, string>();
-                foreach (var kvp in result.KeyValuePairs)
-                {
-                    var key = kvp.Key.Content ?? "Unknown";
-                    var value = kvp.Value?.Content ?? string.Empty;
-                    keyValuePairs[key] = value;
-                }
-                extractedData["KeyValuePairs"] = keyValuePairs;
-                _logger.LogInformation("Extracted {Count} key-value pairs", keyValuePairs.Count);
-            }
+                var document = result.Documents[0];
+                var fields = new Dictionary<string, object>();
 
-            if (result.Tables.Count > 0)
-            {
-                var tables = new List<object>();
-                foreach (var table in result.Tables)
+                foreach (var field in document.Fields)
                 {
-                    var tableData = new
+                    var fieldName = field.Key;
+                    var fieldValue = field.Value;
+
+                    // Create a structured representation of each field
+                    var fieldData = new Dictionary<string, object>
                     {
-                        RowCount = table.RowCount,
-                        ColumnCount = table.ColumnCount,
-                        Cells = table.Cells.Select(c => new
-                        {
-                            c.RowIndex,
-                            c.ColumnIndex,
-                            c.Content
-                        }).ToList()
+                        ["type"] = fieldValue.FieldType.ToString(),
+                        ["confidence"] = fieldValue.Confidence
                     };
-                    tables.Add(tableData);
+
+                    // Add the appropriate value based on field type
+                    if (fieldValue.Content != null)
+                    {
+                        fieldData["content"] = fieldValue.Content;
+                    }
+
+                    // Add the typed value
+                    switch (fieldValue.FieldType)
+                    {
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.String:
+                            var stringValue = fieldValue.Value.AsString();
+                            if (stringValue != null)
+                                fieldData["valueString"] = stringValue;
+                            break;
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Date:
+                            try
+                            {
+                                var dateValue = fieldValue.Value.AsDate();
+                                fieldData["valueDate"] = dateValue;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("Failed to extract date value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
+                            break;
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Time:
+                            try
+                            {
+                                var timeValue = fieldValue.Value.AsTime();
+                                fieldData["valueTime"] = timeValue;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("Failed to extract time value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
+                            break;
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.PhoneNumber:
+                            var phoneValue = fieldValue.Value.AsPhoneNumber();
+                            if (phoneValue != null)
+                                fieldData["valuePhoneNumber"] = phoneValue;
+                            break;
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Double:
+                            try
+                            {
+                                var doubleValue = fieldValue.Value.AsDouble();
+                                fieldData["valueNumber"] = doubleValue;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("Failed to extract double value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
+                            break;
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Int64:
+                            try
+                            {
+                                var int64Value = fieldValue.Value.AsInt64();
+                                fieldData["valueInteger"] = int64Value;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("Failed to extract integer value for field {FieldName}: {Message}", fieldName, ex.Message);
+                            }
+                            break;
+                        case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Signature:
+                            // Signature fields indicate presence of a signature, not the actual signature data
+                            fieldData["valueSignature"] = SignaturePresent;
+                            break;
+                    }
+
+                    fields[fieldName] = fieldData;
                 }
-                extractedData["Tables"] = tables;
-                _logger.LogInformation("Extracted {Count} tables", tables.Count);
+
+                extractedData["Fields"] = fields;
+                _logger.LogInformation("Extracted {Count} fields from document", fields.Count);
+            }
+            else
+            {
+                _logger.LogWarning("No documents found in analysis result");
             }
         }
         catch (Exception ex)

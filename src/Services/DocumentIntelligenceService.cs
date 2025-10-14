@@ -7,6 +7,7 @@ namespace DocumentOcrProcessor.Services;
 
 public class DocumentIntelligenceService : IDocumentIntelligenceService
 {
+    private const string SignaturePresent = "present";
     private readonly ILogger<DocumentIntelligenceService> _logger;
     private readonly DocumentAnalysisClient _client;
 
@@ -77,7 +78,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var dateValue = fieldValue.Value.AsDate();
                                 fieldData["valueDate"] = dateValue;
                             }
-                            catch (InvalidOperationException ex)
+                            catch (Exception ex)
                             {
                                 _logger.LogWarning("Failed to extract date value for field {FieldName}: {Message}", fieldName, ex.Message);
                             }
@@ -88,7 +89,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var timeValue = fieldValue.Value.AsTime();
                                 fieldData["valueTime"] = timeValue;
                             }
-                            catch (InvalidOperationException ex)
+                            catch (Exception ex)
                             {
                                 _logger.LogWarning("Failed to extract time value for field {FieldName}: {Message}", fieldName, ex.Message);
                             }
@@ -104,7 +105,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var doubleValue = fieldValue.Value.AsDouble();
                                 fieldData["valueNumber"] = doubleValue;
                             }
-                            catch (InvalidOperationException ex)
+                            catch (Exception ex)
                             {
                                 _logger.LogWarning("Failed to extract double value for field {FieldName}: {Message}", fieldName, ex.Message);
                             }
@@ -115,14 +116,14 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                                 var int64Value = fieldValue.Value.AsInt64();
                                 fieldData["valueInteger"] = int64Value;
                             }
-                            catch (InvalidOperationException ex)
+                            catch (Exception ex)
                             {
                                 _logger.LogWarning("Failed to extract integer value for field {FieldName}: {Message}", fieldName, ex.Message);
                             }
                             break;
                         case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Signature:
                             // Signature fields indicate presence of a signature, not the actual signature data
-                            fieldData["valueSignature"] = "present";
+                            fieldData["valueSignature"] = SignaturePresent;
                             break;
                     }
 

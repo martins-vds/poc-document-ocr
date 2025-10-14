@@ -45,8 +45,8 @@ The application follows this workflow:
 - .NET 8.0 SDK
 - Azure subscription with the following services:
   - Azure Storage Account
-  - Azure AI Foundry (Azure OpenAI)
   - Azure Document Intelligence (formerly Form Recognizer)
+  - Azure Cosmos DB
   - Azure Functions
 
 ## Configuration
@@ -59,11 +59,12 @@ Update the `local.settings.json` file with your Azure service endpoints and API 
     "Values": {
         "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=yourStorageAccount;AccountKey=yourKey;EndpointSuffix=core.windows.net",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "AzureAiFoundry:Endpoint": "https://your-ai-foundry-endpoint.openai.azure.com",
-        "AzureAiFoundry:ApiKey": "your-ai-foundry-api-key",
         "DocumentIntelligence:Endpoint": "https://your-document-intelligence-endpoint.cognitiveservices.azure.com/",
         "DocumentIntelligence:ApiKey": "your-document-intelligence-api-key",
-        "DocumentBoundaryDetection:UseManual": "false"
+        "CosmosDb:Endpoint": "https://your-cosmosdb-account.documents.azure.com:443/",
+        "CosmosDb:Key": "your-cosmosdb-key",
+        "CosmosDb:DatabaseName": "DocumentOcrDb",
+        "CosmosDb:ContainerName": "ProcessedDocuments"
     }
 }
 ```

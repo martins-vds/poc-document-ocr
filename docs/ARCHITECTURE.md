@@ -191,9 +191,9 @@ The application groups pages into documents based on identifier fields found in 
 
 ## Error Handling
 
-- **AI Foundry Failures**: Falls back to treating PDF as single document
 - **Document Intelligence Failures**: Logs error and continues with next document
 - **Queue Poison Messages**: Automatically moved to poison queue after retry limit
+- **Cosmos DB Failures**: Logs error but document processing completes
 
 ## Security
 

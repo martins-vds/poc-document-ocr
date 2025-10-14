@@ -70,7 +70,7 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
 - Orchestrates the document processing workflow:
   1. Convert PDF pages to images
   2. Submit images for OCR analysis
-  3. Aggregate pages by identifier
+  3. Aggregate pages by identifier (specified in queue message via `IdentifierFieldName`)
   4. Create PDFs from aggregated pages
   5. Upload results to storage
 
@@ -85,7 +85,7 @@ The application groups pages into documents based on identifier fields found in 
 - Extracts identifier field from each page's OCR data
 - Groups pages with matching identifiers into the same document
 - Configurable field name (default: "identifier")
-- Pages without valid identifiers are treated as separate documents
+- Pages without identifiers (field not found, empty, or null) are treated as separate single-page documents using `page_{number}` as the identifier
 
 ### 5. Document Intelligence Service
 - Uses Azure Document Intelligence (Form Recognizer)

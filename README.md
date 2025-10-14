@@ -75,8 +75,8 @@ The application aggregates pages into documents by extracting an identifier fiel
 **Key Features:**
 - Configurable identifier field name (default: "identifier")
 - Automatically groups pages by identifier
-- Pages without a valid identifier are treated as individual documents
-- Supports any string-based identifier field
+- Pages without an identifier (field not found, empty, or null) are treated as individual single-page documents
+- Supports any string-based identifier field from OCR results
 
 ## Queue Message Format
 

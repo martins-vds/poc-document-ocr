@@ -135,12 +135,12 @@ def update_function_settings(
     # Validate and fix Document Intelligence endpoint URL
     if not doc_intelligence_endpoint.endswith('/'):
         print("Warning: Document Intelligence endpoint should end with '/' - adding it automatically", file=sys.stderr)
-        doc_intelligence_endpoint = doc_intelligence_endpoint + '/'
+        doc_intelligence_endpoint += '/'
     
     # Validate and fix Cosmos DB endpoint URL
     if not cosmosdb_endpoint.endswith('/'):
         print("Warning: Cosmos DB endpoint should end with '/' - adding it automatically", file=sys.stderr)
-        cosmosdb_endpoint = cosmosdb_endpoint + '/'
+        cosmosdb_endpoint += '/'
     
     # Load template or existing settings
     if settings_path.exists():
@@ -190,7 +190,7 @@ def update_webapp_settings(
     # Validate and fix Cosmos DB endpoint URL
     if not cosmosdb_endpoint.endswith('/'):
         print("Warning: Cosmos DB endpoint should end with '/' - adding it automatically", file=sys.stderr)
-        cosmosdb_endpoint = cosmosdb_endpoint + '/'
+        cosmosdb_endpoint += '/'
     
     # Load existing settings or create from template
     if settings_path.exists():

@@ -291,6 +291,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.5.0' = {
     reserved: true
     skuName: 'P1v3'
     skuCapacity: 1
+    zoneRedundant: false
     tags: tags
   }
 }

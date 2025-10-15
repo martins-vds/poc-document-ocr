@@ -85,6 +85,12 @@ The review interface provides a split view with the PDF on the left and extracte
 4. Changes are tracked automatically
 5. Click "Save Changes" to persist your edits
 
+**Data Validation Notes:**
+- Field values are stored as text strings
+- No automatic format validation is applied
+- Review the PDF to ensure accurate transcription
+- Empty values are allowed if the field was not found in the original document
+
 ### Assignment Workflow
 
 Documents can be assigned to reviewers for tracking purposes:
@@ -98,9 +104,8 @@ Documents can be assigned to reviewers for tracking purposes:
 
 Documents have color-coded status badges:
 
-- **Pending** (Yellow/Warning): Document awaiting review
-- **Reviewed** (Green/Success): Document has been reviewed and approved
-- **In Progress** (Blue/Info): Document currently being reviewed (optional status)
+- **Pending** (Yellow/Warning): Document awaiting review - default status for newly processed documents
+- **Reviewed** (Green/Success): Document has been reviewed and approved by a reviewer
 
 ## Best Practices
 

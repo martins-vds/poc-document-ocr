@@ -96,23 +96,31 @@ azd env set AZURE_AD_DOMAIN <your-domain>  # e.g., contoso.onmicrosoft.com
 
 #### Azure AD Configuration
 
-Before deploying, create an Azure AD app registration for the web application:
+**IMPORTANT**: Complete this step BEFORE running the azd commands, as you'll need the CLIENT_ID for configuration.
+
+Create an Azure AD app registration for the web application:
 
 1. **Create App Registration**:
    - Navigate to Azure Portal → Azure Active Directory → App registrations
    - Click "New registration"
-   - Name: `DocumentOcrWebApp-{environment}`
-   - Redirect URI: `https://app-documentocr-{env}-{suffix}.azurewebsites.net/signin-oidc`
+   - Name: `DocumentOcrWebApp-dev` (or your environment name)
+   - Redirect URI: You can use a placeholder initially like `https://localhost/signin-oidc`
    - Click "Register"
 
-2. **Note the Application (client) ID** - use this for `WEB_APP_CLIENT_ID`
+2. **Note the Application (client) ID** - you'll use this for `WEB_APP_CLIENT_ID` in the next step
 
-3. **Configure Authentication**:
-   - Under "Authentication", add redirect URI (will be updated after deployment)
+3. **Note your Tenant ID and Domain**:
+   - Tenant ID is shown on the Overview page
+   - Domain is typically `yourcompany.onmicrosoft.com`
+
+4. **Configure Authentication** (after deployment):
+   - Under "Authentication", update the redirect URI to match your deployed app
+   - Example: `https://app-documentocr-dev-abc123xyz.azurewebsites.net/signin-oidc`
+   - The actual URL will be output after deployment
    - Enable "ID tokens" under Implicit grant and hybrid flows
    - Save changes
 
-4. **API Permissions** (if needed):
+5. **API Permissions** (if needed):
    - Microsoft Graph → Delegated permissions → User.Read
    - Grant admin consent if required
 

@@ -287,8 +287,8 @@ azd provision
 
 Edit the Bicep files in the `infra/` folder:
 
-- `infra/main.bicep` - Main template
-- `infra/modules/*.bicep` - Individual resource modules
+- `infra/main-avm.bicep` - Main template using Azure Verified Modules (recommended)
+- `infra/modules/*.bicep` - Custom resource modules for complex scenarios
 
 After changes, run:
 

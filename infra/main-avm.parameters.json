@@ -22,6 +22,15 @@
     },
     "runningOnGh": {
       "value": "${GITHUB_ACTIONS}"
+    },
+    "tenantId": {
+      "value": "${AZURE_TENANT_ID}"
+    },
+    "webAppClientId": {
+      "value": "${WEB_APP_CLIENT_ID}"
+    },
+    "azureAdDomain": {
+      "value": "${AZURE_AD_DOMAIN}"
     }
   }
 }

@@ -16,6 +16,10 @@ services:
     project: ./src/DocumentOcrProcessor
     language: dotnet
     host: function
+  web:
+    project: ./src/DocumentOcrWebApp
+    language: dotnet
+    host: appservice
 
 hooks:
   postprovision:

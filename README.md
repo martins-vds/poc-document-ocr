@@ -1,6 +1,6 @@
 # Document OCR Processor
 
-This is an Azure Functions application that processes PDF files containing multiple documents. The solution uses Azure Document Intelligence to analyze individual pages and then aggregates them into documents based on a configurable identifier field.
+This is a complete Azure solution that processes PDF files containing multiple documents using Azure Document Intelligence, with a web application for manual document review. The solution uses Azure Document Intelligence to analyze individual pages, aggregates them into documents based on a configurable identifier field, and stores the results in Azure Cosmos DB for review.
 
 ## Documentation
 
@@ -23,25 +23,40 @@ The application follows this workflow:
 5. **Batch OCR Analysis**: Each page image is submitted to Azure Document Intelligence for OCR analysis
 6. **Document Aggregation**: Pages are grouped into documents based on a configurable identifier field (e.g., document ID)
 7. **PDF Creation**: Individual PDFs are created for each aggregated document
-8. **Results Storage**: Individual documents and analysis results are saved to Azure Storage
+8. **Results Storage**: Individual documents and analysis results are saved to Azure Storage and Cosmos DB
+9. **Manual Review**: Reviewers use the web application to verify and correct OCR results
 
 ## Components
 
-### Services
+### Azure Function App (DocumentOcrProcessor)
 
+**Services:**
 - **PdfToImageService**: Converts PDF pages into individual PNG images for processing
 - **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from document images
 - **DocumentAggregatorService**: Groups pages into documents based on identifier fields found in OCR results
 - **ImageToPdfService**: Creates PDF documents from collections of page images
 - **BlobStorageService**: Handles all blob storage operations for uploading and downloading files
+- **CosmosDbService**: Manages document persistence and queries in Azure Cosmos DB
 
-### Models
-
+**Models:**
 - **QueueMessage**: Represents the message received from the queue with blob information and identifier field name
 - **PageOcrResult**: Contains OCR results for an individual page
 - **AggregatedDocument**: Groups pages by their identifier
 - **DocumentResult**: Contains the extracted data and metadata for a single document
 - **ProcessingResult**: Contains the complete processing results for all documents in a PDF
+- **DocumentOcrEntity**: Represents a document in Cosmos DB with review status and metadata
+
+### Web Application (DocumentOcrWebApp)
+
+A Blazor Server application for manual document review:
+
+**Features:**
+- **Authentication**: Microsoft Entra ID (Azure AD) authentication for secure access
+- **Document List**: View and filter documents by review status (Pending, Reviewed)
+- **Document Review**: View PDF alongside extracted OCR data
+- **Data Correction**: Edit and correct OCR results inline
+- **Assignment**: Assign documents to specific reviewers
+- **Status Tracking**: Track review status and reviewer information
 
 ## Prerequisites
 
@@ -51,6 +66,8 @@ The application follows this workflow:
   - Azure Document Intelligence (formerly Form Recognizer)
   - Azure Cosmos DB
   - Azure Functions
+  - Azure App Service (for web application)
+  - Microsoft Entra ID (Azure AD) app registration for web authentication
 
 ## Configuration
 

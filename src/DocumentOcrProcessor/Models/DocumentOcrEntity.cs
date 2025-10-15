@@ -36,4 +36,16 @@ public class DocumentOcrEntity
 
     [JsonProperty("blobName")]
     public string BlobName { get; set; } = string.Empty;
+
+    [JsonProperty("reviewStatus")]
+    public string ReviewStatus { get; set; } = "Pending";
+
+    [JsonProperty("assignedTo")]
+    public string? AssignedTo { get; set; }
+
+    [JsonProperty("reviewedBy")]
+    public string? ReviewedBy { get; set; }
+
+    [JsonProperty("reviewedAt")]
+    public DateTime? ReviewedAt { get; set; }
 }

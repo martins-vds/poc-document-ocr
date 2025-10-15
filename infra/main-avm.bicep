@@ -11,6 +11,15 @@ param environmentName string
 @description('Name of the workload')
 param workloadName string = 'documentocr'
 
+@description('Azure AD tenant ID for web app authentication')
+param tenantId string = subscription().tenantId
+
+@description('Azure AD client ID for web app authentication')
+param webAppClientId string
+
+@description('Azure AD domain for web app authentication')
+param azureAdDomain string
+
 @description('Tags to apply to all resources')
 param tags object = {
   Environment: environmentName
@@ -45,6 +54,7 @@ var storageAccountName = 'st${uniqueSuffix}'
 var documentIntelligenceName = 'di-${uniqueSuffix}'
 var cosmosDbAccountName = 'cosmos-${uniqueSuffix}'
 var functionAppName = 'func-${uniqueSuffix}'
+var webAppName = 'app-${uniqueSuffix}'
 var appServicePlanName = 'asp-${uniqueSuffix}'
 var applicationInsightsName = 'appi-${uniqueSuffix}'
 var logAnalyticsWorkspaceName = 'log-${uniqueSuffix}'
@@ -79,6 +89,11 @@ module vnet 'br/public:avm/res/network/virtual-network:0.7.1' = {
         name: 'private-endpoint-subnet'
         addressPrefix: '10.0.2.0/24'
         privateEndpointNetworkPolicies: 'Disabled'
+      }
+      {
+        name: 'webapp-integration-subnet'
+        addressPrefix: '10.0.3.0/24'
+        delegation: 'Microsoft.Web/serverFarms'
       }
     ]
     tags: tags
@@ -418,6 +433,130 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
   }
 }
 
+// Web App using AVM
+module webApp 'br/public:avm/res/web/site:0.12.0' = {
+  name: 'web-app-deployment'
+  params: {
+    name: webAppName
+    location: location
+    kind: 'app'
+    serverFarmResourceId: appServicePlan.outputs.resourceId
+    managedIdentities: {
+      systemAssigned: true
+    }
+    publicNetworkAccess: !empty(ipRules) ? 'Enabled' : 'Disabled'
+    outboundVnetRouting: {
+      allTraffic: true
+    }
+    virtualNetworkSubnetResourceId: vnet.outputs.subnetResourceIds[2]
+    httpsOnly: true
+    siteConfig: {
+      netFrameworkVersion: 'v8.0'
+      alwaysOn: true
+      ftpsState: 'Disabled'
+      minTlsVersion: '1.2'
+      http20Enabled: true
+      ipSecurityRestrictions: map(ipRules, ipRule => {
+        ipAddress: lastIndexOf(ipRule.?value, '/') == -1 ? '${ipRule.?value}/32' : ipRule.?value
+        action: 'Allow'
+      })
+      ipSecurityRestrictionsDefaultAction: 'Deny'
+      appSettings: [
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsights.outputs.connectionString
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'AzureAd__Instance'
+          value: 'https://login.microsoftonline.com/'
+        }
+        {
+          name: 'AzureAd__Domain'
+          value: azureAdDomain
+        }
+        {
+          name: 'AzureAd__TenantId'
+          value: tenantId
+        }
+        {
+          name: 'AzureAd__ClientId'
+          value: webAppClientId
+        }
+        {
+          name: 'AzureAd__CallbackPath'
+          value: '/signin-oidc'
+        }
+        {
+          name: 'CosmosDb__Endpoint'
+          value: cosmosDb.outputs.endpoint
+        }
+        {
+          name: 'CosmosDb__DatabaseName'
+          value: 'DocumentOcrDb'
+        }
+        {
+          name: 'CosmosDb__ContainerName'
+          value: 'ProcessedDocuments'
+        }
+        {
+          name: 'AzureWebJobsStorage__accountName'
+          value: storageAccountName
+        }
+      ]
+    }
+    privateEndpoints: [
+      {
+        name: '${webAppName}-pe'
+        tags: tags
+        subnetResourceId: vnet.outputs.subnetResourceIds[1]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[5].outputs.resourceId
+            }
+          ]
+        }
+        service: 'sites'
+      }
+    ]
+    diagnosticSettings: [
+      {
+        name: 'all'
+        workspaceResourceId: logAnalytics.outputs.resourceId
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+            enabled: true
+          }
+        ]
+        logCategoriesAndGroups: [
+          {
+            category: 'AppServiceHTTPLogs'
+            enabled: true
+          }
+          {
+            category: 'AppServiceConsoleLogs'
+            enabled: true
+          }
+          {
+            category: 'AppServiceAppLogs'
+            enabled: true
+          }
+          {
+            category: 'AppServiceAuthenticationLogs'
+            enabled: true
+          }
+        ]
+      }
+    ]
+    tags: union(tags, { 'azd-service-name': 'web' })
+  }
+}
+
 // Role Assignments using custom module
 // Note: AVM does not have a comprehensive role assignment module for complex scenarios
 var principalType = empty(runningOnGh) && empty(runningOnAdo) ? 'User' : 'ServicePrincipal'
@@ -443,6 +582,16 @@ module systemRoleAssignments 'modules/roleAssignments.bicep' = {
   }
 }
 
+module webAppRoleAssignments 'modules/roleAssignments.bicep' = {
+  name: 'web-app-role-assignments-deployment'
+  params: {
+    principalId: webApp.outputs.systemAssignedMIPrincipalId!
+    storageAccountName: storageAccountName
+    documentIntelligenceName: documentIntelligenceName
+    cosmosDbAccountName: cosmosDbAccountName
+  }
+}
+
 // Outputs
 output storageAccountName string = storageAccountName
 output documentIntelligenceName string = documentIntelligenceName
@@ -451,6 +600,8 @@ output cosmosDbAccountName string = cosmosDbAccountName
 output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
 output functionAppName string = functionAppName
 output functionAppUrl string = functionApp.outputs.defaultHostname
+output webAppName string = webAppName
+output webAppUrl string = 'https://${webApp.outputs.defaultHostname}'
 output applicationInsightsName string = applicationInsightsName
 output resourceGroupName string = resourceGroup().name
 output vnetName string = vnet.outputs.name

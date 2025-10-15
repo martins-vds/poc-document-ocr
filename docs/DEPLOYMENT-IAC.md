@@ -76,7 +76,7 @@ azd env new dev
 
 This creates a `.azure` folder with environment configuration.
 
-### 3. Configure Location
+### 3. Configure Location and Azure AD
 
 ```bash
 # Set the Azure region
@@ -84,7 +84,45 @@ azd env set AZURE_LOCATION eastus
 
 # Optionally, set a specific subscription
 azd env set AZURE_SUBSCRIPTION_ID <your-subscription-id>
+
+# Configure Azure AD for web app authentication
+azd env set AZURE_TENANT_ID <your-tenant-id>
+azd env set WEB_APP_CLIENT_ID <your-web-app-client-id>
+azd env set AZURE_AD_DOMAIN <your-domain>  # e.g., contoso.onmicrosoft.com
+
+# Note: You need to create an Azure AD app registration first
+# See "Azure AD Configuration" section below for details
 ```
+
+#### Azure AD Configuration
+
+**IMPORTANT**: Complete this step BEFORE running the azd commands, as you'll need the CLIENT_ID for configuration.
+
+Create an Azure AD app registration for the web application:
+
+1. **Create App Registration**:
+   - Navigate to Azure Portal → Azure Active Directory → App registrations
+   - Click "New registration"
+   - Name: `DocumentOcrWebApp-dev` (or your environment name)
+   - Redirect URI: You can use a placeholder initially like `https://localhost/signin-oidc`
+   - Click "Register"
+
+2. **Note the Application (client) ID** - you'll use this for `WEB_APP_CLIENT_ID` in the next step
+
+3. **Note your Tenant ID and Domain**:
+   - Tenant ID is shown on the Overview page
+   - Domain is typically `yourcompany.onmicrosoft.com`
+
+4. **Configure Authentication** (after deployment):
+   - Under "Authentication", update the redirect URI to match your deployed app
+   - Example: `https://app-documentocr-dev-abc123xyz.azurewebsites.net/signin-oidc`
+   - The actual URL will be output after deployment
+   - Enable "ID tokens" under Implicit grant and hybrid flows
+   - Save changes
+
+5. **API Permissions** (if needed):
+   - Microsoft Graph → Delegated permissions → User.Read
+   - Grant admin consent if required
 
 ### 4. Deploy Everything
 
@@ -95,10 +133,10 @@ azd up
 
 This single command:
 - Creates a resource group
-- Deploys all Azure resources
+- Deploys all Azure resources (Function App, Web App, Storage, Cosmos DB, etc.)
 - Configures networking and private endpoints
 - Sets up role assignments
-- Deploys the function app code
+- Deploys the function app and web app code
 
 **Deployment time:** ~15-20 minutes (first deployment)
 
@@ -249,8 +287,8 @@ azd provision
 
 Edit the Bicep files in the `infra/` folder:
 
-- `infra/main.bicep` - Main template
-- `infra/modules/*.bicep` - Individual resource modules
+- `infra/main-avm.bicep` - Main template using Azure Verified Modules (recommended)
+- `infra/modules/*.bicep` - Custom resource modules for complex scenarios
 
 After changes, run:
 

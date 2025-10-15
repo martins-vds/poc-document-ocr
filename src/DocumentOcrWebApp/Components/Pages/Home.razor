@@ -1,7 +1,13 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Document OCR Review</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+<div class="text-center">
+    <h1 class="display-4">Document OCR Review System</h1>
+    <p class="lead">Review and validate OCR-processed documents</p>
+    <hr class="my-4">
+    <p>Use this application to review documents that have been processed by the OCR system, verify extracted data, and correct any errors.</p>
+    <a class="btn btn-primary btn-lg" href="/documents" role="button">View Documents</a>
+</div>

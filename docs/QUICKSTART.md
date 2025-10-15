@@ -34,11 +34,8 @@ Edit `local.settings.json` and replace the placeholders:
     "Values": {
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "AzureAiFoundry:Endpoint": "https://YOUR-RESOURCE.openai.azure.com",
-        "AzureAiFoundry:ApiKey": "YOUR-API-KEY",
         "DocumentIntelligence:Endpoint": "https://YOUR-RESOURCE.cognitiveservices.azure.com/",
         "DocumentIntelligence:ApiKey": "YOUR-API-KEY",
-        "DocumentBoundaryDetection:UseManual": "false",
         "CosmosDb:Endpoint": "https://YOUR-COSMOSDB-ACCOUNT.documents.azure.com:443/",
         "CosmosDb:Key": "YOUR-COSMOSDB-KEY",
         "CosmosDb:DatabaseName": "DocumentOcrDb",
@@ -46,8 +43,6 @@ Edit `local.settings.json` and replace the placeholders:
     }
 }
 ```
-
-**Note**: Set `DocumentBoundaryDetection:UseManual` to `"true"` if you want to use manual boundary detection strategy instead of AI-based detection. You can extend the `ManualBoundaryDetectionStrategy` class to implement your own custom logic for detecting document boundaries. This is useful when you have specific requirements or want to avoid AI service costs.
 
 ### 3. Start Azure Storage Emulator
 
@@ -149,7 +144,6 @@ az storage blob upload \
 
 2. **Send a message to the queue**:
 
-**Option A: Using AI-based boundary detection (default)**:
 ```bash
 # Using Azure CLI
 az storage message put \
@@ -157,16 +151,13 @@ az storage message put \
   --use-emulator \
   --queue-name pdf-processing-queue \
   --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
-```
 
-**Option B: Using manual boundary detection**:
-```bash
-# Using Azure CLI - use manual detection strategy
+# With custom identifier field name
 az storage message put \
   --account-name devstoreaccount1 \
   --use-emulator \
   --queue-name pdf-processing-queue \
-  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","UseManualDetection":true}'
+  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","IdentifierFieldName":"documentId"}'
 ```
 
 Or using PowerShell:
@@ -189,10 +180,11 @@ $queue.CloudQueue.AddMessageAsync([Microsoft.Azure.Storage.Queue.CloudQueueMessa
 
 The function will automatically process the message. You should see logs in the console indicating:
 - PDF download
-- Document boundary detection
-- PDF splitting
-- Document Intelligence analysis
-- Results upload
+- PDF page to image conversion
+- Document Intelligence analysis (OCR)
+- Page aggregation by identifier field
+- PDF creation from aggregated pages
+- Results upload to blob storage and Cosmos DB
 
 4. **Check the results**:
 
@@ -237,11 +229,6 @@ cat result.json
 - Verify Azurite/Storage Emulator is running
 - Check connection string in `local.settings.json`
 - Ensure queue exists and has the correct name
-
-**AI Foundry errors**:
-- Verify endpoint URL is correct
-- Check API key is valid
-- Ensure you have deployed a chat model in Azure OpenAI
 
 **Document Intelligence errors**:
 - Verify endpoint URL ends with `/`

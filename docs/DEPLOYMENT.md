@@ -44,31 +44,7 @@ az storage container create --name processed-documents --connection-string "$STO
 az storage queue create --name pdf-processing-queue --connection-string "$STORAGE_CONNECTION"
 ```
 
-### 1.4 Create Azure OpenAI (AI Foundry)
-
-```bash
-az cognitiveservices account create \
-  --name openai-document-ocr \
-  --resource-group rg-document-ocr \
-  --kind OpenAI \
-  --sku S0 \
-  --location eastus
-
-# Get endpoint and key
-AI_ENDPOINT=$(az cognitiveservices account show \
-  --name openai-document-ocr \
-  --resource-group rg-document-ocr \
-  --query properties.endpoint \
-  --output tsv)
-
-AI_KEY=$(az cognitiveservices account keys list \
-  --name openai-document-ocr \
-  --resource-group rg-document-ocr \
-  --query key1 \
-  --output tsv)
-```
-
-### 1.5 Create Document Intelligence
+### 1.4 Create Document Intelligence
 
 ```bash
 az cognitiveservices account create \
@@ -92,7 +68,7 @@ DOC_KEY=$(az cognitiveservices account keys list \
   --output tsv)
 ```
 
-### 1.6 Create Cosmos DB Account and Database
+### 1.5 Create Cosmos DB Account and Database
 
 ```bash
 # Create Cosmos DB account
@@ -129,7 +105,7 @@ COSMOS_KEY=$(az cosmosdb keys list \
   --output tsv)
 ```
 
-### 1.7 Create Function App
+### 1.6 Create Function App
 
 ```bash
 az functionapp create \
@@ -149,8 +125,6 @@ az functionapp config appsettings set \
   --name func-document-ocr \
   --resource-group rg-document-ocr \
   --settings \
-    "AzureAiFoundry:Endpoint=$AI_ENDPOINT" \
-    "AzureAiFoundry:ApiKey=$AI_KEY" \
     "DocumentIntelligence:Endpoint=$DOC_ENDPOINT" \
     "DocumentIntelligence:ApiKey=$DOC_KEY" \
     "CosmosDb:Endpoint=$COSMOS_ENDPOINT" \
@@ -299,11 +273,6 @@ az group delete --name rg-document-ocr --yes --no-wait
 - Check queue message format is valid JSON
 - Verify connection string is correct
 - Check function logs for errors
-
-### AI Foundry errors
-- Verify endpoint and API key are correct
-- Check model deployment status
-- Ensure model supports chat completions
 
 ### Document Intelligence errors
 - Verify endpoint and API key are correct

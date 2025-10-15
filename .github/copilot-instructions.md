@@ -2,9 +2,9 @@
 
 ## Repository Overview
 
-**Azure Functions v4 application** (.NET 8.0, dotnet-isolated runtime) that processes multi-document PDFs using Azure AI Foundry (OpenAI) for intelligent document boundary detection and Azure Document Intelligence for data extraction. 24 files, no tests, POC status.
+**Azure Functions v4 application** (.NET 8.0, dotnet-isolated runtime) that processes multi-document PDFs using Azure Document Intelligence for data extraction and Cosmos DB for persistence. 16 files, 9 unit tests, POC status.
 
-**Key Dependencies**: PdfSharpCore, Azure.AI.FormRecognizer, Azure.AI.Inference, Azure.Storage.Blobs
+**Key Dependencies**: PdfSharpCore, Azure.AI.FormRecognizer, Azure.Storage.Blobs, Microsoft.Azure.Cosmos
 
 ## Project Structure
 
@@ -12,17 +12,21 @@
 src/                              # ALWAYS run build commands from here
 ├── Functions/PdfProcessorFunction.cs      # Entry point: queue-triggered function
 ├── Services/
-│   ├── PdfSplitterService.cs              # PDF manipulation (61 lines)
-│   ├── AiFoundryService.cs                # AI boundary detection (95 lines)
-│   └── DocumentIntelligenceService.cs     # OCR extraction (86 lines)
-├── Models/                                # QueueMessage, DocumentResult, ProcessingResult
+│   ├── PdfToImageService.cs               # PDF to image conversion
+│   ├── ImageToPdfService.cs               # Image to PDF conversion
+│   ├── DocumentIntelligenceService.cs     # OCR extraction (86 lines)
+│   ├── DocumentAggregatorService.cs       # Page aggregation by identifier
+│   ├── BlobStorageService.cs              # Blob storage operations
+│   └── CosmosDbService.cs                 # Cosmos DB persistence
+├── Models/                                # QueueMessage, DocumentResult, ProcessingResult, etc.
 ├── Program.cs                             # DI setup - register new services here
 ├── DocumentOcrProcessor.csproj            # Project file with NuGet packages
 ├── host.json                              # Functions runtime config
 └── local.settings.json.template           # Copy to local.settings.json for dev
 
-docs/           # ARCHITECTURE.md, DEPLOYMENT.md, QUICKSTART.md
+docs/           # ARCHITECTURE.md, DEPLOYMENT.md, QUICKSTART.md, TESTING.md
 samples/        # Logic App definition and sample usage
+tests/          # Unit tests (9 tests covering models and services)
 ```
 
 ## Build and Validation
@@ -42,20 +46,20 @@ dotnet build
 dotnet clean && dotnet build
 ```
 
-**NO unit tests exist.** `dotnet test` succeeds but runs nothing.
+**Unit tests exist** (9 tests). Run with `cd tests && dotnet test`.
 
 ### Local Development Setup
 
 1. `cp local.settings.json.template local.settings.json`
-2. Edit with Azure credentials: `AzureWebJobsStorage` (use `UseDevelopmentStorage=true`), `AzureAiFoundry` endpoint/key, `DocumentIntelligence` endpoint/key (endpoint must end with `/`)
+2. Edit with Azure credentials: `AzureWebJobsStorage` (use `UseDevelopmentStorage=true`), `DocumentIntelligence` endpoint/key (endpoint must end with `/`), `CosmosDb` endpoint/key
 3. Start Azurite: `azurite --silent --location /tmp/azurite &`
 4. Run: `func start` (requires Azure Functions Core Tools v4; if unavailable due to network restrictions, build with `dotnet build` and deploy to Azure)
 
 ## Architecture Quick Reference
 
-- **Trigger**: Azure Storage Queue (`pdf-processing-queue`), input JSON: `{"BlobName": "...", "ContainerName": "..."}`
-- **Flow**: Queue → Download PDF → AI boundary detection → Split PDF → Extract data per document → Upload to `processed-documents` container
-- **Error Handling**: AI failures fall back to single document; Document Intelligence errors logged but continue processing
+- **Trigger**: Azure Storage Queue (`pdf-processing-queue`), input JSON: `{"BlobName": "...", "ContainerName": "...", "IdentifierFieldName": "..."}`
+- **Flow**: Queue → Download PDF → Convert pages to images → OCR each page → Aggregate by identifier → Create PDFs → Upload to `processed-documents` container → Save to Cosmos DB
+- **Error Handling**: Document Intelligence errors logged but continue processing
 - **Entry Point**: `src/Functions/PdfProcessorFunction.cs` orchestrates entire workflow
 
 ## Common Issues
@@ -64,8 +68,8 @@ dotnet clean && dotnet build
 |-------|----------|
 | Build fails with missing packages | Run `dotnet restore` first |
 | Queue trigger not firing | Verify Azurite running, check `local.settings.json` connection string |
-| AI Foundry errors | Verify endpoint format, API key, and chat model deployment |
 | Document Intelligence errors | Verify endpoint ends with `/`, API key valid |
+| Cosmos DB errors | Verify endpoint format and key, ensure database/container exist |
 | `local.settings.json` missing | Copy from `.template` file (never commit the actual file) |
 
 ## Validation Checklist

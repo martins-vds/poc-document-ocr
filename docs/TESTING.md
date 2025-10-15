@@ -11,7 +11,6 @@ tests/
 ├── DocumentOcrProcessor.Tests.csproj   # Test project file
 ├── README.md                            # Test documentation
 ├── Services/                            # Service layer tests
-│   ├── AiFoundryServiceTests.cs        # AI Foundry service tests
 │   └── BlobStorageServiceTests.cs      # Blob storage service tests
 └── Models/                              # Model tests
     ├── QueueMessageTests.cs            # Queue message model tests
@@ -39,13 +38,13 @@ dotnet test --verbosity detailed
 
 ```bash
 # Run tests from a specific class
-dotnet test --filter "FullyQualifiedName~AiFoundryServiceTests"
-
-# Run tests matching a pattern
-dotnet test --filter "DisplayName~ParseBoundaries"
+dotnet test --filter "FullyQualifiedName~BlobStorageServiceTests"
 
 # Run tests from a specific namespace
 dotnet test --filter "FullyQualifiedName~DocumentOcrProcessor.Tests.Services"
+
+# Run model tests only
+dotnet test --filter "FullyQualifiedName~DocumentOcrProcessor.Tests.Models"
 ```
 
 ### Test Coverage
@@ -66,20 +65,6 @@ dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 ## Test Categories
 
 ### Service Tests
-
-#### AiFoundryServiceTests (13 tests)
-
-Tests the AI Foundry service, particularly the boundary parsing logic:
-
-- **Valid Input Tests**: Validates parsing of comma-separated, space-separated, and newline-separated numbers
-- **Edge Case Tests**: Tests handling of duplicates, unsorted numbers, empty strings, and invalid numbers
-- **Validation Tests**: Ensures proper error handling for missing configuration
-
-**Key Test Methods:**
-- `ParseBoundaries_WithValidCommaSeparatedNumbers_ReturnsCorrectBoundaries`
-- `ParseBoundaries_WithDuplicates_RemovesDuplicates`
-- `ParseBoundaries_WithUnsortedNumbers_ReturnsSortedList`
-- `Constructor_WithMissingEndpoint_ThrowsException`
 
 #### BlobStorageServiceTests (2 tests)
 

@@ -6,12 +6,6 @@ This directory contains unit tests for the Document OCR Processor application.
 
 ### Services Tests
 
-#### AiFoundryServiceTests
-- Tests for the `ParseBoundaries` method which parses AI responses
-- Validates handling of various input formats (comma-separated, space-separated, newline-separated)
-- Tests edge cases: duplicates, unsorted numbers, invalid numbers, empty strings
-- Validates configuration validation in constructor
-
 #### BlobStorageServiceTests
 - Tests configuration validation
 - Validates that service requires proper connection string
@@ -44,7 +38,7 @@ dotnet test --verbosity normal
 dotnet test --verbosity detailed
 
 # Run specific test class
-dotnet test --filter "FullyQualifiedName~AiFoundryServiceTests"
+dotnet test --filter "FullyQualifiedName~BlobStorageServiceTests"
 ```
 
 ## Test Framework
@@ -63,8 +57,8 @@ When adding new tests:
 
 ## Coverage Summary
 
-- **Total Tests**: 22
-- **Service Tests**: 13
-- **Model Tests**: 9
+- **Total Tests**: 9
+- **Service Tests**: 2
+- **Model Tests**: 7
 
-All critical business logic in services and model initialization is covered.
+Critical model validation, default value initialization, and service configuration validation are covered.

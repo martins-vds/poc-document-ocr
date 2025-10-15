@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Document OCR Processor is built on Azure Functions with a queue-triggered architecture that processes PDF files containing multiple documents. It converts PDF pages to images, performs OCR analysis on each page, and aggregates pages into documents based on identifier fields.
+The Document OCR Processor is a complete Azure solution that combines automated document processing with manual review capabilities. The system uses Azure Functions for queue-triggered OCR processing and a Blazor web application for human review and validation of extracted data. Documents are processed through Azure Document Intelligence, stored in Cosmos DB, and made available for review through a secure web interface.
 
 ## Architecture Diagram
 
@@ -54,7 +54,17 @@ The Document OCR Processor is built on Azure Functions with a queue-triggered ar
                │ Processed Docs   │  │ OCR Results      │
                │ - PDFs           │  │ - Metadata       │
                │ - JSON Results   │  │ - Extracted Data │
-               └──────────────────┘  └──────────────────┘
+               └──────────────────┘  └────────┬─────────┘
+                                              │
+                                              ▼
+                                     ┌──────────────────┐
+                                     │   Web App        │
+                                     │  (Blazor Server) │
+                                     │  - Document List │
+                                     │  - Review UI     │
+                                     │  - PDF Viewer    │
+                                     │  - Entra ID Auth │
+                                     └──────────────────┘
 ```
 
 ## Component Details
@@ -178,9 +188,40 @@ The application groups pages into documents based on identifier fields found in 
      "extractedData": {...},
      "processedAt": "2025-01-10T12:00:00Z",
      "containerName": "processed-documents",
-     "blobName": "upload-2025-01-10_doc_1.pdf"
+     "blobName": "upload-2025-01-10_doc_1.pdf",
+     "reviewStatus": "Pending",
+     "assignedTo": null,
+     "reviewedBy": null,
+     "reviewedAt": null
    }
    ```
+
+### 6. Web Application (Manual Review)
+
+A Blazor Server application that provides a user interface for reviewing and correcting OCR results.
+
+**Features:**
+- **Authentication**: Microsoft Entra ID (Azure AD) integration for secure access
+- **Document List View**: Browse documents with filtering by review status
+- **Document Review Interface**: 
+  - Side-by-side PDF viewer and extracted data display
+  - Inline editing of OCR results
+  - Document assignment to reviewers
+  - Status tracking (Pending, Reviewed)
+- **Data Correction**: Edit extracted field values with validation
+- **Review Workflow**: Mark documents as reviewed with reviewer tracking
+
+**Technology Stack:**
+- Blazor Server (.NET 8)
+- Microsoft.Identity.Web for authentication
+- Azure Cosmos DB SDK for data access
+- Azure Storage Blobs SDK for PDF access
+- Bootstrap 5 for UI styling
+
+**Access Control:**
+- All pages require authentication via Entra ID
+- User identity tracked for assignments and reviews
+- Role-based access can be extended as needed
 
 ## Scalability Considerations
 

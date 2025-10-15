@@ -2,6 +2,27 @@
 
 This directory contains Infrastructure as Code (IaC) scripts for deploying the Document OCR Processor to Azure using Bicep and Azure Developer CLI (azd).
 
+## Deployment Options
+
+This repository provides **two Bicep deployment options**:
+
+### 1. Azure Verified Modules (AVM) - **Recommended** 
+- **File**: `main-avm.bicep`
+- Uses official [Azure Verified Modules](https://aka.ms/avm) from Bicep Public Registry
+- Microsoft-supported and regularly updated modules
+- Best practices and security built-in
+- Standardized parameter names and outputs
+- **Use this for production deployments**
+
+### 2. Custom Modules
+- **File**: `main.bicep` 
+- Uses custom Bicep modules in `modules/` folder
+- Simpler, more readable for learning
+- Good for understanding Bicep fundamentals
+- Useful when network connectivity to Bicep registry is limited
+
+Both options deploy the same infrastructure with identical security and networking configurations.
+
 ## Architecture
 
 The infrastructure deploys the following Azure resources with **private networking** (no public access):
@@ -49,14 +70,23 @@ azd env set AZURE_SUBSCRIPTION_ID <your-subscription-id>
 
 ### 3. Provision infrastructure
 
+**Option A: Using Azure Verified Modules (Recommended)**
+
 ```bash
-# Deploy all infrastructure
+# Deploy using AVM modules from Bicep Public Registry
+azd provision --template infra/main-avm.bicep
+```
+
+**Option B: Using Custom Modules**
+
+```bash
+# Deploy using custom modules (default)
 azd provision
 ```
 
 This command will:
 - Create a resource group (if needed)
-- Deploy all Bicep modules
+- Deploy all Bicep modules (from registry or local)
 - Set up networking with private endpoints
 - Configure RBAC permissions
 
@@ -109,6 +139,17 @@ az group create \
 
 ### 2. Deploy the Bicep template
 
+**Option A: Using Azure Verified Modules (Recommended)**
+
+```bash
+az deployment group create \
+  --resource-group rg-documentocr-dev \
+  --template-file infra/main-avm.bicep \
+  --parameters environmentName=dev location=eastus
+```
+
+**Option B: Using Custom Modules**
+
 ```bash
 az deployment group create \
   --resource-group rg-documentocr-dev \
@@ -133,6 +174,53 @@ Use the utility scripts in `infra/scripts/` or Azure Functions Core Tools:
 cd src
 func azure functionapp publish <function-app-name>
 ```
+
+## Azure Verified Modules (AVM) vs Custom Modules
+
+### Why Use Azure Verified Modules?
+
+[Azure Verified Modules (AVM)](https://aka.ms/avm) are the official, Microsoft-supported way to deploy Azure resources using Bicep:
+
+**Benefits:**
+- ✅ **Microsoft Support** - Officially maintained by Microsoft
+- ✅ **Best Practices** - Security, networking, and governance built-in
+- ✅ **Regular Updates** - Keep up with Azure platform changes
+- ✅ **Standardization** - Consistent parameter names across modules
+- ✅ **Community Tested** - Used by thousands of deployments
+- ✅ **Comprehensive** - Covers all Azure resource types
+- ✅ **Versioned** - Semantic versioning for stable deployments
+
+**When to Use Custom Modules:**
+- 🔧 Learning Bicep fundamentals
+- 🔧 Air-gapped or restricted network environments
+- 🔧 Specific customizations not supported by AVM
+- 🔧 Simpler, more readable code for POC projects
+
+### Module Comparison
+
+| Feature | AVM (main-avm.bicep) | Custom (main.bicep) |
+|---------|---------------------|---------------------|
+| Source | Bicep Public Registry | Local `modules/` folder |
+| Maintenance | Microsoft | User |
+| Updates | Automatic (versioned) | Manual |
+| Validation | Extensive testing | User validation |
+| Recommended for | Production | Learning/POC |
+
+### Module References
+
+The AVM template uses the following verified modules:
+
+- `avm/res/network/virtual-network` - Virtual Networks and Subnets
+- `avm/res/network/private-dns-zone` - Private DNS Zones
+- `avm/res/operational-insights/workspace` - Log Analytics
+- `avm/res/insights/component` - Application Insights
+- `avm/res/storage/storage-account` - Storage Accounts with Private Endpoints
+- `avm/res/cognitive-services/account` - Cognitive Services (Document Intelligence)
+- `avm/res/document-db/database-account` - Cosmos DB
+- `avm/res/web/serverfarm` - App Service Plans
+- `avm/res/web/site` - Function Apps
+
+See the [AVM Module Index](https://azure.github.io/Azure-Verified-Modules/) for complete documentation.
 
 ## Utility Scripts
 

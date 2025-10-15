@@ -4,6 +4,13 @@ name: poc-document-ocr
 metadata:
   template: poc-document-ocr@0.0.1-beta
 
+# Infrastructure configuration
+# Use main-avm.bicep for Azure Verified Modules (recommended)
+# Use main.bicep for custom modules
+infra:
+  path: infra
+  module: main-avm
+
 services:
   function:
     project: ./src

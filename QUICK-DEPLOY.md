@@ -30,10 +30,13 @@ azd env get-value AZURE_FUNCTION_NAME
 ```
 
 **That's it!** Your application is deployed with:
+- ✅ **Azure Verified Modules** - Microsoft-supported Bicep modules
 - ✅ Private networking (no public access)
 - ✅ Managed identity authentication
 - ✅ Azure Storage, Document Intelligence, Cosmos DB
 - ✅ Monitoring with Application Insights
+
+> **Note**: By default, deployment uses [Azure Verified Modules (AVM)](https://aka.ms/avm) from the Bicep Public Registry for production-grade infrastructure.
 
 ## Test It
 

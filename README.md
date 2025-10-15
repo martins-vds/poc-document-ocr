@@ -4,6 +4,7 @@ This is an Azure Functions application that processes PDF files containing multi
 
 ## Documentation
 
+- **[⚡ Quick Deploy Guide](QUICK-DEPLOY.md)** - Deploy to Azure in 5 commands (< 20 minutes)
 - [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [Deployment (IaC)](docs/DEPLOYMENT-IAC.md) - **Recommended:** Automated deployment with Bicep and Azure Developer CLI

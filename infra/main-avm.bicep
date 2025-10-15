@@ -39,7 +39,7 @@ var vnetName = 'vnet-${workloadName}-${environmentName}'
 // ===================================
 
 // Virtual Network using AVM
-module vnet 'br/public:avm/res/network/virtual-network:0.5.2' = {
+module vnet 'br/public:avm/res/network/virtual-network:0.7.1' = {
   name: 'vnet-deployment'
   params: {
     name: vnetName
@@ -73,24 +73,26 @@ var privateDnsZones = [
   'privatelink.azurewebsites.net'
 ]
 
-module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0' = [for (zone, i) in privateDnsZones: {
-  name: 'private-dns-zone-${i}'
-  params: {
-    name: zone
-    location: 'global'
-    virtualNetworkLinks: [
-      {
-        name: 'link-to-${vnetName}'
-        virtualNetworkResourceId: vnet.outputs.resourceId
-        registrationEnabled: false
-      }
-    ]
-    tags: tags
+module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.0' = [
+  for (zone, i) in privateDnsZones: {
+    name: 'private-dns-zone-${i}'
+    params: {
+      name: zone
+      location: 'global'
+      virtualNetworkLinks: [
+        {
+          name: 'link-to-${vnetName}'
+          virtualNetworkResourceId: vnet.outputs.resourceId
+          registrationEnabled: false
+        }
+      ]
+      tags: tags
+    }
   }
-}]
+]
 
 // Log Analytics Workspace using AVM
-module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.9.1' = {
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.12.0' = {
   name: 'log-analytics-deployment'
   params: {
     name: logAnalyticsWorkspaceName
@@ -104,7 +106,7 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.9.1' = {
 }
 
 // Application Insights using AVM
-module applicationInsights 'br/public:avm/res/insights/component:0.4.2' = {
+module applicationInsights 'br/public:avm/res/insights/component:0.6.1' = {
   name: 'application-insights-deployment'
   params: {
     name: applicationInsightsName
@@ -119,7 +121,7 @@ module applicationInsights 'br/public:avm/res/insights/component:0.4.2' = {
 }
 
 // Storage Account with Private Endpoints using AVM
-module storage 'br/public:avm/res/storage/storage-account:0.14.3' = {
+module storage 'br/public:avm/res/storage/storage-account:0.27.1' = {
   name: 'storage-deployment'
   params: {
     name: storageAccountName
@@ -156,25 +158,37 @@ module storage 'br/public:avm/res/storage/storage-account:0.14.3' = {
       {
         name: '${storageAccountName}-blob-pe'
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
-        privateDnsZoneResourceIds: [
-          privateDnsZone[0].outputs.resourceId
-        ]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[0].outputs.resourceId
+            }
+          ]
+        }
         service: 'blob'
       }
       {
         name: '${storageAccountName}-queue-pe'
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
-        privateDnsZoneResourceIds: [
-          privateDnsZone[1].outputs.resourceId
-        ]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[1].outputs.resourceId
+            }
+          ]
+        }
         service: 'queue'
       }
       {
         name: '${storageAccountName}-table-pe'
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
-        privateDnsZoneResourceIds: [
-          privateDnsZone[2].outputs.resourceId
-        ]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[2].outputs.resourceId
+            }
+          ]
+        }
         service: 'table'
       }
     ]
@@ -183,7 +197,7 @@ module storage 'br/public:avm/res/storage/storage-account:0.14.3' = {
 }
 
 // Document Intelligence (Cognitive Services) using AVM
-module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.9.0' = {
+module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.13.2' = {
   name: 'document-intelligence-deployment'
   params: {
     name: documentIntelligenceName
@@ -199,9 +213,13 @@ module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.9.0'
       {
         name: '${documentIntelligenceName}-pe'
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
-        privateDnsZoneResourceIds: [
-          privateDnsZone[4].outputs.resourceId
-        ]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[4].outputs.resourceId
+            }
+          ]
+        }
         service: 'account'
       }
     ]
@@ -210,22 +228,17 @@ module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.9.0'
 }
 
 // Cosmos DB using AVM
-module cosmosDb 'br/public:avm/res/document-db/database-account:0.11.1' = {
+module cosmosDb 'br/public:avm/res/document-db/database-account:0.16.0' = {
   name: 'cosmos-db-deployment'
   params: {
     name: cosmosDbAccountName
     location: location
-    locations: [
-      {
-        locationName: location
-        failoverPriority: 0
-        isZoneRedundant: false
-      }
-    ]
     capabilitiesToAdd: [
       'EnableServerless'
     ]
-    publicNetworkAccess: 'Disabled'
+    networkRestrictions: {
+      publicNetworkAccess: 'Disabled'
+    }
     sqlDatabases: [
       {
         name: 'DocumentOcrDb'
@@ -244,9 +257,13 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.11.1' = {
       {
         name: '${cosmosDbAccountName}-pe'
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
-        privateDnsZoneResourceIds: [
-          privateDnsZone[3].outputs.resourceId
-        ]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[3].outputs.resourceId
+            }
+          ]
+        }
         service: 'Sql'
       }
     ]
@@ -255,7 +272,7 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.11.1' = {
 }
 
 // App Service Plan using AVM
-module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.5.0' = {
   name: 'app-service-plan-deployment'
   params: {
     name: appServicePlanName
@@ -269,7 +286,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
 }
 
 // Azure Function App using AVM
-module functionApp 'br/public:avm/res/web/site:0.11.1' = {
+module functionApp 'br/public:avm/res/web/site:0.19.3' = {
   name: 'function-app-deployment'
   params: {
     name: functionAppName
@@ -280,8 +297,10 @@ module functionApp 'br/public:avm/res/web/site:0.11.1' = {
       systemAssigned: true
     }
     publicNetworkAccess: 'Disabled'
-    virtualNetworkSubnetId: vnet.outputs.subnetResourceIds[0]
-    vnetRouteAllEnabled: true
+    outboundVnetRouting: {
+      allTraffic: true
+    }
+    virtualNetworkSubnetResourceId: vnet.outputs.subnetResourceIds[0]
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
@@ -312,7 +331,7 @@ module functionApp 'br/public:avm/res/web/site:0.11.1' = {
         }
         {
           name: 'CosmosDb__Endpoint'
-          value: cosmosDb.outputs.documentEndpoint
+          value: cosmosDb.outputs.endpoint
         }
         {
           name: 'CosmosDb__DatabaseName'
@@ -328,9 +347,13 @@ module functionApp 'br/public:avm/res/web/site:0.11.1' = {
       {
         name: '${functionAppName}-pe'
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
-        privateDnsZoneResourceIds: [
-          privateDnsZone[5].outputs.resourceId
-        ]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone[5].outputs.resourceId
+            }
+          ]
+        }
         service: 'sites'
       }
     ]
@@ -343,7 +366,7 @@ module functionApp 'br/public:avm/res/web/site:0.11.1' = {
 module roleAssignments 'modules/roleAssignments.bicep' = {
   name: 'role-assignments-deployment'
   params: {
-    functionAppPrincipalId: functionApp.outputs.systemAssignedMIPrincipalId
+    functionAppPrincipalId: functionApp.outputs.systemAssignedMIPrincipalId!
     storageAccountName: storageAccountName
     documentIntelligenceName: documentIntelligenceName
     cosmosDbAccountName: cosmosDbAccountName
@@ -355,7 +378,7 @@ output storageAccountName string = storageAccountName
 output documentIntelligenceName string = documentIntelligenceName
 output documentIntelligenceEndpoint string = documentIntelligence.outputs.endpoint
 output cosmosDbAccountName string = cosmosDbAccountName
-output cosmosDbEndpoint string = cosmosDb.outputs.documentEndpoint
+output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
 output functionAppName string = functionAppName
 output functionAppUrl string = functionApp.outputs.defaultHostname
 output applicationInsightsName string = applicationInsightsName

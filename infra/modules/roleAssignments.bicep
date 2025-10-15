@@ -27,7 +27,10 @@ resource storageBlobDataContributorRoleAssignment 'Microsoft.Authorization/roleA
   name: guid(storageAccount.id, functionAppPrincipalId, storageBlobDataContributorRoleId)
   scope: storageAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      storageBlobDataContributorRoleId
+    )
     principalId: functionAppPrincipalId
     principalType: 'ServicePrincipal'
   }
@@ -38,7 +41,10 @@ resource storageQueueDataContributorRoleAssignment 'Microsoft.Authorization/role
   name: guid(storageAccount.id, functionAppPrincipalId, storageQueueDataContributorRoleId)
   scope: storageAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorRoleId)
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      storageQueueDataContributorRoleId
+    )
     principalId: functionAppPrincipalId
     principalType: 'ServicePrincipal'
   }
@@ -49,7 +55,10 @@ resource storageTableDataContributorRoleAssignment 'Microsoft.Authorization/role
   name: guid(storageAccount.id, functionAppPrincipalId, storageTableDataContributorRoleId)
   scope: storageAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorRoleId)
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      storageTableDataContributorRoleId
+    )
     principalId: functionAppPrincipalId
     principalType: 'ServicePrincipal'
   }

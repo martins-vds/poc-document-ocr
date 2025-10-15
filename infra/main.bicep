@@ -10,6 +10,15 @@ param environmentName string = 'dev'
 @description('Name of the workload')
 param workloadName string = 'documentocr'
 
+@description('Azure AD tenant ID for web app authentication')
+param tenantId string = subscription().tenantId
+
+@description('Azure AD client ID for web app authentication')
+param webAppClientId string
+
+@description('Azure AD domain for web app authentication')
+param azureAdDomain string
+
 @description('Tags to apply to all resources')
 param tags object = {
   Environment: environmentName
@@ -23,6 +32,7 @@ var storageAccountName = 'st${workloadName}${uniqueSuffix}'
 var documentIntelligenceName = 'di-${workloadName}-${environmentName}'
 var cosmosDbAccountName = 'cosmos-${workloadName}-${uniqueSuffix}'
 var functionAppName = 'func-${workloadName}-${environmentName}-${uniqueSuffix}'
+var webAppName = 'app-${workloadName}-${environmentName}-${uniqueSuffix}'
 var appServicePlanName = 'asp-${workloadName}-${environmentName}'
 var applicationInsightsName = 'appi-${workloadName}-${environmentName}'
 var logAnalyticsWorkspaceName = 'log-${workloadName}-${environmentName}'
@@ -152,11 +162,45 @@ module functionApp 'modules/functionApp.bicep' = {
   }
 }
 
+// Web App with Private Endpoint
+module webApp 'modules/webApp.bicep' = {
+  name: 'web-app-deployment'
+  params: {
+    location: location
+    webAppName: webAppName
+    appServicePlanName: appServicePlan.outputs.appServicePlanName
+    vnetId: vnet.outputs.vnetId
+    privateEndpointSubnetId: vnet.outputs.privateEndpointSubnetId
+    webAppSubnetId: vnet.outputs.webAppIntegrationSubnetId
+    privateDnsZoneId: privateDnsZones.outputs.privateDnsZoneIdSites
+    cosmosDbEndpoint: cosmosDb.outputs.endpoint
+    cosmosDbDatabaseName: 'DocumentOcrDb'
+    cosmosDbContainerName: 'ProcessedDocuments'
+    storageAccountName: storage.outputs.storageAccountName
+    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    tenantId: tenantId
+    clientId: webAppClientId
+    domain: azureAdDomain
+    tags: tags
+  }
+}
+
 // Role Assignments at Resource Level
 module roleAssignments 'modules/roleAssignments.bicep' = {
   name: 'role-assignments-deployment'
   params: {
     functionAppPrincipalId: functionApp.outputs.functionAppPrincipalId
+    storageAccountName: storage.outputs.storageAccountName
+    documentIntelligenceName: documentIntelligence.outputs.documentIntelligenceName
+    cosmosDbAccountName: cosmosDb.outputs.cosmosDbAccountName
+  }
+}
+
+// Role Assignments for Web App
+module webAppRoleAssignments 'modules/roleAssignments.bicep' = {
+  name: 'web-app-role-assignments-deployment'
+  params: {
+    functionAppPrincipalId: webApp.outputs.webAppIdentityPrincipalId
     storageAccountName: storage.outputs.storageAccountName
     documentIntelligenceName: documentIntelligence.outputs.documentIntelligenceName
     cosmosDbAccountName: cosmosDb.outputs.cosmosDbAccountName
@@ -171,5 +215,7 @@ output cosmosDbAccountName string = cosmosDb.outputs.cosmosDbAccountName
 output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
 output functionAppName string = functionApp.outputs.functionAppName
 output functionAppUrl string = functionApp.outputs.functionAppUrl
+output webAppName string = webApp.outputs.webAppName
+output webAppUrl string = 'https://${webApp.outputs.webAppDefaultHostName}'
 output applicationInsightsName string = applicationInsights.outputs.applicationInsightsName
 output resourceGroupName string = resourceGroup().name

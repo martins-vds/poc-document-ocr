@@ -48,9 +48,9 @@ VERSION = "1.0.0"
 
 def get_project_root() -> Path:
     """Find the project root directory."""
-    current = Path(__file__).resolve().parent
+    utils_dir = Path(__file__).resolve().parent
     # Go up from utils/ to project root
-    return current.parent
+    return utils_dir.parent
 
 
 def get_function_settings_path() -> Path:
@@ -69,6 +69,12 @@ def get_webapp_settings_path() -> Path:
     """Get path to Web App appsettings.Development.json."""
     root = get_project_root()
     return root / "src" / "DocumentOcrWebApp" / "appsettings.Development.json"
+
+
+def get_webapp_template_path() -> Path:
+    """Get path to Web App appsettings.Development.json.template."""
+    root = get_project_root()
+    return root / "src" / "DocumentOcrWebApp" / "appsettings.Development.json.template"
 
 
 def prompt_for_value(prompt_text: str, default: str = "", required: bool = True) -> str:
@@ -126,6 +132,11 @@ def update_function_settings(
     settings_path = get_function_settings_path()
     template_path = get_function_template_path()
     
+    # Validate and fix endpoint URL
+    if not doc_intelligence_endpoint.endswith('/'):
+        validate_endpoint_url(doc_intelligence_endpoint, "Document Intelligence")
+        doc_intelligence_endpoint = doc_intelligence_endpoint + '/'
+    
     # Load template or existing settings
     if settings_path.exists():
         print(f"Loading existing settings from: {settings_path}", file=sys.stderr)
@@ -157,6 +168,12 @@ def update_function_settings(
     save_json_file(settings_path, settings)
 
 
+def validate_endpoint_url(endpoint: str, name: str) -> None:
+    """Validate that endpoint URL ends with '/'."""
+    if not endpoint.endswith('/'):
+        print(f"Warning: {name} endpoint should end with '/' - adding it automatically", file=sys.stderr)
+
+
 def update_webapp_settings(
     storage_connection: str,
     cosmosdb_endpoint: str,
@@ -169,33 +186,31 @@ def update_webapp_settings(
 ) -> None:
     """Update Web App appsettings.Development.json."""
     settings_path = get_webapp_settings_path()
+    template_path = get_webapp_template_path()
     
     # Load existing settings or create from template
     if settings_path.exists():
         print(f"Loading existing settings from: {settings_path}", file=sys.stderr)
         settings = load_json_file(settings_path)
+    elif template_path.exists():
+        print(f"Creating Development settings from template: {template_path}", file=sys.stderr)
+        settings = load_json_file(template_path)
     else:
-        # Try to load from template file first
-        template_path = settings_path.parent / "appsettings.Development.json.template"
-        if template_path.exists():
-            print(f"Creating Development settings from template: {template_path}", file=sys.stderr)
-            settings = load_json_file(template_path)
+        # Fall back to appsettings.json
+        fallback_path = settings_path.parent / "appsettings.json"
+        if fallback_path.exists():
+            print(f"Creating Development settings from: {fallback_path}", file=sys.stderr)
+            settings = load_json_file(fallback_path)
         else:
-            # Fall back to appsettings.json
-            fallback_path = settings_path.parent / "appsettings.json"
-            if fallback_path.exists():
-                print(f"Creating Development settings from: {fallback_path}", file=sys.stderr)
-                settings = load_json_file(fallback_path)
-            else:
-                print("Creating new settings file", file=sys.stderr)
-                settings = {
-                    "Logging": {
-                        "LogLevel": {
-                            "Default": "Information",
-                            "Microsoft.AspNetCore": "Warning"
-                        }
+            print("Creating new settings file", file=sys.stderr)
+            settings = {
+                "Logging": {
+                    "LogLevel": {
+                        "Default": "Information",
+                        "Microsoft.AspNetCore": "Warning"
                     }
                 }
+            }
     
     # Update Azure AD configuration
     if "AzureAd" not in settings:
@@ -324,7 +339,7 @@ For local development:
     )
     parser.add_argument(
         '--doc-intelligence-endpoint',
-        help='Document Intelligence endpoint URL (must end with /)'
+        help='Document Intelligence endpoint URL (trailing slash will be added if missing)'
     )
     parser.add_argument(
         '--doc-intelligence-key',

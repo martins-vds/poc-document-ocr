@@ -11,6 +11,8 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
     private readonly ILogger<DocumentIntelligenceService> _logger;
     private readonly DocumentAnalysisClient _client;
 
+    private readonly string _modelId = "prebuilt-document";
+
     public DocumentIntelligenceService(ILogger<DocumentIntelligenceService> logger, IConfiguration configuration)
     {
         _logger = logger;
@@ -22,6 +24,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
             throw new InvalidOperationException("Document Intelligence configuration is missing");
         }
 
+        _modelId = configuration["DocumentIntelligence:ModelId"] ?? _modelId;
         _client = new DocumentAnalysisClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
     }
 
@@ -33,7 +36,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
         try
         {
             documentStream.Position = 0;
-            var operation = await _client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-document", documentStream);
+            var operation = await _client.AnalyzeDocumentAsync(WaitUntil.Completed, _modelId, documentStream);
             var result = operation.Value;
 
             _logger.LogInformation("Document analysis completed. Found {PageCount} pages", result.Pages.Count);

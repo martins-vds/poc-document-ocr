@@ -1,0 +1,311 @@
+@page "/review/{id}/{identifier}"
+@using DocumentOcrProcessor.Models
+@using DocumentOcrProcessor.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ICosmosDbService CosmosDbService
+@inject IBlobStorageService BlobStorageService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Review Document</PageTitle>
+
+@if (isLoading)
+{
+    <p><em>Loading document...</em></p>
+}
+else if (document == null)
+{
+    <div class="alert alert-danger">Document not found.</div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col">
+                <h1>Review Document: @document.Identifier</h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/documents">Documents</a></li>
+                        <li class="breadcrumb-item active">@document.Identifier</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- PDF Viewer Section -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>PDF Preview</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(pdfUrl))
+                        {
+                            <iframe src="@pdfUrl" style="width: 100%; height: 600px; border: 1px solid #ccc;"></iframe>
+                        }
+                        else
+                        {
+                            <p class="text-muted">PDF preview not available</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extracted Data Section -->
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>Document Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-4">Document Number:</dt>
+                            <dd class="col-sm-8">@document.DocumentNumber</dd>
+
+                            <dt class="col-sm-4">Original File:</dt>
+                            <dd class="col-sm-8">@document.OriginalFileName</dd>
+
+                            <dt class="col-sm-4">Identifier:</dt>
+                            <dd class="col-sm-8">@document.Identifier</dd>
+
+                            <dt class="col-sm-4">Pages:</dt>
+                            <dd class="col-sm-8">@document.PageCount (@string.Join(", ", document.PageNumbers))</dd>
+
+                            <dt class="col-sm-4">Processed At:</dt>
+                            <dd class="col-sm-8">@document.ProcessedAt.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+
+                            <dt class="col-sm-4">Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge @GetStatusBadgeClass(document.ReviewStatus)">
+                                    @document.ReviewStatus
+                                </span>
+                            </dd>
+
+                            @if (!string.IsNullOrEmpty(document.AssignedTo))
+                            {
+                                <dt class="col-sm-4">Assigned To:</dt>
+                                <dd class="col-sm-8">@document.AssignedTo</dd>
+                            }
+
+                            @if (!string.IsNullOrEmpty(document.ReviewedBy))
+                            {
+                                <dt class="col-sm-4">Reviewed By:</dt>
+                                <dd class="col-sm-8">@document.ReviewedBy</dd>
+
+                                <dt class="col-sm-4">Reviewed At:</dt>
+                                <dd class="col-sm-8">@document.ReviewedAt?.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                            }
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Extracted Data</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (editedData != null && editedData.Any())
+                        {
+                            @foreach (var field in editedData)
+                            {
+                                <div class="mb-3">
+                                    <label for="@field.Key" class="form-label">@field.Key</label>
+                                    <input type="text" class="form-control" id="@field.Key" 
+                                           value="@GetFieldValue(field.Value)" 
+                                           @onchange="@(e => UpdateFieldValue(field.Key, e.Value?.ToString()))" />
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted">No extracted data available</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="assignedTo" class="form-label">Assign To:</label>
+                            <input type="text" class="form-control" id="assignedTo" 
+                                   @bind="document.AssignedTo" 
+                                   placeholder="Enter user email or name" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            @if (document.ReviewStatus == "Pending" || document.ReviewStatus == "InProgress")
+                            {
+                                <button class="btn btn-success btn-lg" @onclick="MarkAsReviewed" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>✓ Mark as Reviewed</span>
+                                    }
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-primary btn-lg" @onclick="SaveChanges" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Save Changes</span>
+                                    }
+                                </button>
+                            }
+                            <button class="btn btn-secondary" @onclick="GoBack">
+                                Back to Documents
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Identifier { get; set; } = string.Empty;
+
+    private DocumentOcrEntity? document;
+    private Dictionary<string, object>? editedData;
+    private string? pdfUrl;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? currentUserEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUserEmail = authState.User.FindFirst(ClaimTypes.Email)?.Value 
+                          ?? authState.User.FindFirst(ClaimTypes.Name)?.Value 
+                          ?? authState.User.Identity?.Name;
+
+        await LoadDocument();
+    }
+
+    private async Task LoadDocument()
+    {
+        isLoading = true;
+        try
+        {
+            document = await CosmosDbService.GetDocumentByIdAsync(Id, Identifier);
+            if (document != null)
+            {
+                editedData = new Dictionary<string, object>(document.ExtractedData);
+                pdfUrl = document.PdfBlobUrl;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading document: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetFieldValue(object value)
+    {
+        if (value is Newtonsoft.Json.Linq.JObject jObj)
+        {
+            return jObj["content"]?.ToString() ?? jObj.ToString();
+        }
+        return value?.ToString() ?? string.Empty;
+    }
+
+    private void UpdateFieldValue(string key, string? newValue)
+    {
+        if (editedData != null && !string.IsNullOrEmpty(newValue))
+        {
+            var existingValue = editedData[key];
+            if (existingValue is Newtonsoft.Json.Linq.JObject jObj)
+            {
+                jObj["content"] = newValue;
+                editedData[key] = jObj;
+            }
+            else
+            {
+                editedData[key] = newValue;
+            }
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        if (document == null) return;
+
+        isSaving = true;
+        try
+        {
+            document.ExtractedData = editedData ?? new Dictionary<string, object>();
+            await CosmosDbService.UpdateDocumentAsync(document);
+            NavigationManager.NavigateTo("/documents");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving document: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task MarkAsReviewed()
+    {
+        if (document == null) return;
+
+        isSaving = true;
+        try
+        {
+            document.ExtractedData = editedData ?? new Dictionary<string, object>();
+            document.ReviewStatus = "Reviewed";
+            document.ReviewedBy = currentUserEmail;
+            document.ReviewedAt = DateTime.UtcNow;
+            
+            await CosmosDbService.UpdateDocumentAsync(document);
+            NavigationManager.NavigateTo("/documents");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error marking document as reviewed: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/documents");
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Pending" => "bg-warning",
+            "Reviewed" => "bg-success",
+            "InProgress" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+}

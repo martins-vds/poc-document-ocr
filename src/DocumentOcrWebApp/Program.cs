@@ -1,4 +1,11 @@
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using DocumentOcrProcessor.Services;
 using DocumentOcrWebApp.Components;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Azure.Cosmos;
+using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.UI;
 
 namespace DocumentOcrWebApp
 {
@@ -8,9 +15,32 @@ namespace DocumentOcrWebApp
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Add authentication
+            builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+                .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+
+            builder.Services.AddAuthorization();
+
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+
+            builder.Services.AddControllersWithViews()
+                .AddMicrosoftIdentityUI();
+
+            // Register Cosmos DB client
+            builder.Services.AddSingleton<CosmosClient>(sp =>
+            {
+                var endpoint = builder.Configuration["CosmosDb:Endpoint"] ?? throw new InvalidOperationException("CosmosDb:Endpoint is not configured");
+                var cosmosClient = new CosmosClient(endpoint, new DefaultAzureCredential());
+                return cosmosClient;
+            });
+
+            // Register Cosmos DB service
+            builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();
+
+            // Register Blob Storage service
+            builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
             var app = builder.Build();
 
@@ -27,8 +57,13 @@ namespace DocumentOcrWebApp
             app.UseStaticFiles();
             app.UseAntiforgery();
 
+            app.UseAuthentication();
+            app.UseAuthorization();
+
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
+
+            app.MapControllers();
 
             app.Run();
         }

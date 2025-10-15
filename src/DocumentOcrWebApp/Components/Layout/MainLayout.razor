@@ -1,6 +1,57 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
 
-@Body
+<div class="page">
+    <header class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Document OCR Review</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/documents">Documents</a>
+                    </li>
+                </ul>
+                <AuthorizeView>
+                    <Authorized>
+                        <ul class="navbar-nav">
+                            <li class="nav-item">
+                                <span class="navbar-text text-light me-3">
+                                    Hello, @context.User.Identity?.Name
+                                </span>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="MicrosoftIdentity/Account/SignOut">Logout</a>
+                            </li>
+                        </ul>
+                    </Authorized>
+                    <NotAuthorized>
+                        <ul class="navbar-nav">
+                            <li class="nav-item">
+                                <a class="nav-link" href="MicrosoftIdentity/Account/SignIn">Login</a>
+                            </li>
+                        </ul>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </header>
+
+    <main class="container-fluid py-4">
+        @Body
+    </main>
+
+    <footer class="footer mt-auto py-3 bg-light">
+        <div class="container text-center">
+            <span class="text-muted">Document OCR Review System</span>
+        </div>
+    </footer>
+</div>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

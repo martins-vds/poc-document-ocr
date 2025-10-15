@@ -41,4 +41,79 @@ public class CosmosDbService : ICosmosDbService
             throw;
         }
     }
+
+    public async Task<DocumentOcrEntity> UpdateDocumentAsync(DocumentOcrEntity entity)
+    {
+        try
+        {
+            _logger.LogInformation("Updating document {Id} in Cosmos DB", entity.Id);
+            var response = await _container.ReplaceItemAsync(entity, entity.Id, new PartitionKey(entity.Identifier));
+            _logger.LogInformation("Successfully updated document {Id} in Cosmos DB", entity.Id);
+            return response.Resource;
+        }
+        catch (CosmosException ex)
+        {
+            _logger.LogError(ex, "Error updating document {Id} in Cosmos DB. Status code: {StatusCode}", entity.Id, ex.StatusCode);
+            throw;
+        }
+    }
+
+    public async Task<DocumentOcrEntity?> GetDocumentByIdAsync(string id, string partitionKey)
+    {
+        try
+        {
+            _logger.LogInformation("Retrieving document {Id} from Cosmos DB", id);
+            var response = await _container.ReadItemAsync<DocumentOcrEntity>(id, new PartitionKey(partitionKey));
+            _logger.LogInformation("Successfully retrieved document {Id} from Cosmos DB", id);
+            return response.Resource;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _logger.LogWarning("Document {Id} not found in Cosmos DB", id);
+            return null;
+        }
+        catch (CosmosException ex)
+        {
+            _logger.LogError(ex, "Error retrieving document {Id} from Cosmos DB. Status code: {StatusCode}", id, ex.StatusCode);
+            throw;
+        }
+    }
+
+    public async Task<List<DocumentOcrEntity>> GetDocumentsAsync(string? reviewStatus = null, int? maxItems = null)
+    {
+        try
+        {
+            _logger.LogInformation("Querying documents from Cosmos DB with reviewStatus: {ReviewStatus}, maxItems: {MaxItems}", reviewStatus, maxItems);
+
+            var queryText = reviewStatus != null
+                ? "SELECT * FROM c WHERE c.reviewStatus = @reviewStatus ORDER BY c.processedAt DESC"
+                : "SELECT * FROM c ORDER BY c.processedAt DESC";
+
+            var queryDefinition = new QueryDefinition(queryText);
+            if (reviewStatus != null)
+            {
+                queryDefinition = queryDefinition.WithParameter("@reviewStatus", reviewStatus);
+            }
+
+            var query = _container.GetItemQueryIterator<DocumentOcrEntity>(
+                queryDefinition,
+                requestOptions: new QueryRequestOptions { MaxItemCount = maxItems }
+            );
+
+            var results = new List<DocumentOcrEntity>();
+            while (query.HasMoreResults)
+            {
+                var response = await query.ReadNextAsync();
+                results.AddRange(response);
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} documents from Cosmos DB", results.Count);
+            return results;
+        }
+        catch (CosmosException ex)
+        {
+            _logger.LogError(ex, "Error querying documents from Cosmos DB. Status code: {StatusCode}", ex.StatusCode);
+            throw;
+        }
+    }
 }

@@ -1,0 +1,7 @@
+# Azure Developer CLI
+.azure/
+
+# Bicep build artifacts
+*.json.log
+main.json
+!main.parameters.json

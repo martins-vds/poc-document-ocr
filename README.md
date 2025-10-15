@@ -4,9 +4,12 @@ This is an Azure Functions application that processes PDF files containing multi
 
 ## Documentation
 
+- **[⚡ Quick Deploy Guide](QUICK-DEPLOY.md)** - Deploy to Azure in 5 commands (< 20 minutes)
 - [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
-- [Deployment](docs/DEPLOYMENT.md) - Azure deployment instructions
+- [Deployment (IaC)](docs/DEPLOYMENT-IAC.md) - **Recommended:** Automated deployment with Bicep and Azure Developer CLI
+- [Deployment (Manual)](docs/DEPLOYMENT.md) - Manual Azure deployment instructions
+- [Infrastructure as Code](infra/README.md) - IaC technical reference and Bicep modules
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
 
 ## Architecture
@@ -151,13 +154,43 @@ See [`utils/README.md`](utils/README.md) for detailed usage instructions for all
    func start
    ```
 
-### Deployment
+### Deployment to Azure
+
+#### Automated Deployment (Recommended)
+
+Use Bicep and Azure Developer CLI for automated infrastructure provisioning with private networking:
+
+```bash
+# Initialize environment
+azd auth login
+azd env new <environment-name>
+azd env set AZURE_LOCATION eastus
+
+# Deploy infrastructure and function code
+azd up
+```
+
+See [Infrastructure as Code guide](infra/README.md) for detailed instructions.
+
+#### Manual Deployment
 
 Deploy to Azure using Azure Functions Core Tools:
 
 ```bash
 func azure functionapp publish <your-function-app-name>
 ```
+
+Or use the utility scripts:
+
+```bash
+# Linux/macOS
+./infra/scripts/deploy-function.sh <function-app-name>
+
+# Windows PowerShell
+./infra/scripts/deploy-function.ps1 -FunctionAppName <function-app-name>
+```
+
+See [Manual deployment guide](docs/DEPLOYMENT.md) for step-by-step instructions.
 
 ## Output
 

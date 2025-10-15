@@ -1,6 +1,8 @@
-# Deployment Guide
+# Deployment Guide - Manual
 
-This guide walks through deploying the Document OCR Processor to Azure.
+This guide walks through deploying the Document OCR Processor to Azure using manual Azure CLI commands.
+
+> **📋 Note:** For automated deployment with Infrastructure as Code (IaC), see the [IaC Deployment Guide](DEPLOYMENT-IAC.md). The IaC approach is recommended as it provides private networking, managed identity authentication, and consistent deployments.
 
 ## Prerequisites
 

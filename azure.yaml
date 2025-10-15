@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: poc-document-ocr
+metadata:
+  template: poc-document-ocr@0.0.1-beta
+
+# Infrastructure configuration
+# Use main-avm.bicep for Azure Verified Modules (recommended)
+# Use main.bicep for custom modules
+infra:
+  path: infra
+  module: main-avm
+
+services:
+  function:
+    project: ./src
+    language: dotnet
+    host: function
+
+hooks:
+  postprovision:
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Infrastructure provisioned successfully!"
+        Write-Host "Run 'azd deploy' to deploy the function app code."
+    posix:
+      shell: sh
+      run: |
+        echo "Infrastructure provisioned successfully!"
+        echo "Run 'azd deploy' to deploy the function app code."

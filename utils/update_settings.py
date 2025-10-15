@@ -187,6 +187,11 @@ def update_webapp_settings(
     settings_path = get_webapp_settings_path()
     template_path = get_webapp_template_path()
     
+    # Validate and fix Cosmos DB endpoint URL
+    if not cosmosdb_endpoint.endswith('/'):
+        print("Warning: Cosmos DB endpoint should end with '/' - adding it automatically", file=sys.stderr)
+        cosmosdb_endpoint = cosmosdb_endpoint + '/'
+    
     # Load existing settings or create from template
     if settings_path.exists():
         print(f"Loading existing settings from: {settings_path}", file=sys.stderr)

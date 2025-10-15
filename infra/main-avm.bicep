@@ -27,6 +27,18 @@ param runningOnGh string = ''
 @description('Whether the deployment is running on Azure DevOps Pipeline')
 param runningOnAdo string = ''
 
+param allowedIps string = ''
+var ipRules = reduce(
+  filter(array(split(allowedIps, ';')), o => length(trim(o)) > 0),
+  [],
+  (cur, next) =>
+    union(cur, [
+      {
+        value: next
+      }
+    ])
+)
+
 // Generate unique resource names
 var uniqueSuffix = uniqueString(resourceGroup().id, environmentName, workloadName)
 var storageAccountName = 'st${uniqueSuffix}'
@@ -139,10 +151,14 @@ module storage 'br/public:avm/res/storage/storage-account:0.27.1' = {
     kind: 'StorageV2'
     skuName: 'Standard_LRS'
     allowBlobPublicAccess: false
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: !empty(ipRules) ? 'Enabled' : 'Disabled'
     networkAcls: {
       defaultAction: 'Deny'
       bypass: 'AzureServices'
+      ipRules: map(ipRules, ipRule => {
+        value: ipRule.?value
+        action: 'Allow'
+      })
     }
     blobServices: {
       containers: [
@@ -215,9 +231,10 @@ module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.13.2
     kind: 'FormRecognizer'
     customSubDomainName: documentIntelligenceName
     sku: 'S0'
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: !empty(ipRules) ? 'Enabled' : 'Disabled'
     networkAcls: {
       defaultAction: 'Deny'
+      ipRules: ipRules
     }
     privateEndpoints: [
       {
@@ -247,7 +264,8 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.16.0' = {
       'EnableServerless'
     ]
     networkRestrictions: {
-      publicNetworkAccess: 'Disabled'
+      publicNetworkAccess: !empty(ipRules) ? 'Enabled' : 'Disabled'
+      ipRules: map(ipRules, ipRule => lastIndexOf(ipRule.?value, '/') == -1 ? '${ipRule.?value}/32' : ipRule.?value)
     }
     sqlDatabases: [
       {
@@ -307,7 +325,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
     managedIdentities: {
       systemAssigned: true
     }
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: !empty(ipRules) ? 'Enabled' : 'Disabled'
     outboundVnetRouting: {
       allTraffic: true
     }
@@ -319,6 +337,11 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
+      ipSecurityRestrictions: map(ipRules, ipRule => {
+        ipAddress: lastIndexOf(ipRule.?value, '/') == -1 ? '${ipRule.?value}/32' : ipRule.?value
+        action: 'Allow'
+      })
+      ipSecurityRestrictionsDefaultAction: 'Deny'
       appSettings: [
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
@@ -357,6 +380,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
     privateEndpoints: [
       {
         name: '${functionAppName}-pe'
+        tags: tags
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
@@ -366,6 +390,28 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
           ]
         }
         service: 'sites'
+      }
+    ]
+    diagnosticSettings: [
+      {
+        name: 'all'
+        workspaceResourceId: logAnalytics.outputs.resourceId
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+            enabled: true
+          }
+        ]
+        logCategoriesAndGroups: [
+          {
+            category: 'FunctionAppLogs'
+            enabled: true
+          }
+          {
+            category: 'AppServiceAuthenticationLogs'
+            enabled: true
+          }
+        ]
       }
     ]
     tags: union(tags, { 'azd-service-name': 'function' })

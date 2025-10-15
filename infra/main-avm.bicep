@@ -434,7 +434,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
 }
 
 // Web App using AVM
-module webApp 'br/public:avm/res/web/site:0.12.0' = {
+module webApp 'br/public:avm/res/web/site:0.19.3' = {
   name: 'web-app-deployment'
   params: {
     name: webAppName

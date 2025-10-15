@@ -3,9 +3,10 @@ targetScope = 'resourceGroup'
 @description('The location for all resources')
 param location string = resourceGroup().location
 
-@description('Environment name (dev, test, prod)')
-@maxLength(8)
-param environmentName string = 'dev'
+@minLength(1)
+@maxLength(64)
+@description('Name of the the environment which is used to generate a short unique hash used in all resources.')
+param environmentName string
 
 @description('Name of the workload')
 param workloadName string = 'documentocr'
@@ -18,15 +19,15 @@ param tags object = {
 }
 
 // Generate unique resource names
-var uniqueSuffix = uniqueString(resourceGroup().id)
-var storageAccountName = 'st${workloadName}${uniqueSuffix}'
-var documentIntelligenceName = 'di-${workloadName}-${environmentName}'
-var cosmosDbAccountName = 'cosmos-${workloadName}-${uniqueSuffix}'
-var functionAppName = 'func-${workloadName}-${environmentName}-${uniqueSuffix}'
-var appServicePlanName = 'asp-${workloadName}-${environmentName}'
-var applicationInsightsName = 'appi-${workloadName}-${environmentName}'
-var logAnalyticsWorkspaceName = 'log-${workloadName}-${environmentName}'
-var vnetName = 'vnet-${workloadName}-${environmentName}'
+var uniqueSuffix = uniqueString(resourceGroup().id, environmentName, workloadName)
+var storageAccountName = 'st${uniqueSuffix}'
+var documentIntelligenceName = 'di-${uniqueSuffix}'
+var cosmosDbAccountName = 'cosmos-${uniqueSuffix}'
+var functionAppName = 'func-${uniqueSuffix}'
+var appServicePlanName = 'asp-${uniqueSuffix}'
+var applicationInsightsName = 'appi-${uniqueSuffix}'
+var logAnalyticsWorkspaceName = 'log-${uniqueSuffix}'
+var vnetName = 'vnet-${uniqueSuffix}'
 
 // ===================================
 // Azure Verified Modules (AVM)

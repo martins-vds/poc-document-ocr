@@ -28,12 +28,12 @@ The IaC deployment provides:
 
 2. **Azure CLI**
    ```bash
-   # Follow instructions at: https://docs.microsoft.com/cli/azure/install-azure-cli
+   # Follow instructions at: https://learn.microsoft.com/cli/azure/install-azure-cli
    ```
 
 3. **.NET 8.0 SDK**
    ```bash
-   # Download from: https://dotnet.microsoft.com/download/dotnet/8.0
+   # Download from: https://dotnet.microsoft.com/en-us/download/dotnet/8.0
    ```
 
 4. **Azure Functions Core Tools v4**
@@ -45,8 +45,9 @@ The IaC deployment provides:
    brew tap azure/functions
    brew install azure-functions-core-tools@4
    
-   # Linux
-   npm install -g azure-functions-core-tools@4
+   # Linux (may require sudo)
+   sudo npm install -g azure-functions-core-tools@4
+   # Or use distribution-specific package manager
    ```
 
 5. **Active Azure Subscription**
@@ -373,7 +374,12 @@ azd env get-value AZURE_RESOURCE_GROUP
 
 **Solution:**
 1. Ensure you have `Owner` or `User Access Administrator` role
-2. Check subscription has Microsoft.Authorization provider registered
+2. Check subscription has Microsoft.Authorization provider registered:
+   ```bash
+   az provider show --namespace Microsoft.Authorization
+   # If not registered:
+   az provider register --namespace Microsoft.Authorization
+   ```
 3. Review Azure Activity Log for detailed error
 
 ### Issue: Build Script Fails

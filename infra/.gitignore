@@ -3,3 +3,5 @@
 
 # Bicep build artifacts
 *.json.log
+main.json
+!main.parameters.json

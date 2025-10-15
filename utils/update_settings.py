@@ -134,7 +134,7 @@ def update_function_settings(
     
     # Validate and fix endpoint URL
     if not doc_intelligence_endpoint.endswith('/'):
-        validate_endpoint_url(doc_intelligence_endpoint, "Document Intelligence")
+        print("Warning: Document Intelligence endpoint should end with '/' - adding it automatically", file=sys.stderr)
         doc_intelligence_endpoint = doc_intelligence_endpoint + '/'
     
     # Load template or existing settings
@@ -166,12 +166,6 @@ def update_function_settings(
     settings["Values"]["CosmosDb:ContainerName"] = cosmosdb_container
     
     save_json_file(settings_path, settings)
-
-
-def validate_endpoint_url(endpoint: str, name: str) -> None:
-    """Validate that endpoint URL ends with '/'."""
-    if not endpoint.endswith('/'):
-        print(f"Warning: {name} endpoint should end with '/' - adding it automatically", file=sys.stderr)
 
 
 def update_webapp_settings(

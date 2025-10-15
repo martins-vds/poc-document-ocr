@@ -18,6 +18,15 @@ param tags object = {
   ManagedBy: 'Bicep-AVM'
 }
 
+@description('Id of the user or app to assign application roles')
+param principalId string = ''
+
+@description('Whether the deployment is running on GitHub Actions')
+param runningOnGh string = ''
+
+@description('Whether the deployment is running on Azure DevOps Pipeline')
+param runningOnAdo string = ''
+
 // Generate unique resource names
 var uniqueSuffix = uniqueString(resourceGroup().id, environmentName, workloadName)
 var storageAccountName = 'st${uniqueSuffix}'
@@ -358,16 +367,29 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
         service: 'sites'
       }
     ]
-    tags: tags
+    tags: union(tags, { 'azd-service-name': 'function' })
   }
 }
 
 // Role Assignments using custom module
 // Note: AVM does not have a comprehensive role assignment module for complex scenarios
-module roleAssignments 'modules/roleAssignments.bicep' = {
-  name: 'role-assignments-deployment'
+var principalType = empty(runningOnGh) && empty(runningOnAdo) ? 'User' : 'ServicePrincipal'
+
+module userRoleAssignments 'modules/roleAssignments.bicep' = {
+  name: 'user-role-assignments-deployment'
   params: {
-    functionAppPrincipalId: functionApp.outputs.systemAssignedMIPrincipalId!
+    principalId: principalId
+    storageAccountName: storageAccountName
+    documentIntelligenceName: documentIntelligenceName
+    cosmosDbAccountName: cosmosDbAccountName
+    principalType: principalType
+  }
+}
+
+module systemRoleAssignments 'modules/roleAssignments.bicep' = {
+  name: 'system-role-assignments-deployment'
+  params: {
+    principalId: functionApp.outputs.systemAssignedMIPrincipalId!
     storageAccountName: storageAccountName
     documentIntelligenceName: documentIntelligenceName
     cosmosDbAccountName: cosmosDbAccountName

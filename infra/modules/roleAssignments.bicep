@@ -1,5 +1,5 @@
 @description('Function App Managed Identity Principal ID')
-param functionAppPrincipalId string
+param principalId string
 
 @description('Storage Account Name')
 param storageAccountName string
@@ -9,6 +9,13 @@ param documentIntelligenceName string
 
 @description('Cosmos DB Account Name')
 param cosmosDbAccountName string
+
+@description('The type of principal (e.g., User, ServicePrincipal)')
+@allowed([
+  'User'
+  'ServicePrincipal'
+])
+param principalType string = 'ServicePrincipal'
 
 // Built-in role definitions
 var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
@@ -24,43 +31,43 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing 
 
 // Grant Storage Blob Data Contributor role
 resource storageBlobDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionAppPrincipalId, storageBlobDataContributorRoleId)
+  name: guid(storageAccount.id, principalId, storageBlobDataContributorRoleId)
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
       storageBlobDataContributorRoleId
     )
-    principalId: functionAppPrincipalId
-    principalType: 'ServicePrincipal'
+    principalId: principalId
+    principalType: principalType
   }
 }
 
 // Grant Storage Queue Data Contributor role
 resource storageQueueDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionAppPrincipalId, storageQueueDataContributorRoleId)
+  name: guid(storageAccount.id, principalId, storageQueueDataContributorRoleId)
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
       storageQueueDataContributorRoleId
     )
-    principalId: functionAppPrincipalId
-    principalType: 'ServicePrincipal'
+    principalId: principalId
+    principalType: principalType
   }
 }
 
 // Grant Storage Table Data Contributor role
 resource storageTableDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionAppPrincipalId, storageTableDataContributorRoleId)
+  name: guid(storageAccount.id, principalId, storageTableDataContributorRoleId)
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
       storageTableDataContributorRoleId
     )
-    principalId: functionAppPrincipalId
-    principalType: 'ServicePrincipal'
+    principalId: principalId
+    principalType: principalType
   }
 }
 
@@ -71,12 +78,12 @@ resource documentIntelligence 'Microsoft.CognitiveServices/accounts@2023-05-01' 
 
 // Grant Cognitive Services User role
 resource cognitiveServicesUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(documentIntelligence.id, functionAppPrincipalId, cognitiveServicesUserRoleId)
+  name: guid(documentIntelligence.id, principalId, cognitiveServicesUserRoleId)
   scope: documentIntelligence
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cognitiveServicesUserRoleId)
-    principalId: functionAppPrincipalId
-    principalType: 'ServicePrincipal'
+    principalId: principalId
+    principalType: principalType
   }
 }
 
@@ -87,11 +94,11 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2023-04-15' exis
 
 // Grant Cosmos DB Built-in Data Contributor role
 resource cosmosDbDataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
-  name: guid(cosmosDbAccount.id, functionAppPrincipalId, cosmosDbDataContributorRoleId)
+  name: guid(cosmosDbAccount.id, principalId, cosmosDbDataContributorRoleId)
   parent: cosmosDbAccount
   properties: {
     roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/${cosmosDbDataContributorRoleId}'
-    principalId: functionAppPrincipalId
+    principalId: principalId
     scope: cosmosDbAccount.id
   }
 }

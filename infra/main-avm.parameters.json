@@ -10,6 +10,15 @@
     },
     "workloadName": {
       "value": "documentocr"
+    },
+    "principalId": {
+      "value": "${AZURE_PRINCIPAL_ID}"
+    },
+    "runningOnAdo": {
+      "value": "${TF_BUILD}"
+    },
+    "runningOnGh": {
+      "value": "${GITHUB_ACTIONS}"
     }
   }
 }

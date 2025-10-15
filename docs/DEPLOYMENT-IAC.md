@@ -389,7 +389,7 @@ azd env get-value AZURE_RESOURCE_GROUP
 **Solution:**
 1. Ensure .NET 8.0 SDK is installed: `dotnet --version`
 2. Run from project root: `./infra/scripts/build-function.sh`
-3. Check for build errors: `cd src && dotnet build`
+3. Check for build errors: `cd src/DocumentOcrProcessor && dotnet build`
 
 ### Issue: Deploy Script Fails
 

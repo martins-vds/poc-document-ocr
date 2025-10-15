@@ -133,7 +133,7 @@ See [`utils/README.md`](utils/README.md) for detailed usage instructions for all
 
 1. Install dependencies:
    ```bash
-   cd src
+   cd src/DocumentOcrProcessor
    dotnet restore
    ```
 
@@ -144,13 +144,13 @@ See [`utils/README.md`](utils/README.md) for detailed usage instructions for all
 
 3. Run tests:
    ```bash
-   cd ../tests
+   cd ../../tests
    dotnet test
    ```
 
 4. Run locally:
    ```bash
-   cd ../src
+   cd ../src/DocumentOcrProcessor
    func start
    ```
 

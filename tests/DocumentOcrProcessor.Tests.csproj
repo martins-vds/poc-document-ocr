@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../src/DocumentOcrProcessor.csproj" />
+    <ProjectReference Include="../src/DocumentOcrProcessor/DocumentOcrProcessor.csproj" />
   </ItemGroup>
 
   <ItemGroup>

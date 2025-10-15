@@ -130,6 +130,12 @@ This tells the processor to look for a field named "documentId" in the OCR resul
 
 A collection of helpful utility scripts is available in the [`utils`](utils/) directory:
 
+- **Configuration Settings Updater** (`utils/update_settings.py`): Python script to update Azure configuration for both Function App and Web App
+  - Updates `local.settings.json` for Azure Function and `appsettings.Development.json` for Web App
+  - Supports interactive mode or command-line arguments
+  - Essential for local development setup and team onboarding
+  - Safe for source control (updates Development settings only)
+  - No additional dependencies required (uses built-in Python libraries)
 - **Base64 File Encoder** (`utils/encode_base64.py`): Python script to encode any file to base64 representation
   - Useful for encoding files for API requests, JSON embedding, and testing base64 file handling
   - No additional dependencies required (uses built-in Python libraries)

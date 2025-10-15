@@ -8,7 +8,7 @@ echo "================================"
 # Navigate to the source directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SRC_DIR="$PROJECT_ROOT/src"
+SRC_DIR="$PROJECT_ROOT/src/DocumentOcrProcessor"
 
 cd "$SRC_DIR"
 

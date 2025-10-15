@@ -132,10 +132,15 @@ def update_function_settings(
     settings_path = get_function_settings_path()
     template_path = get_function_template_path()
     
-    # Validate and fix endpoint URL
+    # Validate and fix Document Intelligence endpoint URL
     if not doc_intelligence_endpoint.endswith('/'):
         print("Warning: Document Intelligence endpoint should end with '/' - adding it automatically", file=sys.stderr)
         doc_intelligence_endpoint = doc_intelligence_endpoint + '/'
+    
+    # Validate and fix Cosmos DB endpoint URL
+    if not cosmosdb_endpoint.endswith('/'):
+        print("Warning: Cosmos DB endpoint should end with '/' - adding it automatically", file=sys.stderr)
+        cosmosdb_endpoint = cosmosdb_endpoint + '/'
     
     # Load template or existing settings
     if settings_path.exists():
@@ -341,7 +346,7 @@ For local development:
     )
     parser.add_argument(
         '--cosmosdb-endpoint',
-        help='Cosmos DB endpoint URL'
+        help='Cosmos DB endpoint URL (trailing slash will be added if missing)'
     )
     parser.add_argument(
         '--cosmosdb-key',

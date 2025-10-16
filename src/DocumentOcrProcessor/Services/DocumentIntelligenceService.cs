@@ -36,7 +36,16 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
         try
         {
             documentStream.Position = 0;
-            var operation = await _client.AnalyzeDocumentAsync(WaitUntil.Completed, _modelId, documentStream);
+            
+            using var analysisStream = new MemoryStream();
+
+            documentStream.CopyTo(analysisStream);
+            documentStream.Position = 0;
+
+            analysisStream.Position = 0;
+
+            // The AnalyzeDocumentAsync method closes the stream, so we use a copy
+            var operation = await _client.AnalyzeDocumentAsync(WaitUntil.Completed, _modelId, analysisStream, options: new AnalyzeDocumentOptions());
             var result = operation.Value;
 
             _logger.LogInformation("Document analysis completed. Found {PageCount} pages", result.Pages.Count);

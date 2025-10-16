@@ -208,7 +208,7 @@ else
             if (document != null)
             {
                 editedData = new Dictionary<string, object>(document.ExtractedData);
-                pdfUrl = document.PdfBlobUrl;
+                pdfUrl = $"/api/pdf/{Id}/{Identifier}";
             }
         }
         catch (Exception ex)

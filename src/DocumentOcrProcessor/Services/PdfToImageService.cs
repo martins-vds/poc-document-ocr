@@ -21,13 +21,13 @@ public class PdfToImageService : IPdfToImageService
         try
         {
             pdfStream.Position = 0;
-            var pageCount = Conversion.GetPageCount(pdfStream);
+            var pageCount = Conversion.GetPageCount(pdfStream, leaveOpen: true);
             _logger.LogInformation("PDF has {PageCount} pages", pageCount);
 
             for (int i = 0; i < pageCount; i++)
             {
                 pdfStream.Position = 0;
-                using var image = Conversion.ToImage(pdfStream, page: i);
+                using var image = Conversion.ToImage(pdfStream, page: i, leaveOpen: true);
                 
                 var imageStream = new MemoryStream();
                 image.Encode(imageStream, SKEncodedImageFormat.Png, 100);

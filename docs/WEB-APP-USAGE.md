@@ -40,8 +40,9 @@ The document list shows all documents that have been processed by the OCR system
 The review interface provides a split view with the PDF on the left and extracted data on the right.
 
 **PDF Viewer:**
-- View the processed PDF document
+- View the processed PDF document (streamed securely from Azure Storage)
 - Zoom and navigate through pages
+- PDFs are streamed through the web server for security (not publicly accessible)
 
 **Document Information:**
 - Document metadata (number, identifier, file name, etc.)
@@ -124,8 +125,9 @@ Documents have color-coded status badges:
 
 ### PDF Not Loading
 - Check your network connection
-- Verify blob storage access is configured correctly
-- Ensure the PDF URL in the document record is valid
+- Verify the web application has access to Azure Storage (uses Managed Identity)
+- Ensure the document record has valid ContainerName and BlobName properties
+- Check application logs for PDF streaming errors (look for PdfController errors)
 
 ### Cannot Save Changes
 - Verify you have write access to Cosmos DB

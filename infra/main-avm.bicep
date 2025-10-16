@@ -593,16 +593,40 @@ module webAppRoleAssignments 'modules/roleAssignments.bicep' = {
 }
 
 // Outputs
-output storageAccountName string = storageAccountName
-output documentIntelligenceName string = documentIntelligenceName
-output documentIntelligenceEndpoint string = documentIntelligence.outputs.endpoint
-output cosmosDbAccountName string = cosmosDbAccountName
-output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
-output functionAppName string = functionAppName
-output functionAppUrl string = functionApp.outputs.defaultHostname
-output webAppName string = webAppName
-output webAppUrl string = 'https://${webApp.outputs.defaultHostname}'
-output applicationInsightsName string = applicationInsightsName
-output resourceGroupName string = resourceGroup().name
-output vnetName string = vnet.outputs.name
-output vnetId string = vnet.outputs.resourceId
+// Note: azd makes Bicep outputs available via 'azd env get-value <outputName>'
+// Scripts use exact output names, not transformed versions
+// All outputs follow AZURE_ prefix pattern for consistency
+
+// Storage outputs
+output AZURE_STORAGE_ACCOUNT_NAME string = storageAccountName
+
+// Document Intelligence outputs  
+output AZURE_DOCUMENTINTELLIGENCE_NAME string = documentIntelligenceName
+output AZURE_DOCUMENTINTELLIGENCE_ENDPOINT string = documentIntelligence.outputs.endpoint
+
+// Cosmos DB outputs
+output AZURE_COSMOSDB_ACCOUNT_NAME string = cosmosDbAccountName
+output AZURE_COSMOSDB_ENDPOINT string = cosmosDb.outputs.endpoint
+output AZURE_COSMOSDB_DATABASE string = 'DocumentOcrDb'
+output AZURE_COSMOSDB_CONTAINER string = 'ProcessedDocuments'
+
+// Azure AD outputs (for Web App authentication)
+output AZURE_TENANT_ID string = tenantId
+output AZURE_WEB_APP_CLIENT_ID string = webAppClientId  
+output AZURE_AD_DOMAIN string = azureAdDomain
+
+// Function App outputs
+output AZURE_FUNCTION_APP_NAME string = functionAppName
+output AZURE_FUNCTION_APP_URL string = functionApp.outputs.defaultHostname
+
+// Web App outputs
+output AZURE_WEB_APP_NAME string = webAppName
+output AZURE_WEB_APP_URL string = 'https://${webApp.outputs.defaultHostname}'
+
+// Monitoring outputs
+output AZURE_APPLICATION_INSIGHTS_NAME string = applicationInsightsName
+
+// Infrastructure outputs
+output AZURE_RESOURCE_GROUP_NAME string = resourceGroup().name
+output AZURE_VNET_NAME string = vnet.outputs.name
+output AZURE_VNET_ID string = vnet.outputs.resourceId

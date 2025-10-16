@@ -12,6 +12,7 @@ This is a complete Azure solution that processes PDF files containing multiple d
 - [Deployment (IaC)](docs/DEPLOYMENT-IAC.md) - **Recommended:** Automated deployment with Bicep and Azure Developer CLI
 - [Deployment (Manual)](docs/DEPLOYMENT.md) - Manual Azure deployment instructions
 - [Infrastructure as Code](infra/README.md) - IaC technical reference and Bicep modules
+- [Bicep Outputs Mapping](docs/BICEP-OUTPUTS-MAPPING.md) - Environment variables mapping for development setup
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
 
 ## Architecture

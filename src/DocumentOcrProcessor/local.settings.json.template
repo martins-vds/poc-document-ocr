@@ -1,7 +1,7 @@
 {
     "IsEncrypted": false,
     "Values": {
-        "AzureWebJobsStorage__accountName": "<storage-account-name>",
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
         "Storage:AccountName": "<storage-account-name>",
         "DocumentIntelligence:Endpoint": "https://<your-document-intelligence-endpoint>.cognitiveservices.azure.com/",

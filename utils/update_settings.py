@@ -163,8 +163,7 @@ def update_function_settings(
     if "Values" not in settings:
         settings["Values"] = {}
     
-    # Update settings using keyless authentication
-    settings["Values"]["AzureWebJobsStorage__accountName"] = storage_account
+    # Update settings using keyless authentication    
     settings["Values"]["FUNCTIONS_WORKER_RUNTIME"] = "dotnet-isolated"
     settings["Values"]["Storage:AccountName"] = storage_account
     settings["Values"]["DocumentIntelligence:Endpoint"] = doc_intelligence_endpoint
@@ -252,7 +251,7 @@ def from_azd_env() -> Dict[str, str]:
     - AZURE_DOCUMENTINTELLIGENCE_ENDPOINT
     - AZURE_COSMOSDB_ENDPOINT
     - AZURE_TENANT_ID
-    - WEB_APP_CLIENT_ID
+    - AZURE_WEB_APP_CLIENT_ID
     - AZURE_AD_DOMAIN
     - AZURE_COSMOSDB_DATABASE (optional, defaults to DocumentOcrDb)
     - AZURE_COSMOSDB_CONTAINER (optional, defaults to ProcessedDocuments)
@@ -285,9 +284,9 @@ def from_azd_env() -> Dict[str, str]:
     if not config["tenant_id"]:
         missing.append("AZURE_TENANT_ID")
     
-    config["client_id"] = os.environ.get("WEB_APP_CLIENT_ID")
+    config["client_id"] = os.environ.get("AZURE_WEB_APP_CLIENT_ID")
     if not config["client_id"]:
-        missing.append("WEB_APP_CLIENT_ID")
+        missing.append("AZURE_WEB_APP_CLIENT_ID")
     
     config["domain"] = os.environ.get("AZURE_AD_DOMAIN")
     if not config["domain"]:

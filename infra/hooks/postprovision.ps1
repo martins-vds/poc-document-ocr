@@ -2,7 +2,7 @@
 
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "Post-Provision Hook: Setting up local development configuration" -ForegroundColor Cyan
+Write-Host "Post-Provision Hook: Setting up keyless authentication config" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -17,7 +17,7 @@ if (-not $env:AZURE_RESOURCE_GROUP) {
     exit 0
 }
 
-Write-Host "Fetching Azure resource keys and connection strings..."
+Write-Host "Retrieving Azure resource configuration for keyless authentication..."
 Write-Host ""
 
 # Get resource names from azd environment
@@ -27,23 +27,29 @@ $CosmosDbAccountName = $env:AZURE_COSMOSDB_ACCOUNT_NAME
 
 # If not set, try to get from bicep outputs via azd
 if (-not $StorageAccountName) {
-    $StorageAccountName = (azd env get-value storageAccountName 2>$null) | Out-String
+    $StorageAccountName = (azd env get-value AZURE_STORAGE_ACCOUNT_NAME 2>$null) | Out-String
     $StorageAccountName = $StorageAccountName.Trim()
 }
 if (-not $DocIntelligenceName) {
-    $DocIntelligenceName = (azd env get-value documentIntelligenceName 2>$null) | Out-String
+    $DocIntelligenceName = (azd env get-value AZURE_DOCUMENTINTELLIGENCE_NAME 2>$null) | Out-String
     $DocIntelligenceName = $DocIntelligenceName.Trim()
 }
 if (-not $CosmosDbAccountName) {
-    $CosmosDbAccountName = (azd env get-value cosmosDbAccountName 2>$null) | Out-String
+    $CosmosDbAccountName = (azd env get-value AZURE_COSMOSDB_ACCOUNT_NAME 2>$null) | Out-String
     $CosmosDbAccountName = $CosmosDbAccountName.Trim()
 }
 
-# Get endpoints from azd
-$DocIntelligenceEndpoint = (azd env get-value documentIntelligenceEndpoint 2>$null) | Out-String
+# Get additional values from azd outputs
+$DocIntelligenceEndpoint = (azd env get-value AZURE_DOCUMENTINTELLIGENCE_ENDPOINT 2>$null) | Out-String
 $DocIntelligenceEndpoint = $DocIntelligenceEndpoint.Trim()
-$CosmosDbEndpoint = (azd env get-value cosmosDbEndpoint 2>$null) | Out-String
+$CosmosDbEndpoint = (azd env get-value AZURE_COSMOSDB_ENDPOINT 2>$null) | Out-String
 $CosmosDbEndpoint = $CosmosDbEndpoint.Trim()
+$TenantId = (azd env get-value AZURE_TENANT_ID 2>$null) | Out-String
+$TenantId = $TenantId.Trim()
+$WebAppClientId = (azd env get-value AZURE_WEB_APP_CLIENT_ID 2>$null) | Out-String
+$WebAppClientId = $WebAppClientId.Trim()
+$AzureAdDomain = (azd env get-value AZURE_AD_DOMAIN 2>$null) | Out-String
+$AzureAdDomain = $AzureAdDomain.Trim()
 
 Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
 Write-Host "Storage Account: $StorageAccountName"
@@ -51,76 +57,56 @@ Write-Host "Document Intelligence: $DocIntelligenceName"
 Write-Host "Cosmos DB: $CosmosDbAccountName"
 Write-Host ""
 
-# Fetch Storage Account connection string
+# Set environment variables for keyless authentication (no keys needed)
+Write-Host "Setting up environment variables for keyless authentication..."
+
 if ($StorageAccountName) {
-    Write-Host "Fetching Storage Account connection string..."
-    try {
-        $StorageConnectionString = (az storage account show-connection-string `
-            --name $StorageAccountName `
-            --resource-group $env:AZURE_RESOURCE_GROUP `
-            --query connectionString `
-            --output tsv 2>$null) | Out-String
-        $env:AZURE_STORAGE_CONNECTION_STRING = $StorageConnectionString.Trim()
-        
-        if ($env:AZURE_STORAGE_CONNECTION_STRING) {
-            Write-Host "✓ Storage connection string retrieved" -ForegroundColor Green
-        }
-    }
-    catch {
-        Write-Host "⚠ Failed to retrieve storage connection string" -ForegroundColor Yellow
-    }
+    $env:AZURE_STORAGE_ACCOUNT_NAME = $StorageAccountName
+    Write-Host "✓ Storage account name set" -ForegroundColor Green
 }
 
-# Fetch Document Intelligence key
-if ($DocIntelligenceName) {
-    Write-Host "Fetching Document Intelligence key..."
-    try {
-        $DocIntelligenceKey = (az cognitiveservices account keys list `
-            --name $DocIntelligenceName `
-            --resource-group $env:AZURE_RESOURCE_GROUP `
-            --query key1 `
-            --output tsv 2>$null) | Out-String
-        $env:AZURE_DOCUMENTINTELLIGENCE_KEY = $DocIntelligenceKey.Trim()
-        
-        if ($env:AZURE_DOCUMENTINTELLIGENCE_KEY) {
-            Write-Host "✓ Document Intelligence key retrieved" -ForegroundColor Green
-            $env:AZURE_DOCUMENTINTELLIGENCE_ENDPOINT = $DocIntelligenceEndpoint
-        }
-    }
-    catch {
-        Write-Host "⚠ Failed to retrieve Document Intelligence key" -ForegroundColor Yellow
-    }
+if ($DocIntelligenceEndpoint) {
+    $env:AZURE_DOCUMENTINTELLIGENCE_ENDPOINT = $DocIntelligenceEndpoint
+    Write-Host "✓ Document Intelligence endpoint set" -ForegroundColor Green
 }
 
-# Fetch Cosmos DB key
-if ($CosmosDbAccountName) {
-    Write-Host "Fetching Cosmos DB key..."
-    try {
-        $CosmosDbKey = (az cosmosdb keys list `
-            --name $CosmosDbAccountName `
-            --resource-group $env:AZURE_RESOURCE_GROUP `
-            --query primaryMasterKey `
-            --output tsv 2>$null) | Out-String
-        $env:AZURE_COSMOSDB_KEY = $CosmosDbKey.Trim()
-        
-        if ($env:AZURE_COSMOSDB_KEY) {
-            Write-Host "✓ Cosmos DB key retrieved" -ForegroundColor Green
-            $env:AZURE_COSMOSDB_ENDPOINT = $CosmosDbEndpoint
-            $env:AZURE_COSMOSDB_DATABASE = "DocumentOcrDb"
-            $env:AZURE_COSMOSDB_CONTAINER = "ProcessedDocuments"
-        }
-    }
-    catch {
-        Write-Host "⚠ Failed to retrieve Cosmos DB key" -ForegroundColor Yellow
-    }
+if ($CosmosDbEndpoint) {
+    $env:AZURE_COSMOSDB_ENDPOINT = $CosmosDbEndpoint
+    $env:AZURE_COSMOSDB_DATABASE = "DocumentOcrDb"
+    $env:AZURE_COSMOSDB_CONTAINER = "ProcessedDocuments"
+    Write-Host "✓ Cosmos DB configuration set" -ForegroundColor Green
 }
 
-# Check if we have all required values
-if (-not $env:AZURE_STORAGE_CONNECTION_STRING -or `
-    -not $env:AZURE_DOCUMENTINTELLIGENCE_KEY -or `
-    -not $env:AZURE_COSMOSDB_KEY) {
+if ($TenantId) {
+    $env:AZURE_TENANT_ID = $TenantId
+    Write-Host "✓ Azure AD tenant ID set" -ForegroundColor Green
+}
+
+if ($WebAppClientId) {
+    $env:AZURE_WEB_APP_CLIENT_ID = $WebAppClientId
+    Write-Host "✓ Web App client ID set" -ForegroundColor Green
+}
+
+if ($AzureAdDomain) {
+    $env:AZURE_AD_DOMAIN = $AzureAdDomain
+    Write-Host "✓ Azure AD domain set" -ForegroundColor Green
+}
+
+# Check if we have all required values for keyless authentication
+$MissingVars = @()
+if (-not $env:AZURE_STORAGE_ACCOUNT_NAME) { $MissingVars += "AZURE_STORAGE_ACCOUNT_NAME" }
+if (-not $env:AZURE_DOCUMENTINTELLIGENCE_ENDPOINT) { $MissingVars += "AZURE_DOCUMENTINTELLIGENCE_ENDPOINT" }
+if (-not $env:AZURE_COSMOSDB_ENDPOINT) { $MissingVars += "AZURE_COSMOSDB_ENDPOINT" }
+if (-not $env:AZURE_TENANT_ID) { $MissingVars += "AZURE_TENANT_ID" }
+if (-not $env:AZURE_WEB_APP_CLIENT_ID) { $MissingVars += "AZURE_WEB_APP_CLIENT_ID" }
+if (-not $env:AZURE_AD_DOMAIN) { $MissingVars += "AZURE_AD_DOMAIN" }
+
+if ($MissingVars.Count -gt 0) {
     Write-Host ""
-    Write-Host "⚠ Warning: Could not retrieve all required keys from Azure." -ForegroundColor Yellow
+    Write-Host "⚠ Warning: Missing required environment variables for keyless authentication:" -ForegroundColor Yellow
+    foreach ($var in $MissingVars) {
+        Write-Host "   - $var" -ForegroundColor Yellow
+    }
     Write-Host "Local configuration files will not be updated." -ForegroundColor Yellow
     Write-Host "You can update them manually using: python utils/update_settings.py --interactive" -ForegroundColor Yellow
     exit 0
@@ -149,6 +135,6 @@ else {
 
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "Post-provision setup complete!" -ForegroundColor Cyan
+Write-Host "Keyless authentication configuration complete!" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""

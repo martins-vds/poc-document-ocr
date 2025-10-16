@@ -1,13 +1,17 @@
 # Quick Start Guide
 
-This guide will help you get the Document OCR Processor running locally for development.
+This guide will help you get the Document OCR Processor running locally for development using **keyless authentication** with DefaultAzureCredential.
+
+> **🔐 Security:** This project uses keyless authentication - no API keys or connection strings in configuration!
 
 ## Prerequisites
 
 - .NET 8.0 SDK ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
 - Azure Functions Core Tools v4 ([Install Guide](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local))
 - Azure Storage Emulator or Azurite ([Install Guide](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite))
+- Azure CLI ([Install Guide](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli))
 - Active Azure subscription for AI services
+- **Azure credentials configured** (see Authentication Setup below)
 
 ## Setup
 
@@ -18,7 +22,29 @@ git clone https://github.com/martins-vds/poc-document-ocr.git
 cd poc-document-ocr/src/DocumentOcrProcessor
 ```
 
-### 2. Configure Local Settings
+### 2. Configure Azure Authentication (Required for Keyless Auth)
+
+DefaultAzureCredential will attempt authentication in the following order:
+
+**Option A: Azure CLI (Recommended for local development)**
+```bash
+az login
+# Set your subscription if you have multiple
+az account set --subscription "Your-Subscription-Name"
+```
+
+**Option B: Environment Variables**
+```bash
+export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+```
+
+**Option C: Visual Studio / VS Code**
+- Sign in to Azure through the IDE
+- DefaultAzureCredential will use those credentials
+
+### 3. Configure Local Settings
 
 **Option A: Use azd Provision (Recommended for Azure deployments)**
 
@@ -36,7 +62,7 @@ The postprovision hook automatically:
 
 **Option B: Use the Configuration Utility Script (Manual setup)**
 
-Use the utility script to manually update both Function App and Web App settings:
+Use the utility script to manually update both Function App and Web App settings (keyless mode):
 
 ```bash
 # From the project root
@@ -44,19 +70,21 @@ cd utils
 python update_settings.py --interactive
 ```
 
-This will prompt you for all required Azure credentials and update both:
-- `src/DocumentOcrProcessor/local.settings.json` (Azure Function)
-- `src/DocumentOcrWebApp/appsettings.Development.json` (Web App)
+This will prompt you for:
+- Storage account name (e.g., `devstoreaccount1` for local, or your Azure storage account name)
+- Document Intelligence endpoint
+- Cosmos DB endpoint
+- Azure AD configuration (for web app)
+
+**No API keys or connection strings needed!**
 
 For local development with emulators:
 
 ```bash
 python update_settings.py \
-  --storage-connection "UseDevelopmentStorage=true" \
+  --storage-account "devstoreaccount1" \
   --doc-intelligence-endpoint "https://YOUR-RESOURCE.cognitiveservices.azure.com/" \
-  --doc-intelligence-key "YOUR-API-KEY" \
   --cosmosdb-endpoint "https://localhost:8081" \
-  --cosmosdb-key "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==" \
   --tenant-id "common" \
   --client-id "your-dev-client-id" \
   --domain "localhost"
@@ -66,31 +94,61 @@ See [`utils/README.md`](../utils/README.md) for more examples and options.
 
 **Option C: Manual Configuration**
 
-Copy the template and fill in your Azure service credentials:
+Copy the template and fill in your Azure service configuration:
 
 ```bash
 cp local.settings.json.template local.settings.json
 ```
 
-Edit `local.settings.json` and replace the placeholders:
+Edit `local.settings.json` and replace the placeholders (no keys needed):
 
 ```json
 {
     "IsEncrypted": false,
     "Values": {
-        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "AzureWebJobsStorage__accountName": "devstoreaccount1",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "Storage:AccountName": "devstoreaccount1",
         "DocumentIntelligence:Endpoint": "https://YOUR-RESOURCE.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "YOUR-API-KEY",
         "CosmosDb:Endpoint": "https://YOUR-COSMOSDB-ACCOUNT.documents.azure.com:443/",
-        "CosmosDb:Key": "YOUR-COSMOSDB-KEY",
         "CosmosDb:DatabaseName": "DocumentOcrDb",
         "CosmosDb:ContainerName": "ProcessedDocuments"
     }
 }
 ```
 
-### 3. Start Azure Storage Emulator
+**Important:** Your Azure CLI credentials will be used for authentication!
+
+### 4. Assign Local Development Permissions
+
+For local development, your Azure user needs permissions on Azure resources:
+
+```bash
+# Get your user's object ID
+USER_ID=$(az ad signed-in-user show --query id --output tsv)
+
+# Assign Storage permissions (if using Azure Storage instead of emulator)
+az role assignment create \
+  --assignee $USER_ID \
+  --role "Storage Blob Data Contributor" \
+  --scope "/subscriptions/YOUR-SUB-ID/resourceGroups/YOUR-RG/providers/Microsoft.Storage/storageAccounts/YOUR-STORAGE"
+
+# Assign Document Intelligence permissions
+az role assignment create \
+  --assignee $USER_ID \
+  --role "Cognitive Services User" \
+  --scope "/subscriptions/YOUR-SUB-ID/resourceGroups/YOUR-RG/providers/Microsoft.CognitiveServices/accounts/YOUR-DOC-INTEL"
+
+# Assign Cosmos DB permissions
+az cosmosdb sql role assignment create \
+  --account-name YOUR-COSMOS-ACCOUNT \
+  --resource-group YOUR-RG \
+  --role-definition-name "Cosmos DB Built-in Data Contributor" \
+  --principal-id $USER_ID \
+  --scope "/subscriptions/YOUR-SUB-ID/resourceGroups/YOUR-RG/providers/Microsoft.DocumentDB/databaseAccounts/YOUR-COSMOS-ACCOUNT"
+```
+
+### 5. Start Azure Storage Emulator
 
 **Option A: Using Azurite (Recommended)**
 
@@ -109,7 +167,7 @@ Start the Azure Storage Emulator from the Start menu or run:
 AzureStorageEmulator.exe start
 ```
 
-### 4. Create Storage Queue and Containers
+### 6. Create Storage Queue and Containers
 
 Using Azure Storage Explorer or Azure CLI:
 
@@ -145,7 +203,7 @@ New-AzStorageContainer -Name "uploaded-pdfs" -Context $ctx
 New-AzStorageContainer -Name "processed-documents" -Context $ctx
 ```
 
-### 5. Build and Run
+### 7. Build and Run
 
 ```bash
 # Restore packages
@@ -273,13 +331,40 @@ cat result.json
 
 **Queue trigger not firing**:
 - Verify Azurite/Storage Emulator is running
-- Check connection string in `local.settings.json`
+- Check configuration in `local.settings.json`
 - Ensure queue exists and has the correct name
+- Verify Azure credentials are configured (run `az account show`)
 
 **Document Intelligence errors**:
 - Verify endpoint URL ends with `/`
-- Check API key is valid
-- Ensure service is in the same region or has global access
+- Ensure you're logged in with Azure CLI (`az login`)
+- Check that your user has "Cognitive Services User" role
+- Ensure service is accessible from your location
+
+**Cosmos DB errors**:
+- Verify endpoint format
+- Ensure you're logged in with Azure CLI
+- Check that your user has Cosmos DB data access role
+- Verify database and container exist
+
+**Authentication errors**:
+- Run `az account show` to verify you're logged in
+- Check that you have the required role assignments
+- Wait a few minutes for role assignments to propagate
+- Try `az account get-access-token --resource https://storage.azure.com/` to test token acquisition
+
+## Authentication Deep Dive
+
+The application uses `DefaultAzureCredential` which attempts to authenticate through (in order):
+
+1. **Environment variables** - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+2. **Managed identity** - When running in Azure
+3. **Azure CLI** - Your `az login` credentials (best for local dev)
+4. **Azure PowerShell** - Your PowerShell Azure credentials
+5. **Visual Studio** - VS authentication
+6. **VS Code** - VS Code Azure Account extension
+
+For local development, we recommend using Azure CLI (`az login`).
 
 ## Next Steps
 

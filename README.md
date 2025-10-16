@@ -132,7 +132,9 @@ A collection of helpful utility scripts is available in the [`utils`](utils/) di
 
 - **Configuration Settings Updater** (`utils/update_settings.py`): Python script to update Azure configuration for both Function App and Web App
   - Updates `local.settings.json` for Azure Function and `appsettings.Development.json` for Web App
+  - Automatically runs after `azd provision` to configure local development
   - Supports interactive mode or command-line arguments
+  - Can read from azd environment variables (`--from-azd-env`)
   - Essential for local development setup and team onboarding
   - Safe for source control (updates Development settings only)
   - No additional dependencies required (uses built-in Python libraries)

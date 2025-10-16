@@ -20,9 +20,23 @@ cd poc-document-ocr/src/DocumentOcrProcessor
 
 ### 2. Configure Local Settings
 
-**Option A: Use the Configuration Utility Script (Recommended)**
+**Option A: Use azd Provision (Recommended for Azure deployments)**
 
-Use the utility script to automatically update both Function App and Web App settings:
+If you've deployed infrastructure using Azure Developer CLI:
+
+```bash
+# The configuration is automatically set up after azd provision
+azd provision
+```
+
+The postprovision hook automatically:
+1. Retrieves keys and connection strings from Azure
+2. Updates local configuration files for both Function App and Web App
+3. You're ready to develop locally!
+
+**Option B: Use the Configuration Utility Script (Manual setup)**
+
+Use the utility script to manually update both Function App and Web App settings:
 
 ```bash
 # From the project root
@@ -50,7 +64,7 @@ python update_settings.py \
 
 See [`utils/README.md`](../utils/README.md) for more examples and options.
 
-**Option B: Manual Configuration**
+**Option C: Manual Configuration**
 
 Copy the template and fill in your Azure service credentials:
 

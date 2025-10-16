@@ -13,7 +13,15 @@ A Python utility to update configuration files for both the Azure Function App a
 
 ### Usage
 
-**Interactive Mode (Recommended for first-time setup):**
+**Automatic Mode with azd (Recommended after `azd provision`):**
+
+```bash
+python update_settings.py --from-azd-env
+```
+
+This mode reads configuration from environment variables set by Azure Developer CLI (azd) postprovision hooks. This is the easiest way to configure local development after running `azd provision`.
+
+**Interactive Mode (Recommended for first-time setup without azd):**
 
 ```bash
 python update_settings.py --interactive
@@ -120,10 +128,30 @@ Optional:
 
 The script outputs status messages to stderr and creates/updates JSON files with proper formatting (2-space indentation). Success messages indicate which files were updated.
 
+### Integration with Azure Developer CLI (azd)
+
+When you run `azd provision`, the postprovision hook automatically:
+1. Retrieves connection strings and keys from Azure resources
+2. Sets them as environment variables
+3. Calls this script with `--from-azd-env` to update local configuration files
+
+This means after running `azd provision`, your local development environment is automatically configured and ready to use!
+
+**Environment variables set by azd postprovision hooks:**
+- `AZURE_STORAGE_CONNECTION_STRING`: Storage account connection string
+- `AZURE_DOCUMENTINTELLIGENCE_ENDPOINT`: Document Intelligence service endpoint
+- `AZURE_DOCUMENTINTELLIGENCE_KEY`: Document Intelligence API key
+- `AZURE_COSMOSDB_ENDPOINT`: Cosmos DB endpoint
+- `AZURE_COSMOSDB_KEY`: Cosmos DB primary key
+- `AZURE_TENANT_ID`: Azure AD tenant ID (from azd env)
+- `WEB_APP_CLIENT_ID`: Web app client ID (from azd env)
+- `AZURE_AD_DOMAIN`: Azure AD domain (from azd env)
+
 ### Use Cases
 
 This utility is essential for:
 
+- **azd Workflow**: Automatically configure local settings after `azd provision`
 - **Initial Setup**: Quickly configure both apps for local development
 - **Team Onboarding**: Help new developers set up their environment
 - **Environment Switching**: Switch between dev/test/prod configurations

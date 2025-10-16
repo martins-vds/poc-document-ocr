@@ -9,14 +9,19 @@ with Azure service credentials.
 Usage:
     python update_settings.py [--interactive] [--storage-connection <conn>] [...]
     python update_settings.py --help
+    python update_settings.py --from-azd-env
 
 Note:
     - Updates local.settings.json for Azure Function App
     - Updates appsettings.Development.json for Web App (never commits secrets)
+    - Can read values from environment variables set by Azure Developer CLI (azd)
 
 Examples:
     # Interactive mode (prompts for all values)
     python update_settings.py --interactive
+
+    # Use values from azd environment (after azd provision)
+    python update_settings.py --from-azd-env
 
     # Provide all values via command line
     python update_settings.py \
@@ -244,6 +249,77 @@ def update_webapp_settings(
     save_json_file(settings_path, settings)
 
 
+def from_azd_env() -> Dict[str, str]:
+    """Load configuration from azd environment variables.
+    
+    Expected environment variables (set by azd and postprovision hooks):
+    - AZURE_STORAGE_CONNECTION_STRING
+    - AZURE_DOCUMENTINTELLIGENCE_ENDPOINT
+    - AZURE_DOCUMENTINTELLIGENCE_KEY
+    - AZURE_COSMOSDB_ENDPOINT
+    - AZURE_COSMOSDB_KEY
+    - AZURE_TENANT_ID
+    - WEB_APP_CLIENT_ID
+    - AZURE_AD_DOMAIN
+    - AZURE_COSMOSDB_DATABASE (optional, defaults to DocumentOcrDb)
+    - AZURE_COSMOSDB_CONTAINER (optional, defaults to ProcessedDocuments)
+    """
+    print("\n=== Loading Configuration from azd Environment ===", file=sys.stderr)
+    
+    config = {}
+    missing = []
+    
+    # Storage connection string
+    config["storage_connection"] = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+    if not config["storage_connection"]:
+        missing.append("AZURE_STORAGE_CONNECTION_STRING")
+    
+    # Document Intelligence
+    config["doc_intelligence_endpoint"] = os.environ.get("AZURE_DOCUMENTINTELLIGENCE_ENDPOINT")
+    if not config["doc_intelligence_endpoint"]:
+        missing.append("AZURE_DOCUMENTINTELLIGENCE_ENDPOINT")
+    
+    config["doc_intelligence_key"] = os.environ.get("AZURE_DOCUMENTINTELLIGENCE_KEY")
+    if not config["doc_intelligence_key"]:
+        missing.append("AZURE_DOCUMENTINTELLIGENCE_KEY")
+    
+    # Cosmos DB
+    config["cosmosdb_endpoint"] = os.environ.get("AZURE_COSMOSDB_ENDPOINT")
+    if not config["cosmosdb_endpoint"]:
+        missing.append("AZURE_COSMOSDB_ENDPOINT")
+    
+    config["cosmosdb_key"] = os.environ.get("AZURE_COSMOSDB_KEY")
+    if not config["cosmosdb_key"]:
+        missing.append("AZURE_COSMOSDB_KEY")
+    
+    config["cosmosdb_database"] = os.environ.get("AZURE_COSMOSDB_DATABASE", "DocumentOcrDb")
+    config["cosmosdb_container"] = os.environ.get("AZURE_COSMOSDB_CONTAINER", "ProcessedDocuments")
+    
+    # Azure AD (for Web App)
+    config["tenant_id"] = os.environ.get("AZURE_TENANT_ID")
+    if not config["tenant_id"]:
+        missing.append("AZURE_TENANT_ID")
+    
+    config["client_id"] = os.environ.get("WEB_APP_CLIENT_ID")
+    if not config["client_id"]:
+        missing.append("WEB_APP_CLIENT_ID")
+    
+    config["domain"] = os.environ.get("AZURE_AD_DOMAIN")
+    if not config["domain"]:
+        missing.append("AZURE_AD_DOMAIN")
+    
+    if missing:
+        print(f"\nError: Missing required environment variables:", file=sys.stderr)
+        for var in missing:
+            print(f"  - {var}", file=sys.stderr)
+        print("\nThese should be set by the azd postprovision hook.", file=sys.stderr)
+        print("Run 'azd provision' or set them manually.", file=sys.stderr)
+        sys.exit(1)
+    
+    print("✓ All required environment variables found", file=sys.stderr)
+    return config
+
+
 def interactive_mode() -> Dict[str, str]:
     """Prompt user for all required configuration values."""
     print("\n=== Azure Function & Web App Configuration ===", file=sys.stderr)
@@ -338,6 +414,11 @@ For local development:
         help='Interactive mode: prompt for all values'
     )
     parser.add_argument(
+        '--from-azd-env',
+        action='store_true',
+        help='Read configuration from azd environment variables (set by azd provision)'
+    )
+    parser.add_argument(
         '--storage-connection',
         help='Azure Storage connection string'
     )
@@ -393,7 +474,9 @@ For local development:
     args = parser.parse_args()
     
     # Gather configuration
-    if args.interactive:
+    if args.from_azd_env:
+        config = from_azd_env()
+    elif args.interactive:
         config = interactive_mode()
     else:
         # Use command line arguments

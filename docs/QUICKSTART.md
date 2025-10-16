@@ -20,6 +20,52 @@ cd poc-document-ocr/src/DocumentOcrProcessor
 
 ### 2. Configure Local Settings
 
+**Option A: Use azd Provision (Recommended for Azure deployments)**
+
+If you've deployed infrastructure using Azure Developer CLI:
+
+```bash
+# The configuration is automatically set up after azd provision
+azd provision
+```
+
+The postprovision hook automatically:
+1. Retrieves keys and connection strings from Azure
+2. Updates local configuration files for both Function App and Web App
+3. You're ready to develop locally!
+
+**Option B: Use the Configuration Utility Script (Manual setup)**
+
+Use the utility script to manually update both Function App and Web App settings:
+
+```bash
+# From the project root
+cd utils
+python update_settings.py --interactive
+```
+
+This will prompt you for all required Azure credentials and update both:
+- `src/DocumentOcrProcessor/local.settings.json` (Azure Function)
+- `src/DocumentOcrWebApp/appsettings.Development.json` (Web App)
+
+For local development with emulators:
+
+```bash
+python update_settings.py \
+  --storage-connection "UseDevelopmentStorage=true" \
+  --doc-intelligence-endpoint "https://YOUR-RESOURCE.cognitiveservices.azure.com/" \
+  --doc-intelligence-key "YOUR-API-KEY" \
+  --cosmosdb-endpoint "https://localhost:8081" \
+  --cosmosdb-key "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==" \
+  --tenant-id "common" \
+  --client-id "your-dev-client-id" \
+  --domain "localhost"
+```
+
+See [`utils/README.md`](../utils/README.md) for more examples and options.
+
+**Option C: Manual Configuration**
+
 Copy the template and fill in your Azure service credentials:
 
 ```bash

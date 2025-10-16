@@ -60,6 +60,10 @@ __queuestorage__
 __azurite_db*__.json
 /.vs
 
+# Web App - Development settings with secrets
+# Use appsettings.Development.json.template to create your local copy
+**/appsettings.Development.json
+
 # Python
 __pycache__/
 *.py[cod]

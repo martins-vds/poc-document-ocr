@@ -17,5 +17,7 @@
     "DatabaseName": "DocumentOcrDb",
     "ContainerName": "ProcessedDocuments"
   },
-  "AzureWebJobsStorage": "UseDevelopmentStorage=true"
+  "Storage": {
+    "AccountName": "devstoreaccount1"
+  }
 }

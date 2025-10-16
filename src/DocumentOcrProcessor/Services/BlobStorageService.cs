@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -12,14 +13,15 @@ public class BlobStorageService : IBlobStorageService
     public BlobStorageService(ILogger<BlobStorageService> logger, IConfiguration configuration)
     {
         _logger = logger;
-        var connectionString = configuration["AzureWebJobsStorage"];
+        var storageAccountName = configuration["Storage:AccountName"];
         
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrEmpty(storageAccountName))
         {
-            throw new InvalidOperationException("AzureWebJobsStorage connection string is missing");
+            throw new InvalidOperationException("Storage account name is missing. Please configure Storage:AccountName.");
         }
 
-        _blobServiceClient = new BlobServiceClient(connectionString);
+        var blobServiceUri = new Uri($"https://{storageAccountName}.blob.core.windows.net");
+        _blobServiceClient = new BlobServiceClient(blobServiceUri, new DefaultAzureCredential());
     }
 
     public async Task<Stream> DownloadBlobAsync(string containerName, string blobName)

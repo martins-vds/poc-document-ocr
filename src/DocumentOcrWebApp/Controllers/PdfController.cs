@@ -44,7 +44,7 @@ public class PdfController : ControllerBase
 
             var stream = await _blobStorageService.DownloadBlobAsync(document.ContainerName, document.BlobName);
             
-            return File(stream, "application/pdf");
+            return File(stream, "application/pdf", enableRangeProcessing: true);
         }
         catch (Exception ex)
         {

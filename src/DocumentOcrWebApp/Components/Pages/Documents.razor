@@ -60,7 +60,7 @@ else
                     <td>@(doc.AssignedTo ?? "Unassigned")</td>
                     <td>@doc.ProcessedAt.ToString("yyyy-MM-dd HH:mm")</td>
                     <td>
-                        <button class="btn btn-sm btn-primary" @onclick="() => ReviewDocument(doc.Id, doc.Identifier)">
+                        <button class="btn btn-sm btn-primary" @onclick="@(e => ReviewDocument(doc.Id, doc.Identifier))">
                             Review
                         </button>
                     </td>

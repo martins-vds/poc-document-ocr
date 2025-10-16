@@ -2,6 +2,8 @@
 
 This is a complete Azure solution that processes PDF files containing multiple documents using Azure Document Intelligence, with a web application for manual document review. The solution uses Azure Document Intelligence to analyze individual pages, aggregates them into documents based on a configurable identifier field, and stores the results in Azure Cosmos DB for review.
 
+> **🔐 Security:** This solution uses **keyless authentication** with managed identities - no API keys or connection strings in configuration!
+
 ## Documentation
 
 - **[⚡ Quick Deploy Guide](QUICK-DEPLOY.md)** - Deploy to Azure in 5 commands (< 20 minutes)
@@ -61,6 +63,7 @@ A Blazor Server application for manual document review:
 ## Prerequisites
 
 - .NET 8.0 SDK
+- Azure CLI (for authentication and deployment)
 - Azure subscription with the following services:
   - Azure Storage Account
   - Azure Document Intelligence (formerly Form Recognizer)
@@ -68,26 +71,47 @@ A Blazor Server application for manual document review:
   - Azure Functions
   - Azure App Service (for web application)
   - Microsoft Entra ID (Azure AD) app registration for web authentication
+- **Azure credentials configured** (Azure CLI login or service principal)
+
+## Authentication
+
+This solution uses **keyless authentication** with:
+- **Managed Identities** for Azure resources (Function App, Web App)
+- **DefaultAzureCredential** for local development (uses Azure CLI, environment variables, or Visual Studio credentials)
+- **No secrets in configuration** - endpoints only!
+
+Benefits:
+- ✅ Enhanced security - no credentials to leak
+- ✅ Simplified configuration - no connection strings or API keys
+- ✅ Automatic credential rotation
+- ✅ Works seamlessly between local and Azure environments
 
 ## Configuration
 
-Update the `local.settings.json` file with your Azure service endpoints and API keys:
+Update the `local.settings.json` file with your Azure service endpoints (no keys needed):
 
 ```json
 {
     "IsEncrypted": false,
     "Values": {
-        "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=yourStorageAccount;AccountKey=yourKey;EndpointSuffix=core.windows.net",
+        "AzureWebJobsStorage__accountName": "yourStorageAccount",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "Storage:AccountName": "yourStorageAccount",
         "DocumentIntelligence:Endpoint": "https://your-document-intelligence-endpoint.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "your-document-intelligence-api-key",
         "CosmosDb:Endpoint": "https://your-cosmosdb-account.documents.azure.com:443/",
-        "CosmosDb:Key": "your-cosmosdb-key",
         "CosmosDb:DatabaseName": "DocumentOcrDb",
         "CosmosDb:ContainerName": "ProcessedDocuments"
     }
 }
 ```
+
+**Authentication:** Ensure you're logged in with Azure CLI:
+```bash
+az login
+az account set --subscription "Your-Subscription-Name"
+```
+
+Your Azure credentials will be used to authenticate to all services!
 
 ### Document Aggregation by Identifier
 

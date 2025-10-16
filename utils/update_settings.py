@@ -4,14 +4,16 @@ Update Azure Configuration Settings
 
 A utility script to update configuration files for the Document OCR Processor.
 Updates both the Azure Function local.settings.json and Web App appsettings.json
-with Azure service credentials.
+with Azure service configuration using keyless authentication (managed identities
+and DefaultAzureCredential).
 
 Usage:
-    python update_settings.py [--interactive] [--storage-connection <conn>] [...]
+    python update_settings.py [--interactive] [--storage-account <name>] [...]
     python update_settings.py --help
     python update_settings.py --from-azd-env
 
 Note:
+    - Uses keyless authentication with DefaultAzureCredential (no keys needed)
     - Updates local.settings.json for Azure Function App
     - Updates appsettings.Development.json for Web App (never commits secrets)
     - Can read values from environment variables set by Azure Developer CLI (azd)
@@ -25,18 +27,16 @@ Examples:
 
     # Provide all values via command line
     python update_settings.py \
-        --storage-connection "DefaultEndpointsProtocol=https;AccountName=..." \
+        --storage-account "stdocumentocr" \
         --doc-intelligence-endpoint "https://your-resource.cognitiveservices.azure.com/" \
-        --doc-intelligence-key "your-api-key" \
         --cosmosdb-endpoint "https://your-account.documents.azure.com:443/" \
-        --cosmosdb-key "your-key" \
         --tenant-id "your-tenant-id" \
         --client-id "your-client-id" \
         --domain "your-domain.onmicrosoft.com"
 
     # Provide some values, prompt for others
     python update_settings.py \
-        --storage-connection "..." \
+        --storage-account "stdocumentocr" \
         --interactive
 """
 
@@ -125,15 +125,13 @@ def save_json_file(file_path: Path, data: Dict) -> None:
 
 
 def update_function_settings(
-    storage_connection: str,
+    storage_account: str,
     doc_intelligence_endpoint: str,
-    doc_intelligence_key: str,
     cosmosdb_endpoint: str,
-    cosmosdb_key: str,
     cosmosdb_database: str = "DocumentOcrDb",
     cosmosdb_container: str = "ProcessedDocuments"
 ) -> None:
-    """Update Azure Function local.settings.json."""
+    """Update Azure Function local.settings.json using keyless authentication."""
     settings_path = get_function_settings_path()
     template_path = get_function_template_path()
     
@@ -165,13 +163,12 @@ def update_function_settings(
     if "Values" not in settings:
         settings["Values"] = {}
     
-    # Update settings
-    settings["Values"]["AzureWebJobsStorage"] = storage_connection
+    # Update settings using keyless authentication
+    settings["Values"]["AzureWebJobsStorage__accountName"] = storage_account
     settings["Values"]["FUNCTIONS_WORKER_RUNTIME"] = "dotnet-isolated"
+    settings["Values"]["Storage:AccountName"] = storage_account
     settings["Values"]["DocumentIntelligence:Endpoint"] = doc_intelligence_endpoint
-    settings["Values"]["DocumentIntelligence:ApiKey"] = doc_intelligence_key
     settings["Values"]["CosmosDb:Endpoint"] = cosmosdb_endpoint
-    settings["Values"]["CosmosDb:Key"] = cosmosdb_key
     settings["Values"]["CosmosDb:DatabaseName"] = cosmosdb_database
     settings["Values"]["CosmosDb:ContainerName"] = cosmosdb_container
     
@@ -179,16 +176,15 @@ def update_function_settings(
 
 
 def update_webapp_settings(
-    storage_connection: str,
+    storage_account: str,
     cosmosdb_endpoint: str,
-    cosmosdb_key: Optional[str],
     cosmosdb_database: str,
     cosmosdb_container: str,
     tenant_id: str,
     client_id: str,
     domain: str
 ) -> None:
-    """Update Web App appsettings.Development.json."""
+    """Update Web App appsettings.Development.json using keyless authentication."""
     settings_path = get_webapp_settings_path()
     template_path = get_webapp_template_path()
     
@@ -231,20 +227,19 @@ def update_webapp_settings(
     settings["AzureAd"]["ClientId"] = client_id
     settings["AzureAd"]["CallbackPath"] = "/signin-oidc"
     
-    # Update Cosmos DB configuration
+    # Update Cosmos DB configuration (keyless)
     if "CosmosDb" not in settings:
         settings["CosmosDb"] = {}
     
     settings["CosmosDb"]["Endpoint"] = cosmosdb_endpoint
-    if cosmosdb_key:
-        # Note: In production, use Managed Identity instead of keys
-        # This is for local development only
-        settings["CosmosDb"]["Key"] = cosmosdb_key
     settings["CosmosDb"]["DatabaseName"] = cosmosdb_database
     settings["CosmosDb"]["ContainerName"] = cosmosdb_container
     
-    # Update storage connection
-    settings["AzureWebJobsStorage"] = storage_connection
+    # Update storage configuration (keyless)
+    if "Storage" not in settings:
+        settings["Storage"] = {}
+    
+    settings["Storage"]["AccountName"] = storage_account
     
     save_json_file(settings_path, settings)
 
@@ -253,11 +248,9 @@ def from_azd_env() -> Dict[str, str]:
     """Load configuration from azd environment variables.
     
     Expected environment variables (set by azd and postprovision hooks):
-    - AZURE_STORAGE_CONNECTION_STRING
+    - AZURE_STORAGE_ACCOUNT_NAME
     - AZURE_DOCUMENTINTELLIGENCE_ENDPOINT
-    - AZURE_DOCUMENTINTELLIGENCE_KEY
     - AZURE_COSMOSDB_ENDPOINT
-    - AZURE_COSMOSDB_KEY
     - AZURE_TENANT_ID
     - WEB_APP_CLIENT_ID
     - AZURE_AD_DOMAIN
@@ -269,28 +262,20 @@ def from_azd_env() -> Dict[str, str]:
     config = {}
     missing = []
     
-    # Storage connection string
-    config["storage_connection"] = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
-    if not config["storage_connection"]:
-        missing.append("AZURE_STORAGE_CONNECTION_STRING")
+    # Storage account name (keyless)
+    config["storage_account"] = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
+    if not config["storage_account"]:
+        missing.append("AZURE_STORAGE_ACCOUNT_NAME")
     
-    # Document Intelligence
+    # Document Intelligence (keyless)
     config["doc_intelligence_endpoint"] = os.environ.get("AZURE_DOCUMENTINTELLIGENCE_ENDPOINT")
     if not config["doc_intelligence_endpoint"]:
         missing.append("AZURE_DOCUMENTINTELLIGENCE_ENDPOINT")
     
-    config["doc_intelligence_key"] = os.environ.get("AZURE_DOCUMENTINTELLIGENCE_KEY")
-    if not config["doc_intelligence_key"]:
-        missing.append("AZURE_DOCUMENTINTELLIGENCE_KEY")
-    
-    # Cosmos DB
+    # Cosmos DB (keyless)
     config["cosmosdb_endpoint"] = os.environ.get("AZURE_COSMOSDB_ENDPOINT")
     if not config["cosmosdb_endpoint"]:
         missing.append("AZURE_COSMOSDB_ENDPOINT")
-    
-    config["cosmosdb_key"] = os.environ.get("AZURE_COSMOSDB_KEY")
-    if not config["cosmosdb_key"]:
-        missing.append("AZURE_COSMOSDB_KEY")
     
     config["cosmosdb_database"] = os.environ.get("AZURE_COSMOSDB_DATABASE", "DocumentOcrDb")
     config["cosmosdb_container"] = os.environ.get("AZURE_COSMOSDB_CONTAINER", "ProcessedDocuments")
@@ -322,15 +307,17 @@ def from_azd_env() -> Dict[str, str]:
 
 def interactive_mode() -> Dict[str, str]:
     """Prompt user for all required configuration values."""
-    print("\n=== Azure Function & Web App Configuration ===", file=sys.stderr)
-    print("Enter your Azure service credentials.\n", file=sys.stderr)
+    print("\n=== Azure Function & Web App Configuration (Keyless) ===", file=sys.stderr)
+    print("Enter your Azure service configuration.\n", file=sys.stderr)
+    print("Note: Using keyless authentication - no secrets needed!", file=sys.stderr)
+    print("DefaultAzureCredential will be used for local development.\n", file=sys.stderr)
     
     config = {}
     
     print("Storage Account:", file=sys.stderr)
-    config["storage_connection"] = prompt_for_value(
-        "  Connection String",
-        default="UseDevelopmentStorage=true"
+    config["storage_account"] = prompt_for_value(
+        "  Account Name",
+        default="devstoreaccount1"
     )
     
     print("\nDocument Intelligence:", file=sys.stderr)
@@ -338,19 +325,11 @@ def interactive_mode() -> Dict[str, str]:
         "  Endpoint (must end with /)",
         default="https://your-resource.cognitiveservices.azure.com/"
     )
-    config["doc_intelligence_key"] = prompt_for_value(
-        "  API Key",
-        default="your-api-key"
-    )
     
     print("\nCosmos DB:", file=sys.stderr)
     config["cosmosdb_endpoint"] = prompt_for_value(
         "  Endpoint",
         default="https://your-account.documents.azure.com:443/"
-    )
-    config["cosmosdb_key"] = prompt_for_value(
-        "  Key",
-        default="your-cosmosdb-key"
     )
     config["cosmosdb_database"] = prompt_for_value(
         "  Database Name",
@@ -364,7 +343,7 @@ def interactive_mode() -> Dict[str, str]:
     print("\nAzure AD (for Web App):", file=sys.stderr)
     config["tenant_id"] = prompt_for_value(
         "  Tenant ID",
-        default="your-tenant-id"
+        default="common"
     )
     config["client_id"] = prompt_for_value(
         "  Client ID",
@@ -372,7 +351,7 @@ def interactive_mode() -> Dict[str, str]:
     )
     config["domain"] = prompt_for_value(
         "  Domain",
-        default="your-domain.onmicrosoft.com"
+        default="localhost"
     )
     
     return config
@@ -381,27 +360,25 @@ def interactive_mode() -> Dict[str, str]:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Update Azure configuration settings for Function App and Web App",
+        description="Update Azure configuration settings for Function App and Web App using keyless authentication",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Interactive mode
   python update_settings.py --interactive
 
-  # Provide all values
+  # Provide all values (keyless)
   python update_settings.py \\
-    --storage-connection "DefaultEndpointsProtocol=https;..." \\
+    --storage-account "stdocumentocr" \\
     --doc-intelligence-endpoint "https://..." \\
-    --doc-intelligence-key "key" \\
     --cosmosdb-endpoint "https://..." \\
-    --cosmosdb-key "key" \\
     --tenant-id "id" \\
     --client-id "id" \\
     --domain "domain.onmicrosoft.com"
 
 For local development:
   python update_settings.py \\
-    --storage-connection "UseDevelopmentStorage=true" \\
+    --storage-account "devstoreaccount1" \\
     --cosmosdb-endpoint "https://localhost:8081" \\
     --interactive
         """
@@ -419,24 +396,16 @@ For local development:
         help='Read configuration from azd environment variables (set by azd provision)'
     )
     parser.add_argument(
-        '--storage-connection',
-        help='Azure Storage connection string'
+        '--storage-account',
+        help='Azure Storage account name (keyless authentication)'
     )
     parser.add_argument(
         '--doc-intelligence-endpoint',
         help='Document Intelligence endpoint URL (trailing slash will be added if missing)'
     )
     parser.add_argument(
-        '--doc-intelligence-key',
-        help='Document Intelligence API key'
-    )
-    parser.add_argument(
         '--cosmosdb-endpoint',
         help='Cosmos DB endpoint URL (trailing slash will be added if missing)'
-    )
-    parser.add_argument(
-        '--cosmosdb-key',
-        help='Cosmos DB key (optional if using Managed Identity)'
     )
     parser.add_argument(
         '--cosmosdb-database',
@@ -481,11 +450,9 @@ For local development:
     else:
         # Use command line arguments
         config = {
-            'storage_connection': args.storage_connection,
+            'storage_account': args.storage_account,
             'doc_intelligence_endpoint': args.doc_intelligence_endpoint,
-            'doc_intelligence_key': args.doc_intelligence_key,
             'cosmosdb_endpoint': args.cosmosdb_endpoint,
-            'cosmosdb_key': args.cosmosdb_key,
             'cosmosdb_database': args.cosmosdb_database,
             'cosmosdb_container': args.cosmosdb_container,
             'tenant_id': args.tenant_id,
@@ -495,14 +462,13 @@ For local development:
         
         # Validate required arguments for non-interactive mode
         if not args.webapp_only:
-            required_function = ['storage_connection', 'doc_intelligence_endpoint', 
-                               'doc_intelligence_key', 'cosmosdb_endpoint', 'cosmosdb_key']
+            required_function = ['storage_account', 'doc_intelligence_endpoint', 'cosmosdb_endpoint']
             missing = [k for k in required_function if not config.get(k)]
             if missing:
                 parser.error(f"Missing required arguments for Function App: {', '.join('--' + k.replace('_', '-') for k in missing)}")
         
         if not args.function_only:
-            required_webapp = ['storage_connection', 'cosmosdb_endpoint', 
+            required_webapp = ['storage_account', 'cosmosdb_endpoint', 
                              'tenant_id', 'client_id', 'domain']
             missing = [k for k in required_webapp if not config.get(k)]
             if missing:
@@ -514,11 +480,9 @@ For local development:
     if not args.webapp_only:
         try:
             update_function_settings(
-                storage_connection=config['storage_connection'],
+                storage_account=config['storage_account'],
                 doc_intelligence_endpoint=config['doc_intelligence_endpoint'],
-                doc_intelligence_key=config['doc_intelligence_key'],
                 cosmosdb_endpoint=config['cosmosdb_endpoint'],
-                cosmosdb_key=config['cosmosdb_key'],
                 cosmosdb_database=config['cosmosdb_database'],
                 cosmosdb_container=config['cosmosdb_container']
             )
@@ -530,9 +494,8 @@ For local development:
     if not args.function_only:
         try:
             update_webapp_settings(
-                storage_connection=config['storage_connection'],
+                storage_account=config['storage_account'],
                 cosmosdb_endpoint=config['cosmosdb_endpoint'],
-                cosmosdb_key=config.get('cosmosdb_key'),
                 cosmosdb_database=config['cosmosdb_database'],
                 cosmosdb_container=config['cosmosdb_container'],
                 tenant_id=config['tenant_id'],
@@ -549,7 +512,10 @@ For local development:
         print("  1. Review: src/DocumentOcrProcessor/local.settings.json", file=sys.stderr)
     if not args.function_only:
         print("  2. Review: src/DocumentOcrWebApp/appsettings.Development.json", file=sys.stderr)
-    print("  3. Start developing with: func start (for Function) or dotnet run (for Web App)", file=sys.stderr)
+    print("  3. Ensure you have appropriate Azure credentials configured:", file=sys.stderr)
+    print("     - Azure CLI: az login", file=sys.stderr)
+    print("     - Or set AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET", file=sys.stderr)
+    print("  4. Start developing with: func start (for Function) or dotnet run (for Web App)", file=sys.stderr)
     print("\n")
 
 

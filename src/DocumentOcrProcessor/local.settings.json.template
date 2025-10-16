@@ -1,12 +1,11 @@
 {
     "IsEncrypted": false,
     "Values": {
-        "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=<storage-account-name>;AccountKey=<storage-account-key>;EndpointSuffix=core.windows.net",
+        "AzureWebJobsStorage__accountName": "<storage-account-name>",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "Storage:AccountName": "<storage-account-name>",
         "DocumentIntelligence:Endpoint": "https://<your-document-intelligence-endpoint>.cognitiveservices.azure.com/",
-        "DocumentIntelligence:ApiKey": "<your-document-intelligence-api-key>",
         "CosmosDb:Endpoint": "https://<your-cosmosdb-account>.documents.azure.com:443/",
-        "CosmosDb:Key": "<your-cosmosdb-key>",
         "CosmosDb:DatabaseName": "DocumentOcrDb",
         "CosmosDb:ContainerName": "ProcessedDocuments"
     }

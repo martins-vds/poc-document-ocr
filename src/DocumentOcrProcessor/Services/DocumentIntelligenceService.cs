@@ -1,5 +1,6 @@
 using Azure;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
+using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -17,15 +18,14 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
     {
         _logger = logger;
         var endpoint = configuration["DocumentIntelligence:Endpoint"];
-        var apiKey = configuration["DocumentIntelligence:ApiKey"];
 
-        if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(apiKey))
+        if (string.IsNullOrEmpty(endpoint))
         {
-            throw new InvalidOperationException("Document Intelligence configuration is missing");
+            throw new InvalidOperationException("Document Intelligence endpoint is missing. Please configure DocumentIntelligence:Endpoint.");
         }
 
         _modelId = configuration["DocumentIntelligence:ModelId"] ?? _modelId;
-        _client = new DocumentAnalysisClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
+        _client = new DocumentAnalysisClient(new Uri(endpoint), new DefaultAzureCredential());
     }
 
     public async Task<Dictionary<string, object>> AnalyzeDocumentAsync(Stream documentStream)

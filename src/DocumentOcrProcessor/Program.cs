@@ -1,3 +1,4 @@
+using Azure.Identity;
 using DocumentOcrProcessor.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -25,14 +26,13 @@ builder.Services.AddSingleton(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var endpoint = configuration["CosmosDb:Endpoint"];
-    var key = configuration["CosmosDb:Key"];
 
-    if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(key))
+    if (string.IsNullOrEmpty(endpoint))
     {
-        throw new InvalidOperationException("Cosmos DB configuration is missing. Please configure CosmosDb:Endpoint and CosmosDb:Key.");
+        throw new InvalidOperationException("Cosmos DB configuration is missing. Please configure CosmosDb:Endpoint.");
     }
 
-    return new Microsoft.Azure.Cosmos.CosmosClient(endpoint, key);
+    return new Microsoft.Azure.Cosmos.CosmosClient(endpoint, new DefaultAzureCredential());
 });
 
 builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();

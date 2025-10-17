@@ -50,10 +50,16 @@ The review interface provides a split view with the PDF on the left and extracte
 - Assignment information
 
 **Extracted Data:**
-- All fields extracted by OCR are displayed
+- All fields extracted by OCR are displayed in an enhanced form interface
+- Each field shows its **confidence level** as a percentage badge
+- Fields are **color-coded** based on confidence (green=high, yellow=medium, red=low)
+- **Field types** are displayed (e.g., String, Date, PhoneNumber)
+- **Low confidence warnings** appear for fields below 70% confidence
 - Each field can be edited inline
 - Changes are automatically tracked
 - Original OCR confidence scores are preserved
+
+> 📖 **Learn more**: See [Review Page UX Enhancements](REVIEW-PAGE-UX.md) for detailed information about confidence levels and visual indicators.
 
 **Review Actions:**
 - **Assign To**: Assign the document to a specific reviewer

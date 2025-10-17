@@ -69,3 +69,26 @@ main {
 .table-hover tbody tr:hover {
     cursor: pointer;
 }
+
+/* Review page tabs styling */
+.tab-content {
+    border: 1px solid #dee2e6;
+    border-top: none;
+    margin-bottom: 1rem;
+}
+
+.nav-tabs .nav-link {
+    border: 1px solid transparent;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+}
+
+.nav-tabs .nav-link.active {
+    color: #495057;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}

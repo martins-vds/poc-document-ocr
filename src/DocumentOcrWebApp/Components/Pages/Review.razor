@@ -108,44 +108,91 @@ else
                         <small class="text-muted">Review and edit fields as needed. Confidence levels are shown for each field.</small>
                     </div>
                     <div class="card-body">
-                        @if (editedData != null && editedData.Any())
+                        @if (pageDataList != null && pageDataList.Any())
                         {
-                            @foreach (var field in editedData)
-                            {
-                                var confidence = GetFieldConfidence(field.Value);
-                                var confidenceBadgeClass = GetConfidenceBadgeClass(confidence);
-                                var fieldBorderClass = GetFieldBorderClass(confidence);
-                                
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <label for="@field.Key" class="form-label mb-0 fw-semibold">@field.Key</label>
-                                        @if (confidence.HasValue)
-                                        {
-                                            <span class="badge @confidenceBadgeClass">
-                                                <i class="bi bi-speedometer2"></i> @((confidence.Value * 100).ToString("F1"))% confidence
-                                            </span>
-                                        }
+                            <!-- Bootstrap Tabs Navigation -->
+                            <ul class="nav nav-tabs" id="pageTabs" role="tablist">
+                                @for (int i = 0; i < pageDataList.Count; i++)
+                                {
+                                    var pageIndex = i;
+                                    var pageNumber = pageDataList[i].PageNumber;
+                                    var isActive = i == 0 ? "active" : "";
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link @isActive" 
+                                                id="page-@pageIndex-tab" 
+                                                data-bs-toggle="tab" 
+                                                data-bs-target="#page-@pageIndex" 
+                                                type="button" 
+                                                role="tab" 
+                                                aria-controls="page-@pageIndex" 
+                                                aria-selected="@(i == 0 ? "true" : "false")">
+                                            Page @pageNumber
+                                        </button>
+                                    </li>
+                                }
+                            </ul>
+
+                            <!-- Tab Content -->
+                            <div class="tab-content" id="pageTabsContent">
+                                @for (int i = 0; i < pageDataList.Count; i++)
+                                {
+                                    var pageIndex = i;
+                                    var pageData = pageDataList[i];
+                                    var isActive = i == 0 ? "show active" : "";
+                                    
+                                    <div class="tab-pane fade @isActive" 
+                                         id="page-@pageIndex" 
+                                         role="tabpanel" 
+                                         aria-labelledby="page-@pageIndex-tab">
+                                        <div class="p-3">
+                                            @if (pageData.Fields != null && pageData.Fields.Any())
+                                            {
+                                                @foreach (var field in pageData.Fields)
+                                                {
+                                                    var confidence = GetFieldConfidence(field.Value);
+                                                    var confidenceBadgeClass = GetConfidenceBadgeClass(confidence);
+                                                    var fieldBorderClass = GetFieldBorderClass(confidence);
+                                                    
+                                                    <div class="mb-3">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <label for="page-@pageIndex-@field.Key" class="form-label mb-0 fw-semibold">@field.Key</label>
+                                                            @if (confidence.HasValue)
+                                                            {
+                                                                <span class="badge @confidenceBadgeClass">
+                                                                    <i class="bi bi-speedometer2"></i> @((confidence.Value * 100).ToString("F1"))% confidence
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                        <div class="input-group">
+                                                            <input type="text" class="form-control @fieldBorderClass" 
+                                                                   id="page-@pageIndex-@field.Key" 
+                                                                   value="@GetFieldValue(field.Value)" 
+                                                                   @onchange="@(e => UpdatePageFieldValue(pageIndex, field.Key, e.Value?.ToString()))"
+                                                                   placeholder="Enter or correct the value" />
+                                                            @if (GetFieldType(field.Value) is string fieldType && !string.IsNullOrEmpty(fieldType))
+                                                            {
+                                                                <span class="input-group-text bg-light text-muted">
+                                                                    <small>@fieldType</small>
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                        @if (confidence.HasValue && confidence.Value < 0.7)
+                                                        {
+                                                            <small class="text-warning">
+                                                                <i class="bi bi-exclamation-triangle-fill"></i> Low confidence - please verify carefully
+                                                            </small>
+                                                        }
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <p class="text-muted">No fields extracted for this page</p>
+                                            }
+                                        </div>
                                     </div>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control @fieldBorderClass" id="@field.Key" 
-                                               value="@GetFieldValue(field.Value)" 
-                                               @onchange="@(e => UpdateFieldValue(field.Key, e.Value?.ToString()))"
-                                               placeholder="Enter or correct the value" />
-                                        @if (GetFieldType(field.Value) is string fieldType && !string.IsNullOrEmpty(fieldType))
-                                        {
-                                            <span class="input-group-text bg-light text-muted">
-                                                <small>@fieldType</small>
-                                            </span>
-                                        }
-                                    </div>
-                                    @if (confidence.HasValue && confidence.Value < 0.7)
-                                    {
-                                        <small class="text-warning">
-                                            <i class="bi bi-exclamation-triangle-fill"></i> Low confidence - please verify carefully
-                                        </small>
-                                    }
-                                </div>
-                            }
+                                }
+                            </div>
                         }
                         else
                         {
@@ -212,10 +259,17 @@ else
 
     private DocumentOcrEntity? document;
     private Dictionary<string, object>? editedData;
+    private List<PageData>? pageDataList;
     private string? pdfUrl;
     private bool isLoading = true;
     private bool isSaving = false;
     private string? currentUserEmail;
+
+    private class PageData
+    {
+        public int PageNumber { get; set; }
+        public Dictionary<string, object> Fields { get; set; } = new();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -237,6 +291,40 @@ else
             {
                 editedData = new Dictionary<string, object>(document.ExtractedData);
                 pdfUrl = $"/api/pdf/{Id}/{Identifier}";
+                
+                // Parse Pages array from extractedData
+                pageDataList = new List<PageData>();
+                if (editedData.TryGetValue("Pages", out var pagesObj))
+                {
+                    if (pagesObj is Newtonsoft.Json.Linq.JArray pagesArray)
+                    {
+                        for (int i = 0; i < pagesArray.Count; i++)
+                        {
+                            var pageObj = pagesArray[i] as Newtonsoft.Json.Linq.JObject;
+                            if (pageObj != null)
+                            {
+                                var pageData = new PageData
+                                {
+                                    PageNumber = i + 1
+                                };
+                                
+                                // Extract Fields from the page
+                                if (pageObj["Fields"] is Newtonsoft.Json.Linq.JObject fieldsObj)
+                                {
+                                    foreach (var field in fieldsObj)
+                                    {
+                                        if (field.Value != null)
+                                        {
+                                            pageData.Fields[field.Key] = field.Value;
+                                        }
+                                    }
+                                }
+                                
+                                pageDataList.Add(pageData);
+                            }
+                        }
+                    }
+                }
             }
         }
         catch (Exception ex)
@@ -323,6 +411,56 @@ else
             else
             {
                 editedData[key] = newValue;
+            }
+        }
+    }
+
+    private void UpdatePageFieldValue(int pageIndex, string fieldKey, string? newValue)
+    {
+        if (pageDataList != null && pageIndex >= 0 && pageIndex < pageDataList.Count && !string.IsNullOrEmpty(newValue))
+        {
+            var pageData = pageDataList[pageIndex];
+            if (pageData.Fields.ContainsKey(fieldKey))
+            {
+                var existingValue = pageData.Fields[fieldKey];
+                if (existingValue is Newtonsoft.Json.Linq.JObject jObj)
+                {
+                    jObj["content"] = newValue;
+                    pageData.Fields[fieldKey] = jObj;
+                }
+                else
+                {
+                    pageData.Fields[fieldKey] = newValue;
+                }
+            }
+            
+            // Update the editedData to reflect the changes
+            SyncPageDataToEditedData();
+        }
+    }
+
+    private void SyncPageDataToEditedData()
+    {
+        if (editedData != null && pageDataList != null)
+        {
+            // Update the Pages array in editedData
+            if (editedData.TryGetValue("Pages", out var pagesObj))
+            {
+                if (pagesObj is Newtonsoft.Json.Linq.JArray pagesArray)
+                {
+                    for (int i = 0; i < pageDataList.Count && i < pagesArray.Count; i++)
+                    {
+                        var pageObj = pagesArray[i] as Newtonsoft.Json.Linq.JObject;
+                        if (pageObj != null && pageObj["Fields"] is Newtonsoft.Json.Linq.JObject fieldsObj)
+                        {
+                            // Update fields in the JObject
+                            foreach (var field in pageDataList[i].Fields)
+                            {
+                                fieldsObj[field.Key] = Newtonsoft.Json.Linq.JToken.FromObject(field.Value);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

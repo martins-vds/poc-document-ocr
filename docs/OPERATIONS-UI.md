@@ -2,6 +2,39 @@
 
 The web application includes a dedicated Operations page for monitoring and managing document processing operations. This provides real-time visibility into the extraction operations lifecycle.
 
+## Visual Overview
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ Document OCR Review                                      Admin │
+│ [Home] [Documents] [Operations*]                       [Logout]│
+└────────────────────────────────────────────────────────────────┘
+
+Extraction Operations
+Monitor and manage document processing operations
+
+┌─────────────────────┐  ┌──────────────────────────────────────┐
+│ Filter by Status ▼  │  │ [Refresh]  ☑ Auto-refresh (every 10s)│
+│ All Statuses        │  └──────────────────────────────────────┘
+└─────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ Operation ID │ Status    │ File              │ Progress  │ Created  │ Duration   │
+├──────────────┼───────────┼───────────────────┼───────────┼──────────┼────────────┤
+│ a1b2c3d4     │ Running   │ multi-doc.pdf     │ ████░░ 6/10│ 3:45 PM │ 2m 15s    │
+│              │           │ uploaded-pdfs     │           │          │ [Cancel]   │
+├──────────────┼───────────┼───────────────────┼───────────┼──────────┼────────────┤
+│ e5f6g7h8     │ Succeeded │ invoices.pdf      │ ██████ 15/15│ 2:30 PM │ 5m 42s    │
+│              │           │ uploaded-pdfs     │           │          │ [Retry]    │
+├──────────────┼───────────┼───────────────────┼───────────┼──────────┼────────────┤
+│ i9j0k1l2     │ Failed    │ corrupt.pdf       │ ⚠ Error   │ 1:15 PM │ 0m 8s     │
+│              │           │ uploaded-pdfs     │           │          │ [Retry]    │
+├──────────────┼───────────┼───────────────────┼───────────┼──────────┼────────────┤
+│ m3n4o5p6     │ Cancelled │ large-batch.pdf   │ ███░░░ 3/10│ 12:00 PM│ 1m 30s    │
+│              │           │ uploaded-pdfs     │           │          │ [Retry]    │
+└──────────────┴───────────┴───────────────────┴───────────┴──────────┴────────────┘
+```
+
 ## Overview
 
 The Operations UI provides:

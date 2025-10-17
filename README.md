@@ -9,6 +9,7 @@ This is a complete Azure solution that processes PDF files containing multiple d
 - **[⚡ Quick Deploy Guide](QUICK-DEPLOY.md)** - Deploy to Azure in 5 commands (< 20 minutes)
 - [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
+- **[Operations API](docs/OPERATIONS-API.md)** - Asynchronous request-reply API for managing operations
 - [Deployment (IaC)](docs/DEPLOYMENT-IAC.md) - **Recommended:** Automated deployment with Bicep and Azure Developer CLI
 - [Deployment (Manual)](docs/DEPLOYMENT.md) - Manual Azure deployment instructions
 - [Infrastructure as Code](infra/README.md) - IaC technical reference and Bicep modules
@@ -21,21 +22,38 @@ This is a complete Azure solution that processes PDF files containing multiple d
 
 The application follows this workflow:
 
-1. **Email Receipt**: An email with a PDF attachment is received
-2. **Logic App Processing**: A Logic App uploads the PDF to Azure Storage and sends a message to a Storage Queue
-3. **Azure Function Trigger**: An Azure Function is triggered by the queue message
-4. **Page Image Conversion**: The PDF is split into individual page images
-5. **Batch OCR Analysis**: Each page image is submitted to Azure Document Intelligence for OCR analysis
-6. **Document Aggregation**: Pages are grouped into documents based on a configurable identifier field (e.g., document ID)
-7. **PDF Creation**: Individual PDFs are created for each aggregated document
-8. **Results Storage**: Individual documents and analysis results are saved to Azure Storage and Cosmos DB
-9. **Manual Review**: Reviewers use the web application to verify and correct OCR results
+1. **Email Receipt or Web Upload**: An email with a PDF attachment is received or a PDF is uploaded via the web app
+2. **Operations API**: Client calls the Operations API to start processing and receives an operation ID
+3. **Logic App Processing** (Email path): A Logic App uploads the PDF to Azure Storage and sends a message to a Storage Queue
+4. **Azure Function Trigger**: An Azure Function is triggered by the queue message
+5. **Page Image Conversion**: The PDF is split into individual page images
+6. **Batch OCR Analysis**: Each page image is submitted to Azure Document Intelligence for OCR analysis
+7. **Document Aggregation**: Pages are grouped into documents based on a configurable identifier field (e.g., document ID)
+8. **PDF Creation**: Individual PDFs are created for each aggregated document
+9. **Results Storage**: Individual documents and analysis results are saved to Azure Storage and Cosmos DB
+10. **Status Tracking**: Operation status is updated throughout processing (Running → Succeeded/Failed)
+11. **Manual Review**: Reviewers use the web application to verify and correct OCR results
+
+See [Operations API Documentation](docs/OPERATIONS-API.md) for details on the asynchronous request-reply pattern.
 
 ## Components
 
 ### Azure Function App (DocumentOcrProcessor)
 
+**HTTP Functions (Operations API):**
+- **OperationsApi**: RESTful API for managing long-running operations
+  - Start, get status, cancel, retry, and list operations
+  - Implements asynchronous request-reply pattern
+  - See [OPERATIONS-API.md](docs/OPERATIONS-API.md)
+
+**Queue Functions:**
+- **PdfProcessorFunction**: Queue-triggered function that processes PDFs
+  - Tracks operation progress in Cosmos DB
+  - Supports cancellation requests
+  - Updates status throughout processing
+
 **Services:**
+- **OperationService**: Manages operation lifecycle in Cosmos DB
 - **PdfToImageService**: Converts PDF pages into individual PNG images for processing
 - **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from document images
 - **DocumentAggregatorService**: Groups pages into documents based on identifier fields found in OCR results
@@ -44,6 +62,7 @@ The application follows this workflow:
 - **CosmosDbService**: Manages document persistence and queries in Azure Cosmos DB
 
 **Models:**
+- **Operation**: Tracks status and progress of long-running operations
 - **QueueMessage**: Represents the message received from the queue with blob information and identifier field name
 - **PageOcrResult**: Contains OCR results for an individual page
 - **AggregatedDocument**: Groups pages by their identifier

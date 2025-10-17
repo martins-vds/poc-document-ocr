@@ -570,11 +570,11 @@ customMetrics
 
 ---
 
-## Backwards Compatibility
+## Queue Message Format
 
-The queue processor supports both old and new message formats:
+All queue messages must use the operation tracking format:
 
-**New Format (with operation tracking):**
+**Queue Message Format:**
 ```json
 {
   "OperationId": "123e4567-e89b-12d3-a456-426614174000",
@@ -586,13 +586,4 @@ The queue processor supports both old and new message formats:
 }
 ```
 
-**Old Format (without operation tracking):**
-```json
-{
-  "BlobName": "sample.pdf",
-  "ContainerName": "uploaded-pdfs",
-  "IdentifierFieldName": "identifier"
-}
-```
-
-This ensures existing integrations continue to work while enabling new operation tracking features.
+The `OperationId` field is required and links the queue processing to the operation status tracking in Cosmos DB.

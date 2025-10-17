@@ -47,54 +47,43 @@ public class PdfProcessorFunction
         _logger.LogInformation("Processing PDF: {Message}", queueMessage);
 
         Operation? operation = null;
-        string? operationId = null;
 
         try
         {
-            // Try to deserialize the message with operation wrapper first
+            // Deserialize the queue message with operation wrapper
             var messageWrapper = JsonSerializer.Deserialize<QueueMessageWrapper>(queueMessage);
-            QueueMessage? message = null;
             
-            if (messageWrapper?.Message != null)
+            if (messageWrapper?.Message == null || string.IsNullOrEmpty(messageWrapper.OperationId))
             {
-                // New format with operation tracking
-                operationId = messageWrapper.OperationId;
-                message = messageWrapper.Message;
-            }
-            else
-            {
-                // Fallback to old format for backwards compatibility
-                message = JsonSerializer.Deserialize<QueueMessage>(queueMessage);
-            }
-
-            if (message == null)
-            {
-                _logger.LogError("Failed to deserialize queue message");
+                _logger.LogError("Invalid queue message format. Expected QueueMessageWrapper with OperationId and Message.");
                 return;
             }
 
-            // Get or create operation
-            if (!string.IsNullOrEmpty(operationId))
-            {
-                operation = await _operationService.GetOperationAsync(operationId);
-                if (operation != null)
-                {
-                    // Check for cancellation
-                    if (operation.CancelRequested)
-                    {
-                        _logger.LogInformation("Operation {OperationId} was cancelled", operationId);
-                        operation.Status = OperationStatus.Cancelled;
-                        operation.CompletedAt = DateTime.UtcNow;
-                        await _operationService.UpdateOperationAsync(operation);
-                        return;
-                    }
+            var operationId = messageWrapper.OperationId;
+            var message = messageWrapper.Message;
 
-                    // Update operation status to Running
-                    operation.Status = OperationStatus.Running;
-                    operation.StartedAt = DateTime.UtcNow;
-                    await _operationService.UpdateOperationAsync(operation);
-                }
+            // Get operation
+            operation = await _operationService.GetOperationAsync(operationId);
+            if (operation == null)
+            {
+                _logger.LogError("Operation {OperationId} not found", operationId);
+                return;
             }
+
+            // Check for cancellation
+            if (operation.CancelRequested)
+            {
+                _logger.LogInformation("Operation {OperationId} was cancelled", operationId);
+                operation.Status = OperationStatus.Cancelled;
+                operation.CompletedAt = DateTime.UtcNow;
+                await _operationService.UpdateOperationAsync(operation);
+                return;
+            }
+
+            // Update operation status to Running
+            operation.Status = OperationStatus.Running;
+            operation.StartedAt = DateTime.UtcNow;
+            await _operationService.UpdateOperationAsync(operation);
 
             // Step 1: Download PDF from storage account
             _logger.LogInformation("Step 1: Downloading PDF from storage");
@@ -106,11 +95,8 @@ public class PdfProcessorFunction
             _logger.LogInformation("Converted {PageCount} pages to images", imageStreams.Count);
 
             // Update operation with total count
-            if (operation != null)
-            {
-                operation.TotalDocuments = imageStreams.Count;
-                await _operationService.UpdateOperationAsync(operation);
-            }
+            operation.TotalDocuments = imageStreams.Count;
+            await _operationService.UpdateOperationAsync(operation);
 
             // Step 3: Submit each image for OCR analysis in batch
             _logger.LogInformation("Step 3: Submitting images for OCR analysis");
@@ -119,23 +105,20 @@ public class PdfProcessorFunction
             for (int i = 0; i < imageStreams.Count; i++)
             {
                 // Check for cancellation before processing each page
-                if (operation != null)
+                var currentOp = await _operationService.GetOperationAsync(operation.Id);
+                if (currentOp?.CancelRequested == true)
                 {
-                    var currentOp = await _operationService.GetOperationAsync(operation.Id);
-                    if (currentOp?.CancelRequested == true)
+                    _logger.LogInformation("Operation {OperationId} cancelled during processing", operation.Id);
+                    operation.Status = OperationStatus.Cancelled;
+                    operation.CompletedAt = DateTime.UtcNow;
+                    await _operationService.UpdateOperationAsync(operation);
+                    
+                    // Clean up image streams
+                    foreach (var pageResult in pageResults)
                     {
-                        _logger.LogInformation("Operation {OperationId} cancelled during processing", operation.Id);
-                        operation.Status = OperationStatus.Cancelled;
-                        operation.CompletedAt = DateTime.UtcNow;
-                        await _operationService.UpdateOperationAsync(operation);
-                        
-                        // Clean up image streams
-                        foreach (var pageResult in pageResults)
-                        {
-                            pageResult.ImageStream.Dispose();
-                        }
-                        return;
+                        pageResult.ImageStream.Dispose();
                     }
+                    return;
                 }
 
                 var pageNumber = i + 1;
@@ -160,11 +143,8 @@ public class PdfProcessorFunction
             _logger.LogInformation("Aggregated into {DocumentCount} documents", aggregatedDocuments.Count);
 
             // Update operation with aggregated count
-            if (operation != null)
-            {
-                operation.TotalDocuments = aggregatedDocuments.Count;
-                await _operationService.UpdateOperationAsync(operation);
-            }
+            operation.TotalDocuments = aggregatedDocuments.Count;
+            await _operationService.UpdateOperationAsync(operation);
 
             // Step 5: Create individual PDFs from aggregated pages and upload
             _logger.LogInformation("Step 5: Creating PDFs and uploading to storage");
@@ -236,11 +216,8 @@ public class PdfProcessorFunction
                 pdfStreamResult.Dispose();
 
                 // Update operation progress
-                if (operation != null)
-                {
-                    operation.ProcessedDocuments = documentNumber;
-                    await _operationService.UpdateOperationAsync(operation);
-                }
+                operation.ProcessedDocuments = documentNumber;
+                await _operationService.UpdateOperationAsync(operation);
             }
 
             // Save processing result
@@ -254,13 +231,10 @@ public class PdfProcessorFunction
             _logger.LogInformation("Processing complete. Result saved to: {ResultBlobName}", resultBlobName);
 
             // Update operation to succeeded
-            if (operation != null)
-            {
-                operation.Status = OperationStatus.Succeeded;
-                operation.CompletedAt = DateTime.UtcNow;
-                operation.ResultBlobName = resultBlobName;
-                await _operationService.UpdateOperationAsync(operation);
-            }
+            operation.Status = OperationStatus.Succeeded;
+            operation.CompletedAt = DateTime.UtcNow;
+            operation.ResultBlobName = resultBlobName;
+            await _operationService.UpdateOperationAsync(operation);
 
             // Clean up image streams
             foreach (var pageResult in pageResults)

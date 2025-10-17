@@ -95,7 +95,9 @@ The confidence-based color scheme follows Bootstrap's standard colors:
 
 ### Page Data Structure
 
-The Review page now parses the `Pages` array from the document's `ExtractedData`. Each page contains:
+The Review page now parses the `Pages` array from the document's `ExtractedData`. Each element in the `Pages` array represents one page from the original document and contains the OCR-extracted fields for that page.
+
+**Note**: The tab labels ("Page 1", "Page 2", etc.) are determined by the array index + 1, not by any `PageCount` field within the page object.
 
 ```json
 {
@@ -103,7 +105,6 @@ The Review page now parses the `Pages` array from the document's `ExtractedData`
     "PageCount": 3,
     "Pages": [
       {
-        "PageCount": 1,
         "Fields": {
           "fileTkNumber": {
             "type": "String",
@@ -120,7 +121,6 @@ The Review page now parses the `Pages` array from the document's `ExtractedData`
         }
       },
       {
-        "PageCount": 2,
         "Fields": {
           "policeFileNumber": {
             "type": "String",

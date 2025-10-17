@@ -90,6 +90,42 @@ public class OperationsApiService : IOperationsApiService
         }
     }
 
+    public async Task<OperationDto> StartOperationAsync(string blobName, string containerName, string? identifierFieldName = null)
+    {
+        try
+        {
+            var url = $"{_baseUrl}/api/operations";
+            if (!string.IsNullOrEmpty(_functionKey))
+                url += $"?code={Uri.EscapeDataString(_functionKey)}";
+
+            var request = new
+            {
+                blobName = blobName,
+                containerName = containerName,
+                identifierFieldName = identifierFieldName
+            };
+
+            var content = new StringContent(
+                JsonSerializer.Serialize(request),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.PostAsync(url, content);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<OperationDto>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? throw new InvalidOperationException("Failed to deserialize start operation response");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error starting operation for blob {BlobName}", blobName);
+            throw;
+        }
+    }
+
     public async Task<OperationDto> CancelOperationAsync(string operationId)
     {
         try

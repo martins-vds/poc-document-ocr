@@ -1,0 +1,241 @@
+@page "/upload"
+@using Microsoft.AspNetCore.Authorization
+@using DocumentOcrWebApp.Services
+@using DocumentOcrProcessor.Services
+@inject IOperationsApiService OperationsApi
+@inject IBlobStorageService BlobStorage
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@attribute [Authorize]
+
+<PageTitle>Upload Document</PageTitle>
+
+<div class="container">
+    <div class="row mb-3">
+        <div class="col">
+            <h1>Upload Document</h1>
+            <p class="text-muted">Upload a PDF file to start document extraction</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Select PDF File</h5>
+                    
+                    <div class="mb-3">
+                        <label for="fileUpload" class="form-label">Choose a PDF file to upload</label>
+                        <InputFile id="fileUpload" 
+                                   class="form-control" 
+                                   OnChange="HandleFileSelected" 
+                                   accept=".pdf"
+                                   disabled="@isUploading" />
+                        @if (selectedFile != null)
+                        {
+                            <div class="form-text">
+                                <i class="bi bi-file-earmark-pdf"></i> @selectedFile.Name (@FormatFileSize(selectedFile.Size))
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="identifierField" class="form-label">Identifier Field Name (Optional)</label>
+                        <input type="text" 
+                               id="identifierField" 
+                               class="form-control" 
+                               @bind="identifierFieldName" 
+                               placeholder="identifier"
+                               disabled="@isUploading" />
+                        <div class="form-text">
+                            The field name used to group pages into documents (default: "identifier")
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg" 
+                                @onclick="UploadFile" 
+                                disabled="@(selectedFile == null || isUploading)">
+                            @if (isUploading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Uploading...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cloud-upload me-2"></i>
+                                <span>Upload and Start Extraction</span>
+                            }
+                        </button>
+                    </div>
+
+                    @if (isUploading)
+                    {
+                        <div class="progress mt-3" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" 
+                                 style="width: @uploadProgress%"
+                                 aria-valuenow="@uploadProgress" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                @uploadProgress%
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">@uploadStatus</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-info-circle"></i> How it works</h5>
+                    <ol class="small">
+                        <li>Select a PDF file from your computer</li>
+                        <li>Optionally specify an identifier field name</li>
+                        <li>Click "Upload and Start Extraction"</li>
+                        <li>The file will be uploaded to storage</li>
+                        <li>An extraction operation will start automatically</li>
+                        <li>You'll be redirected to the Operations page to monitor progress</li>
+                    </ol>
+                    <hr />
+                    <h6>Identifier Field</h6>
+                    <p class="small">
+                        The identifier field is used to group pages with the same identifier value into a single document. 
+                        For example, if pages 1 and 5 both have "documentId: 12345", they will be grouped together.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? selectedFile;
+    private string identifierFieldName = "identifier";
+    private bool isUploading = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private int uploadProgress = 0;
+    private string uploadStatus = "";
+    private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        errorMessage = null;
+        successMessage = null;
+
+        // Validate file
+        if (selectedFile != null)
+        {
+            if (selectedFile.Size > MaxFileSize)
+            {
+                errorMessage = $"File size exceeds the maximum allowed size of {FormatFileSize(MaxFileSize)}";
+                selectedFile = null;
+            }
+            else if (!selectedFile.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                errorMessage = "Only PDF files are allowed";
+                selectedFile = null;
+            }
+        }
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null)
+        {
+            errorMessage = "Please select a file to upload";
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = null;
+        successMessage = null;
+        uploadProgress = 0;
+        uploadStatus = "Preparing upload...";
+
+        try
+        {
+            // Generate a unique blob name
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var fileName = Path.GetFileNameWithoutExtension(selectedFile.Name);
+            var extension = Path.GetExtension(selectedFile.Name);
+            var blobName = $"{timestamp}-{fileName}{extension}";
+            var containerName = Configuration["Upload:ContainerName"] ?? "uploaded-pdfs";
+
+            uploadStatus = "Uploading file to storage...";
+            uploadProgress = 30;
+            StateHasChanged();
+
+            // Upload file to blob storage
+            using (var stream = selectedFile.OpenReadStream(MaxFileSize))
+            {
+                await BlobStorage.UploadBlobAsync(containerName, blobName, stream, overwrite: false);
+            }
+
+            uploadProgress = 70;
+            uploadStatus = "Starting extraction operation...";
+            StateHasChanged();
+
+            // Start the extraction operation
+            var operation = await OperationsApi.StartOperationAsync(
+                blobName, 
+                containerName, 
+                string.IsNullOrWhiteSpace(identifierFieldName) ? null : identifierFieldName);
+
+            uploadProgress = 100;
+            uploadStatus = "Complete!";
+            StateHasChanged();
+
+            // Wait a moment for the user to see the completion
+            await Task.Delay(500);
+
+            // Redirect to operations page
+            Navigation.NavigateTo("/operations");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to upload file: {ex.Message}";
+            uploadProgress = 0;
+            uploadStatus = "";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}

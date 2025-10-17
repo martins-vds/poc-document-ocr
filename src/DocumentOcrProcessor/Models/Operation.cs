@@ -20,7 +20,7 @@ public class Operation
     public string IdentifierFieldName { get; set; } = "identifier";
 
     [JsonProperty("createdAt")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     [JsonProperty("startedAt")]
     public DateTime? StartedAt { get; set; }
@@ -45,6 +45,11 @@ public class Operation
 
     [JsonProperty("resourceUrl")]
     public string? ResourceUrl { get; set; }
+
+    public Operation()
+    {
+        CreatedAt = DateTime.UtcNow;
+    }
 }
 
 public enum OperationStatus

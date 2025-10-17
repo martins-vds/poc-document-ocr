@@ -105,17 +105,45 @@ else
                 <div class="card">
                     <div class="card-header">
                         <h5>Extracted Data</h5>
+                        <small class="text-muted">Review and edit fields as needed. Confidence levels are shown for each field.</small>
                     </div>
                     <div class="card-body">
                         @if (editedData != null && editedData.Any())
                         {
                             @foreach (var field in editedData)
                             {
+                                var confidence = GetFieldConfidence(field.Value);
+                                var confidenceBadgeClass = GetConfidenceBadgeClass(confidence);
+                                var fieldBorderClass = GetFieldBorderClass(confidence);
+                                
                                 <div class="mb-3">
-                                    <label for="@field.Key" class="form-label">@field.Key</label>
-                                    <input type="text" class="form-control" id="@field.Key" 
-                                           value="@GetFieldValue(field.Value)" 
-                                           @onchange="@(e => UpdateFieldValue(field.Key, e.Value?.ToString()))" />
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label for="@field.Key" class="form-label mb-0 fw-semibold">@field.Key</label>
+                                        @if (confidence.HasValue)
+                                        {
+                                            <span class="badge @confidenceBadgeClass">
+                                                <i class="bi bi-speedometer2"></i> @((confidence.Value * 100).ToString("F1"))% confidence
+                                            </span>
+                                        }
+                                    </div>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control @fieldBorderClass" id="@field.Key" 
+                                               value="@GetFieldValue(field.Value)" 
+                                               @onchange="@(e => UpdateFieldValue(field.Key, e.Value?.ToString()))"
+                                               placeholder="Enter or correct the value" />
+                                        @if (GetFieldType(field.Value) is string fieldType && !string.IsNullOrEmpty(fieldType))
+                                        {
+                                            <span class="input-group-text bg-light text-muted">
+                                                <small>@fieldType</small>
+                                            </span>
+                                        }
+                                    </div>
+                                    @if (confidence.HasValue && confidence.Value < 0.7)
+                                    {
+                                        <small class="text-warning">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> Low confidence - please verify carefully
+                                        </small>
+                                    }
                                 </div>
                             }
                         }
@@ -228,6 +256,58 @@ else
             return jObj["content"]?.ToString() ?? jObj.ToString();
         }
         return value?.ToString() ?? string.Empty;
+    }
+
+    private float? GetFieldConfidence(object value)
+    {
+        if (value is Newtonsoft.Json.Linq.JObject jObj)
+        {
+            var confidence = jObj["confidence"];
+            if (confidence != null && float.TryParse(confidence.ToString(), out float confidenceValue))
+            {
+                return confidenceValue;
+            }
+        }
+        return null;
+    }
+
+    private string? GetFieldType(object value)
+    {
+        if (value is Newtonsoft.Json.Linq.JObject jObj)
+        {
+            return jObj["type"]?.ToString();
+        }
+        return null;
+    }
+
+    private string GetConfidenceBadgeClass(float? confidence)
+    {
+        if (!confidence.HasValue)
+            return "bg-secondary";
+        
+        if (confidence.Value >= 0.9)
+            return "bg-success";
+        else if (confidence.Value >= 0.7)
+            return "bg-info";
+        else if (confidence.Value >= 0.5)
+            return "bg-warning";
+        else
+            return "bg-danger";
+    }
+
+    private string GetFieldBorderClass(float? confidence)
+    {
+        if (!confidence.HasValue)
+            return string.Empty;
+        
+        if (confidence.Value >= 0.9)
+            return "border-success";
+        else if (confidence.Value >= 0.7)
+            return "border-info";
+        else if (confidence.Value >= 0.5)
+            return "border-warning";
+        else
+            return "border-danger";
     }
 
     private void UpdateFieldValue(string key, string? newValue)

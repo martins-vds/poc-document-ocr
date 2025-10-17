@@ -87,37 +87,6 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
   }
 }
 
-// Operations Container
-resource operationsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
-  parent: database
-  name: 'Operations'
-  properties: {
-    resource: {
-      id: 'Operations'
-      partitionKey: {
-        paths: [
-          '/id'
-        ]
-        kind: 'Hash'
-      }
-      indexingPolicy: {
-        indexingMode: 'consistent'
-        automatic: true
-        includedPaths: [
-          {
-            path: '/*'
-          }
-        ]
-        excludedPaths: [
-          {
-            path: '/_etag/?'
-          }
-        ]
-      }
-    }
-  }
-}
-
 // Private Endpoint
 resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   name: '${cosmosDbAccountName}-pe'

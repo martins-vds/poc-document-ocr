@@ -293,6 +293,13 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.16.0' = {
             ]
             kind: 'Hash'
           }
+          {
+            name: 'Operations'
+            paths: [
+              '/id'
+            ]
+            kind: 'Hash'
+          }
         ]
       }
     ]
@@ -390,6 +397,10 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
         {
           name: 'CosmosDb__ContainerName'
           value: 'ProcessedDocuments'
+        }
+        {
+          name: 'CosmosDb__OperationsContainerName'
+          value: 'Operations'
         }
       ]
     }
@@ -610,6 +621,7 @@ output AZURE_COSMOSDB_ACCOUNT_NAME string = cosmosDbAccountName
 output AZURE_COSMOSDB_ENDPOINT string = cosmosDb.outputs.endpoint
 output AZURE_COSMOSDB_DATABASE string = 'DocumentOcrDb'
 output AZURE_COSMOSDB_CONTAINER string = 'ProcessedDocuments'
+output AZURE_COSMOSDB_OPERATIONS_CONTAINER string = 'Operations'
 
 // Azure AD outputs (for Web App authentication)
 output AZURE_TENANT_ID string = tenantId

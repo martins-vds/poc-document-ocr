@@ -36,5 +36,6 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();
+builder.Services.AddScoped<IOperationService, OperationService>();
 
 builder.Build().Run();

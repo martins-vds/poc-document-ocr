@@ -67,7 +67,70 @@ The Document OCR Processor is a complete Azure solution that combines automated 
                                      └──────────────────┘
 ```
 
+### Operations API (Asynchronous Request-Reply Pattern)
+
+```
+┌──────────────┐
+│ Client       │
+│ (Web/Email)  │
+└──────┬───────┘
+       │ POST /api/operations
+       ▼
+┌────────────────────┐     ┌──────────────────┐
+│ Operations API     │────▶│ Cosmos DB        │
+│ - Start Operation  │     │ Operations       │
+│ - Get Status       │◄────│ Container        │
+│ - Cancel           │     └──────────────────┘
+│ - Retry            │              │
+└────────┬───────────┘              │
+       │ 202 Accepted               │
+       │ Location: /api/ops/{id}    │
+       ▼                            │
+┌──────────────┐                    │
+│ Queue Msg    │                    │
+│ + OperationId│                    │
+└──────┬───────┘                    │
+       │                            │
+       ▼                            ▼
+┌────────────────────┐     ┌──────────────────┐
+│ PdfProcessor       │────▶│ Updates Status   │
+│ - Tracks OpId      │     │ - Running        │
+│ - Updates Progress │     │ - Succeeded      │
+│ - Handles Cancel   │     │ - Failed         │
+└────────────────────┘     └──────────────────┘
+```
+
 ## Component Details
+
+### 0. Operations API (NEW)
+
+A RESTful HTTP API that implements the [Asynchronous Request-Reply pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/async-request-reply) for managing long-running document processing operations.
+
+**Features:**
+- **Start Operation**: Initiates document processing and returns operation ID
+- **Get Status**: Polls operation status with progress information
+- **Cancel Operation**: Cancels running or pending operations
+- **Retry Operation**: Retries failed operations or restarts completed ones
+- **List Operations**: Lists all operations with optional filtering
+
+**Endpoints:**
+- `POST /api/operations` - Start new operation
+- `GET /api/operations/{id}` - Get operation status
+- `POST /api/operations/{id}/cancel` - Cancel operation
+- `POST /api/operations/{id}/retry` - Retry/restart operation
+- `GET /api/operations` - List all operations
+
+**Status Flow:**
+```
+NotStarted → Running → Succeeded/Failed/Cancelled
+```
+
+**Storage:**
+- Operations tracked in Cosmos DB `Operations` container
+- Partition key: `/id`
+- Enables async polling and history tracking
+
+See [OPERATIONS-API.md](OPERATIONS-API.md) for complete API documentation.
 
 ### 1. Logic App Workflow
 - Monitors email inbox for messages with PDF attachments

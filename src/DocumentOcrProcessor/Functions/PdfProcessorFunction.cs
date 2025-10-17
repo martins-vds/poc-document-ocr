@@ -18,6 +18,7 @@ public class PdfProcessorFunction
     private readonly IImageToPdfService _imageToPdfService;
     private readonly IBlobStorageService _blobStorageService;
     private readonly ICosmosDbService _cosmosDbService;
+    private readonly IOperationService _operationService;
 
     public PdfProcessorFunction(
         ILogger<PdfProcessorFunction> logger,
@@ -26,7 +27,8 @@ public class PdfProcessorFunction
         IDocumentAggregatorService documentAggregatorService,
         IImageToPdfService imageToPdfService,
         IBlobStorageService blobStorageService,
-        ICosmosDbService cosmosDbService)
+        ICosmosDbService cosmosDbService,
+        IOperationService operationService)
     {
         _logger = logger;
         _pdfToImageService = pdfToImageService;
@@ -35,6 +37,7 @@ public class PdfProcessorFunction
         _imageToPdfService = imageToPdfService;
         _blobStorageService = blobStorageService;
         _cosmosDbService = cosmosDbService;
+        _operationService = operationService;
     }
 
     [Function("PdfProcessorFunction")]
@@ -43,13 +46,54 @@ public class PdfProcessorFunction
     {
         _logger.LogInformation("Processing PDF: {Message}", queueMessage);
 
+        Operation? operation = null;
+        string? operationId = null;
+
         try
         {
-            var message = JsonSerializer.Deserialize<QueueMessage>(queueMessage);
+            // Try to deserialize the message with operation wrapper first
+            var messageWrapper = JsonSerializer.Deserialize<QueueMessageWrapper>(queueMessage);
+            QueueMessage? message = null;
+            
+            if (messageWrapper?.Message != null)
+            {
+                // New format with operation tracking
+                operationId = messageWrapper.OperationId;
+                message = messageWrapper.Message;
+            }
+            else
+            {
+                // Fallback to old format for backwards compatibility
+                message = JsonSerializer.Deserialize<QueueMessage>(queueMessage);
+            }
+
             if (message == null)
             {
                 _logger.LogError("Failed to deserialize queue message");
                 return;
+            }
+
+            // Get or create operation
+            if (!string.IsNullOrEmpty(operationId))
+            {
+                operation = await _operationService.GetOperationAsync(operationId);
+                if (operation != null)
+                {
+                    // Check for cancellation
+                    if (operation.CancelRequested)
+                    {
+                        _logger.LogInformation("Operation {OperationId} was cancelled", operationId);
+                        operation.Status = OperationStatus.Cancelled;
+                        operation.CompletedAt = DateTime.UtcNow;
+                        await _operationService.UpdateOperationAsync(operation);
+                        return;
+                    }
+
+                    // Update operation status to Running
+                    operation.Status = OperationStatus.Running;
+                    operation.StartedAt = DateTime.UtcNow;
+                    await _operationService.UpdateOperationAsync(operation);
+                }
             }
 
             // Step 1: Download PDF from storage account
@@ -61,12 +105,39 @@ public class PdfProcessorFunction
             var imageStreams = await _pdfToImageService.ConvertPdfPagesToImagesAsync(pdfStream);
             _logger.LogInformation("Converted {PageCount} pages to images", imageStreams.Count);
 
+            // Update operation with total count
+            if (operation != null)
+            {
+                operation.TotalDocuments = imageStreams.Count;
+                await _operationService.UpdateOperationAsync(operation);
+            }
+
             // Step 3: Submit each image for OCR analysis in batch
             _logger.LogInformation("Step 3: Submitting images for OCR analysis");
             var pageResults = new List<PageOcrResult>();
             
             for (int i = 0; i < imageStreams.Count; i++)
             {
+                // Check for cancellation before processing each page
+                if (operation != null)
+                {
+                    var currentOp = await _operationService.GetOperationAsync(operation.Id);
+                    if (currentOp?.CancelRequested == true)
+                    {
+                        _logger.LogInformation("Operation {OperationId} cancelled during processing", operation.Id);
+                        operation.Status = OperationStatus.Cancelled;
+                        operation.CompletedAt = DateTime.UtcNow;
+                        await _operationService.UpdateOperationAsync(operation);
+                        
+                        // Clean up image streams
+                        foreach (var pageResult in pageResults)
+                        {
+                            pageResult.ImageStream.Dispose();
+                        }
+                        return;
+                    }
+                }
+
                 var pageNumber = i + 1;
                 var imageStream = imageStreams[i];
                 
@@ -87,6 +158,13 @@ public class PdfProcessorFunction
             _logger.LogInformation("Step 4: Aggregating pages by identifier field: {IdentifierFieldName}", message.IdentifierFieldName);
             var aggregatedDocuments = _documentAggregatorService.AggregatePagesByIdentifier(pageResults, message.IdentifierFieldName);
             _logger.LogInformation("Aggregated into {DocumentCount} documents", aggregatedDocuments.Count);
+
+            // Update operation with aggregated count
+            if (operation != null)
+            {
+                operation.TotalDocuments = aggregatedDocuments.Count;
+                await _operationService.UpdateOperationAsync(operation);
+            }
 
             // Step 5: Create individual PDFs from aggregated pages and upload
             _logger.LogInformation("Step 5: Creating PDFs and uploading to storage");
@@ -156,6 +234,13 @@ public class PdfProcessorFunction
                 await _cosmosDbService.CreateDocumentAsync(cosmosEntity);
 
                 pdfStreamResult.Dispose();
+
+                // Update operation progress
+                if (operation != null)
+                {
+                    operation.ProcessedDocuments = documentNumber;
+                    await _operationService.UpdateOperationAsync(operation);
+                }
             }
 
             // Save processing result
@@ -168,6 +253,15 @@ public class PdfProcessorFunction
 
             _logger.LogInformation("Processing complete. Result saved to: {ResultBlobName}", resultBlobName);
 
+            // Update operation to succeeded
+            if (operation != null)
+            {
+                operation.Status = OperationStatus.Succeeded;
+                operation.CompletedAt = DateTime.UtcNow;
+                operation.ResultBlobName = resultBlobName;
+                await _operationService.UpdateOperationAsync(operation);
+            }
+
             // Clean up image streams
             foreach (var pageResult in pageResults)
             {
@@ -177,7 +271,23 @@ public class PdfProcessorFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing PDF");
+            
+            // Update operation to failed
+            if (operation != null)
+            {
+                operation.Status = OperationStatus.Failed;
+                operation.CompletedAt = DateTime.UtcNow;
+                operation.Error = ex.Message;
+                await _operationService.UpdateOperationAsync(operation);
+            }
+            
             throw;
         }
     }
+}
+
+public class QueueMessageWrapper
+{
+    public string? OperationId { get; set; }
+    public QueueMessage? Message { get; set; }
 }

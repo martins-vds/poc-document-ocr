@@ -14,6 +14,8 @@ This is a complete Azure solution that processes PDF files containing multiple d
 - [Infrastructure as Code](infra/README.md) - IaC technical reference and Bicep modules
 - [Bicep Outputs Mapping](docs/BICEP-OUTPUTS-MAPPING.md) - Environment variables mapping for development setup
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
+- [Web Application Usage](docs/WEB-APP-USAGE.md) - Guide for using the document review web application
+- [Review Page UX](docs/REVIEW-PAGE-UX.md) - Enhanced review interface with confidence level indicators
 
 ## Architecture
 
@@ -56,8 +58,9 @@ A Blazor Server application for manual document review:
 **Features:**
 - **Authentication**: Microsoft Entra ID (Azure AD) authentication for secure access
 - **Document List**: View and filter documents by review status (Pending, Reviewed)
-- **Document Review**: View PDF alongside extracted OCR data
-- **Data Correction**: Edit and correct OCR results inline
+- **Document Review**: View PDF alongside extracted OCR data with confidence levels
+- **Confidence Indicators**: Color-coded fields and badges show OCR confidence levels for each field
+- **Data Correction**: Edit and correct OCR results inline with visual indicators for low-confidence fields
 - **Assignment**: Assign documents to specific reviewers
 - **Status Tracking**: Track review status and reviewer information
 

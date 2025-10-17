@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Storage.Blobs;
 using DocumentOcrProcessor.Services;
 using DocumentOcrWebApp.Components;
+using DocumentOcrWebApp.Services;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Identity.Web;
@@ -41,6 +42,9 @@ namespace DocumentOcrWebApp
 
             // Register Blob Storage service
             builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+
+            // Register HTTP client and Operations API service
+            builder.Services.AddHttpClient<IOperationsApiService, OperationsApiService>();
 
             var app = builder.Build();
 

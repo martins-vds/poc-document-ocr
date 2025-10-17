@@ -1,10 +1,14 @@
 # Web Application Usage Guide
 
-This guide explains how to use the Document OCR Review web application to review and validate processed documents.
+This guide explains how to use the Document OCR Review web application to upload documents, monitor processing operations, and review validated documents.
 
 ## Overview
 
-The Document OCR Review web application provides a user-friendly interface for reviewing documents that have been processed by the OCR system. Reviewers can view documents, validate extracted data, make corrections, and track the review status.
+The Document OCR Review web application provides a user-friendly interface for:
+- **Uploading PDF documents** for OCR processing
+- **Monitoring extraction operations** in real-time
+- **Reviewing documents** that have been processed by the OCR system
+- **Validating and correcting** extracted data
 
 ## Accessing the Application
 
@@ -13,6 +17,49 @@ The Document OCR Review web application provides a user-friendly interface for r
 3. You will be redirected to the home page after successful authentication
 
 ## Features
+
+### File Upload
+
+The file upload feature allows you to submit PDF documents for OCR processing directly through the web interface.
+
+**To upload a document:**
+1. Navigate to the **Upload** page from the navigation menu
+2. Click "Choose File" and select a PDF document (max 50 MB)
+3. (Optional) Specify a custom identifier field name
+   - Default is "identifier"
+   - This field is used to group pages into separate documents
+   - Pages without this field will be treated as individual single-page documents
+4. Click "Upload and Start Extraction"
+5. The file will be uploaded to blob storage
+6. An extraction operation will start automatically
+7. You'll be redirected to the Operations page to monitor progress
+
+**Identifier Field:**
+The identifier field name tells the OCR system which field to use for grouping pages. For example:
+- If you specify "documentId" as the identifier
+- Pages with the same documentId value (e.g., "12345") will be grouped into one document
+- Pages with different documentId values will be split into separate documents
+- Pages where the identifier field is not found, empty, or null are treated as individual single-page documents
+
+### Operations Monitoring
+
+The Operations page shows all document processing operations with real-time status updates.
+
+**Features:**
+- **Status filtering**: Filter by NotStarted, Running, Succeeded, Failed, or Cancelled
+- **Progress tracking**: See the number of documents processed out of total
+- **Auto-refresh**: Enable automatic status updates every 10 seconds
+- **Operation details**: View file name, container, creation time, and duration
+- **Actions**:
+  - **Cancel**: Stop a running operation
+  - **Retry**: Restart a failed or completed operation
+
+**Status Indicators:**
+- **NotStarted**: Operation queued but not yet started (gray badge)
+- **Running**: Currently processing documents (blue badge with progress bar)
+- **Succeeded**: Completed successfully (green badge)
+- **Failed**: Encountered an error (red badge)
+- **Cancelled**: Manually cancelled or timed out (yellow badge)
 
 ### Document List
 
@@ -70,6 +117,26 @@ The review interface provides a split view with the PDF on the left and extracte
 - **Back to Documents**: Return to the document list
 
 ## Workflow
+
+### Complete Document Processing Workflow
+
+1. **Upload Document**: 
+   - Navigate to the Upload page from the navigation menu
+   - Select a PDF file and upload it
+   - An extraction operation starts automatically
+2. **Monitor Processing**: 
+   - View operation status on the Operations page
+   - Enable auto-refresh for real-time updates
+   - Wait for operation to complete (status: Succeeded)
+3. **Access Document List**: 
+   - Navigate to the Documents page when operation completes
+   - New documents will appear in the list
+4. **Review Documents**:
+   - Filter by "Pending Review" to focus on new documents
+   - Select and review each document
+5. **Complete Review**:
+   - Verify and correct extracted data
+   - Mark documents as reviewed
 
 ### Typical Review Process
 

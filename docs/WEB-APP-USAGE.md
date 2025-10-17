@@ -28,6 +28,7 @@ The file upload feature allows you to submit PDF documents for OCR processing di
 3. (Optional) Specify a custom identifier field name
    - Default is "identifier"
    - This field is used to group pages into separate documents
+   - Pages without this field will be treated as individual single-page documents
 4. Click "Upload and Start Extraction"
 5. The file will be uploaded to blob storage
 6. An extraction operation will start automatically
@@ -38,6 +39,7 @@ The identifier field name tells the OCR system which field to use for grouping p
 - If you specify "documentId" as the identifier
 - Pages with the same documentId value (e.g., "12345") will be grouped into one document
 - Pages with different documentId values will be split into separate documents
+- Pages where the identifier field is not found, empty, or null are treated as individual single-page documents
 
 ### Operations Monitoring
 
@@ -119,15 +121,15 @@ The review interface provides a split view with the PDF on the left and extracte
 ### Complete Document Processing Workflow
 
 1. **Upload Document**: 
-   - Navigate to `/upload`
+   - Navigate to the Upload page from the navigation menu
    - Select a PDF file and upload it
    - An extraction operation starts automatically
 2. **Monitor Processing**: 
-   - View operation status on `/operations` page
+   - View operation status on the Operations page
    - Enable auto-refresh for real-time updates
    - Wait for operation to complete (status: Succeeded)
 3. **Access Document List**: 
-   - Navigate to `/documents` when operation completes
+   - Navigate to the Documents page when operation completes
    - New documents will appear in the list
 4. **Review Documents**:
    - Filter by "Pending Review" to focus on new documents

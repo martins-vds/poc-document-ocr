@@ -19,5 +19,9 @@
   },
   "Storage": {
     "AccountName": "devstoreaccount1"
+  },
+  "OperationsApi": {
+    "BaseUrl": "http://localhost:7071",
+    "FunctionKey": ""
   }
 }

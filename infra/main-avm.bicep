@@ -345,7 +345,16 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
       allTraffic: true
     }
     virtualNetworkSubnetResourceId: vnet.outputs.subnetResourceIds[0]
+    storageAccountRequired: true
     httpsOnly: true
+    configs: [
+      {
+        name: 'appsettings'
+        applicationInsightResourceId: applicationInsights.outputs.resourceId
+        storageAccountResourceId: storage.outputs.resourceId
+        storageAccountUseIdentityAuthentication: true
+      }
+    ]
     siteConfig: {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       alwaysOn: true
@@ -365,14 +374,6 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
           value: '~4'
-        }
-        {
-          name: 'AzureWebJobsStorage__accountName'
-          value: storageAccountName
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: applicationInsights.outputs.connectionString
         }
         {
           name: 'DocumentIntelligence__Endpoint'
@@ -612,7 +613,7 @@ output AZURE_COSMOSDB_CONTAINER string = 'ProcessedDocuments'
 
 // Azure AD outputs (for Web App authentication)
 output AZURE_TENANT_ID string = tenantId
-output AZURE_WEB_APP_CLIENT_ID string = webAppClientId  
+output AZURE_WEB_APP_CLIENT_ID string = webAppClientId
 output AZURE_AD_DOMAIN string = azureAdDomain
 
 // Function App outputs

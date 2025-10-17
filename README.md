@@ -10,6 +10,7 @@ This is a complete Azure solution that processes PDF files containing multiple d
 - [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - **[Operations API](docs/OPERATIONS-API.md)** - Asynchronous request-reply API for managing operations
+- **[Operations Monitoring UI](docs/OPERATIONS-UI.md)** - Web UI for monitoring extraction operations
 - [Deployment (IaC)](docs/DEPLOYMENT-IAC.md) - **Recommended:** Automated deployment with Bicep and Azure Developer CLI
 - [Deployment (Manual)](docs/DEPLOYMENT.md) - Manual Azure deployment instructions
 - [Infrastructure as Code](infra/README.md) - IaC technical reference and Bicep modules
@@ -76,6 +77,7 @@ A Blazor Server application for manual document review:
 
 **Features:**
 - **Authentication**: Microsoft Entra ID (Azure AD) authentication for secure access
+- **Operations Monitoring**: View and manage document processing operations with real-time status updates
 - **Document List**: View and filter documents by review status (Pending, Reviewed)
 - **Document Review**: View PDF alongside extracted OCR data with confidence levels
 - **Confidence Indicators**: Color-coded fields and badges show OCR confidence levels for each field

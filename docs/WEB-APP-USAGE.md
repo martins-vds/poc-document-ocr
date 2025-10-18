@@ -22,17 +22,28 @@ The Document OCR Review web application provides a user-friendly interface for:
 
 The file upload feature allows you to submit PDF documents for OCR processing directly through the web interface.
 
-**To upload a document:**
+**To upload documents:**
 1. Navigate to the **Upload** page from the navigation menu
-2. Click "Choose File" and select a PDF document (max 50 MB)
-3. (Optional) Specify a custom identifier field name
+2. Click "Choose PDF files to upload (up to 10)" and select one or more PDF documents
+   - Maximum 10 files per upload session
+   - Each file can be up to 50 MB
+3. Review the selected files in the list (showing file name and size)
+4. (Optional) Specify a custom identifier field name
    - Default is "identifier"
    - This field is used to group pages into separate documents
    - Pages without this field will be treated as individual single-page documents
-4. Click "Upload and Start Extraction"
-5. The file will be uploaded to blob storage
-6. An extraction operation will start automatically
-7. You'll be redirected to the Operations page to monitor progress
+5. Click "Upload and Start Extraction"
+6. Each file will be uploaded to blob storage sequentially
+7. A separate extraction operation will start for each file
+8. View the upload results showing success/failure for each file
+9. You'll be redirected to the Operations page to monitor all operations
+
+**Multiple File Upload:**
+- Upload up to 10 PDF files simultaneously
+- Each file is processed independently with its own operation
+- Files are uploaded sequentially to ensure reliability
+- All operations can be monitored in parallel on the Operations page
+- Failed uploads are shown with error messages while successful uploads continue
 
 **Identifier Field:**
 The identifier field name tells the OCR system which field to use for grouping pages. For example:
@@ -120,16 +131,17 @@ The review interface provides a split view with the PDF on the left and extracte
 
 ### Complete Document Processing Workflow
 
-1. **Upload Document**: 
+1. **Upload Documents**: 
    - Navigate to the Upload page from the navigation menu
-   - Select a PDF file and upload it
-   - An extraction operation starts automatically
+   - Select one or more PDF files (up to 10)
+   - Click upload to start processing
+   - Each file will trigger a separate extraction operation
 2. **Monitor Processing**: 
-   - View operation status on the Operations page
+   - View operation status for all files on the Operations page
    - Enable auto-refresh for real-time updates
-   - Wait for operation to complete (status: Succeeded)
+   - Wait for operations to complete (status: Succeeded)
 3. **Access Document List**: 
-   - Navigate to the Documents page when operation completes
+   - Navigate to the Documents page when operations complete
    - New documents will appear in the list
 4. **Review Documents**:
    - Filter by "Pending Review" to focus on new documents

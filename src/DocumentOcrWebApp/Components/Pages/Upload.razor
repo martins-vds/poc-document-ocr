@@ -8,13 +8,13 @@
 @inject IConfiguration Configuration
 @attribute [Authorize]
 
-<PageTitle>Upload Document</PageTitle>
+<PageTitle>Upload Documents</PageTitle>
 
 <div class="container">
     <div class="row mb-3">
         <div class="col">
-            <h1>Upload Document</h1>
-            <p class="text-muted">Upload a PDF file to start document extraction</p>
+            <h1>Upload Documents</h1>
+            <p class="text-muted">Upload PDF files to start document extraction (up to 10 files)</p>
         </div>
     </div>
 
@@ -38,19 +38,31 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Select PDF File</h5>
+                    <h5 class="card-title">Select PDF Files</h5>
                     
                     <div class="mb-3">
-                        <label for="fileUpload" class="form-label">Choose a PDF file to upload</label>
+                        <label for="fileUpload" class="form-label">Choose PDF files to upload (up to 10)</label>
                         <InputFile id="fileUpload" 
                                    class="form-control" 
-                                   OnChange="HandleFileSelected" 
+                                   OnChange="HandleFilesSelected" 
                                    accept=".pdf"
+                                   multiple
                                    disabled="@isUploading" />
-                        @if (selectedFile != null)
+                        @if (selectedFiles.Any())
                         {
-                            <div class="form-text">
-                                <i class="bi bi-file-earmark-pdf"></i> @selectedFile.Name (@FormatFileSize(selectedFile.Size))
+                            <div class="mt-2">
+                                <small class="text-muted">@selectedFiles.Count file(s) selected</small>
+                                <ul class="list-group mt-1">
+                                    @foreach (var file in selectedFiles)
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                            <span>
+                                                <i class="bi bi-file-earmark-pdf text-danger"></i> @file.Name
+                                            </span>
+                                            <span class="badge bg-secondary">@FormatFileSize(file.Size)</span>
+                                        </li>
+                                    }
+                                </ul>
                             </div>
                         }
                     </div>
@@ -70,17 +82,17 @@
 
                     <div class="d-grid gap-2">
                         <button class="btn btn-primary btn-lg" 
-                                @onclick="UploadFile" 
-                                disabled="@(selectedFile == null || isUploading)">
+                                @onclick="UploadFiles" 
+                                disabled="@(!selectedFiles.Any() || isUploading)">
                             @if (isUploading)
                             {
                                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                <span>Uploading...</span>
+                                <span>Uploading @currentFileIndex of @selectedFiles.Count...</span>
                             }
                             else
                             {
                                 <i class="bi bi-cloud-upload me-2"></i>
-                                <span>Upload and Start Extraction</span>
+                                <span>Upload and Start Extraction (@selectedFiles.Count file@(selectedFiles.Count != 1 ? "s" : ""))</span>
                             }
                         </button>
                     </div>
@@ -101,6 +113,31 @@
                             <small class="text-muted">@uploadStatus</small>
                         </div>
                     }
+
+                    @if (uploadResults.Any())
+                    {
+                        <div class="mt-3">
+                            <h6>Upload Results:</h6>
+                            <ul class="list-group">
+                                @foreach (var result in uploadResults)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                                        <div class="ms-2 me-auto">
+                                            <div class="fw-bold">@result.FileName</div>
+                                            @if (result.Success)
+                                            {
+                                                <small class="text-success">✓ Uploaded successfully - Operation started</small>
+                                            }
+                                            else
+                                            {
+                                                <small class="text-danger">✗ Failed: @result.Error</small>
+                                            }
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -110,13 +147,19 @@
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-info-circle"></i> How it works</h5>
                     <ol class="small">
-                        <li>Select a PDF file from your computer</li>
+                        <li>Select one or more PDF files (up to 10)</li>
                         <li>Optionally specify an identifier field name</li>
                         <li>Click "Upload and Start Extraction"</li>
-                        <li>The file will be uploaded to storage</li>
-                        <li>An extraction operation will start automatically</li>
+                        <li>Each file will be uploaded to storage</li>
+                        <li>A separate extraction operation will start for each file</li>
                         <li>You'll be redirected to the Operations page to monitor progress</li>
                     </ol>
+                    <hr />
+                    <h6>Multiple Files</h6>
+                    <p class="small">
+                        You can upload up to 10 PDF files at once. Each file will be processed independently 
+                        with its own operation, allowing parallel processing for faster results.
+                    </p>
                     <hr />
                     <h6>Identifier Field</h6>
                     <p class="small">
@@ -130,42 +173,68 @@
 </div>
 
 @code {
-    private IBrowserFile? selectedFile;
+    private List<IBrowserFile> selectedFiles = new();
     private string identifierFieldName = "identifier";
     private bool isUploading = false;
     private string? errorMessage;
     private string? successMessage;
     private int uploadProgress = 0;
     private string uploadStatus = "";
+    private int currentFileIndex = 0;
+    private List<UploadResult> uploadResults = new();
     private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB
+    private const int MaxFileCount = 10;
 
-    private void HandleFileSelected(InputFileChangeEventArgs e)
+    private void HandleFilesSelected(InputFileChangeEventArgs e)
     {
-        selectedFile = e.File;
+        selectedFiles.Clear();
+        uploadResults.Clear();
         errorMessage = null;
         successMessage = null;
 
-        // Validate file
-        if (selectedFile != null)
+        var files = e.GetMultipleFiles(MaxFileCount);
+
+        // Validate files
+        foreach (var file in files)
         {
-            if (selectedFile.Size > MaxFileSize)
+            if (file.Size > MaxFileSize)
             {
-                errorMessage = $"File size exceeds the maximum allowed size of {FormatFileSize(MaxFileSize)}";
-                selectedFile = null;
+                errorMessage = $"File '{file.Name}' exceeds the maximum allowed size of {FormatFileSize(MaxFileSize)}";
+                continue;
             }
-            else if (!selectedFile.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            
+            if (!file.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
-                errorMessage = "Only PDF files are allowed";
-                selectedFile = null;
+                errorMessage = $"File '{file.Name}' is not a PDF file. Only PDF files are allowed.";
+                continue;
             }
+
+            selectedFiles.Add(file);
+        }
+
+        if (selectedFiles.Count == 0 && !string.IsNullOrEmpty(errorMessage))
+        {
+            // All files were invalid
+            return;
+        }
+
+        if (selectedFiles.Count > MaxFileCount)
+        {
+            errorMessage = $"You can only upload up to {MaxFileCount} files at once";
+            selectedFiles = selectedFiles.Take(MaxFileCount).ToList();
+        }
+
+        if (selectedFiles.Any() && string.IsNullOrEmpty(errorMessage))
+        {
+            successMessage = $"{selectedFiles.Count} file(s) ready to upload";
         }
     }
 
-    private async Task UploadFile()
+    private async Task UploadFiles()
     {
-        if (selectedFile == null)
+        if (!selectedFiles.Any())
         {
-            errorMessage = "Please select a file to upload";
+            errorMessage = "Please select at least one file to upload";
             return;
         }
 
@@ -173,50 +242,84 @@
         errorMessage = null;
         successMessage = null;
         uploadProgress = 0;
-        uploadStatus = "Preparing upload...";
+        uploadStatus = "";
+        uploadResults.Clear();
+        currentFileIndex = 0;
+
+        var containerName = Configuration["Upload:ContainerName"] ?? "uploaded-pdfs";
+        var successfulUploads = 0;
 
         try
         {
-            // Generate a unique blob name
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-            var fileName = Path.GetFileNameWithoutExtension(selectedFile.Name);
-            var extension = Path.GetExtension(selectedFile.Name);
-            var blobName = $"{timestamp}-{fileName}{extension}";
-            var containerName = Configuration["Upload:ContainerName"] ?? "uploaded-pdfs";
-
-            uploadStatus = "Uploading file to storage...";
-            uploadProgress = 30;
-            StateHasChanged();
-
-            // Upload file to blob storage
-            using (var stream = selectedFile.OpenReadStream(MaxFileSize))
+            for (int i = 0; i < selectedFiles.Count; i++)
             {
-                await BlobStorage.UploadBlobAsync(containerName, blobName, stream, overwrite: false);
+                var file = selectedFiles[i];
+                currentFileIndex = i + 1;
+                
+                uploadStatus = $"Uploading file {currentFileIndex} of {selectedFiles.Count}: {file.Name}";
+                uploadProgress = (int)((double)i / selectedFiles.Count * 100);
+                StateHasChanged();
+
+                try
+                {
+                    // Generate a unique blob name
+                    var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+                    var fileName = Path.GetFileNameWithoutExtension(file.Name);
+                    var extension = Path.GetExtension(file.Name);
+                    var blobName = $"{timestamp}-{fileName}{extension}";
+
+                    // Upload file to blob storage
+                    using (var stream = file.OpenReadStream(MaxFileSize))
+                    {
+                        await BlobStorage.UploadBlobAsync(containerName, blobName, stream, overwrite: false);
+                    }
+
+                    // Start the extraction operation
+                    var operation = await OperationsApi.StartOperationAsync(
+                        blobName, 
+                        containerName, 
+                        string.IsNullOrWhiteSpace(identifierFieldName) ? null : identifierFieldName);
+
+                    uploadResults.Add(new UploadResult
+                    {
+                        FileName = file.Name,
+                        Success = true,
+                        OperationId = operation.OperationId
+                    });
+
+                    successfulUploads++;
+                }
+                catch (Exception ex)
+                {
+                    uploadResults.Add(new UploadResult
+                    {
+                        FileName = file.Name,
+                        Success = false,
+                        Error = ex.Message
+                    });
+                }
             }
 
-            uploadProgress = 70;
-            uploadStatus = "Starting extraction operation...";
-            StateHasChanged();
-
-            // Start the extraction operation
-            var operation = await OperationsApi.StartOperationAsync(
-                blobName, 
-                containerName, 
-                string.IsNullOrWhiteSpace(identifierFieldName) ? null : identifierFieldName);
-
             uploadProgress = 100;
-            uploadStatus = "Complete!";
+            uploadStatus = $"Complete! Successfully uploaded {successfulUploads} of {selectedFiles.Count} file(s)";
             StateHasChanged();
 
-            // Wait a moment for the user to see the completion
-            await Task.Delay(500);
+            if (successfulUploads > 0)
+            {
+                // Wait a moment for the user to see the results
+                await Task.Delay(2000);
 
-            // Redirect to operations page
-            Navigation.NavigateTo("/operations");
+                // Redirect to operations page
+                Navigation.NavigateTo("/operations");
+            }
+            else
+            {
+                errorMessage = "Failed to upload any files. Please check the errors above and try again.";
+            }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Failed to upload file: {ex.Message}";
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
             uploadProgress = 0;
             uploadStatus = "";
         }
@@ -237,5 +340,13 @@
             len = len / 1024;
         }
         return $"{len:0.##} {sizes[order]}";
+    }
+
+    private class UploadResult
+    {
+        public string FileName { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public string? OperationId { get; set; }
+        public string? Error { get; set; }
     }
 }

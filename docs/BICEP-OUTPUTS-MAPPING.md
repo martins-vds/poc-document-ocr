@@ -16,6 +16,8 @@ This document shows how the postprovision scripts retrieve Bicep outputs and set
 | `AZURE_TENANT_ID` | Bicep parameter | `AZURE_TENANT_ID` | update_settings.py | Azure AD tenant ID for web app authentication |
 | `AZURE_WEB_APP_CLIENT_ID` | Bicep parameter | `AZURE_WEB_APP_CLIENT_ID` | update_settings.py | Azure AD client ID for web app authentication |
 | `AZURE_AD_DOMAIN` | Bicep parameter | `AZURE_AD_DOMAIN` | update_settings.py | Azure AD domain for web app authentication |
+| `AZURE_FUNCTION_APP_URL` | `azd env get-value AZURE_FUNCTION_APP_URL` | `AZURE_OPERATIONS_API_URL` | update_settings.py | Operations API base URL (Function App URL) for web app to call |
+| - | Direct value | `AZURE_OPERATIONS_API_KEY` | update_settings.py | Operations API function key (optional, empty for local dev) |
 
 ## How It Works
 

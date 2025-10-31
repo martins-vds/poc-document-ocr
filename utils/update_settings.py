@@ -32,7 +32,9 @@ Examples:
         --cosmosdb-endpoint "https://your-account.documents.azure.com:443/" \
         --tenant-id "your-tenant-id" \
         --client-id "your-client-id" \
-        --domain "your-domain.onmicrosoft.com"
+        --domain "your-domain.onmicrosoft.com" \
+        --operations-api-url "https://func-app.azurewebsites.net" \
+        --operations-api-key "your-function-key"
 
     # Provide some values, prompt for others
     python update_settings.py \
@@ -181,7 +183,9 @@ def update_webapp_settings(
     cosmosdb_container: str,
     tenant_id: str,
     client_id: str,
-    domain: str
+    domain: str,
+    operations_api_url: str = "",
+    operations_api_key: str = ""
 ) -> None:
     """Update Web App appsettings.Development.json using keyless authentication."""
     settings_path = get_webapp_settings_path()
@@ -240,6 +244,13 @@ def update_webapp_settings(
     
     settings["Storage"]["AccountName"] = storage_account
     
+    # Update Operations API configuration
+    if "OperationsApi" not in settings:
+        settings["OperationsApi"] = {}
+    
+    settings["OperationsApi"]["BaseUrl"] = operations_api_url if operations_api_url else "http://localhost:7071"
+    settings["OperationsApi"]["FunctionKey"] = operations_api_key if operations_api_key else ""
+    
     save_json_file(settings_path, settings)
 
 
@@ -255,6 +266,8 @@ def from_azd_env() -> Dict[str, str]:
     - AZURE_AD_DOMAIN
     - AZURE_COSMOSDB_DATABASE (optional, defaults to DocumentOcrDb)
     - AZURE_COSMOSDB_CONTAINER (optional, defaults to ProcessedDocuments)
+    - AZURE_OPERATIONS_API_URL (optional)
+    - AZURE_OPERATIONS_API_KEY (optional)
     """
     print("\n=== Loading Configuration from azd Environment ===", file=sys.stderr)
     
@@ -291,6 +304,10 @@ def from_azd_env() -> Dict[str, str]:
     config["domain"] = os.environ.get("AZURE_AD_DOMAIN")
     if not config["domain"]:
         missing.append("AZURE_AD_DOMAIN")
+    
+    # Operations API (optional - for Web App to call Function App)
+    config["operations_api_url"] = os.environ.get("AZURE_OPERATIONS_API_URL", "")
+    config["operations_api_key"] = os.environ.get("AZURE_OPERATIONS_API_KEY", "")
     
     if missing:
         print(f"\nError: Missing required environment variables:", file=sys.stderr)
@@ -351,6 +368,18 @@ def interactive_mode() -> Dict[str, str]:
     config["domain"] = prompt_for_value(
         "  Domain",
         default="localhost"
+    )
+    
+    print("\nOperations API (for Web App - optional):", file=sys.stderr)
+    config["operations_api_url"] = prompt_for_value(
+        "  Base URL",
+        default="http://localhost:7071",
+        required=False
+    )
+    config["operations_api_key"] = prompt_for_value(
+        "  Function Key",
+        default="",
+        required=False
     )
     
     return config
@@ -429,6 +458,14 @@ For local development:
         help='Azure AD domain for web app'
     )
     parser.add_argument(
+        '--operations-api-url',
+        help='Operations API base URL (e.g., https://func-app.azurewebsites.net)'
+    )
+    parser.add_argument(
+        '--operations-api-key',
+        help='Operations API function key'
+    )
+    parser.add_argument(
         '--function-only',
         action='store_true',
         help='Update only the Function App settings'
@@ -457,6 +494,8 @@ For local development:
             'tenant_id': args.tenant_id,
             'client_id': args.client_id,
             'domain': args.domain,
+            'operations_api_url': args.operations_api_url or "",
+            'operations_api_key': args.operations_api_key or "",
         }
         
         # Validate required arguments for non-interactive mode
@@ -499,7 +538,9 @@ For local development:
                 cosmosdb_container=config['cosmosdb_container'],
                 tenant_id=config['tenant_id'],
                 client_id=config['client_id'],
-                domain=config['domain']
+                domain=config['domain'],
+                operations_api_url=config.get('operations_api_url', ''),
+                operations_api_key=config.get('operations_api_key', '')
             )
         except Exception as e:
             print(f"Error updating Web App settings: {e}", file=sys.stderr)

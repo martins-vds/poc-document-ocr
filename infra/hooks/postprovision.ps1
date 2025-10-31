@@ -50,6 +50,8 @@ $WebAppClientId = (azd env get-value AZURE_WEB_APP_CLIENT_ID 2>$null) | Out-Stri
 $WebAppClientId = $WebAppClientId.Trim()
 $AzureAdDomain = (azd env get-value AZURE_AD_DOMAIN 2>$null) | Out-String
 $AzureAdDomain = $AzureAdDomain.Trim()
+$FunctionAppUrl = (azd env get-value AZURE_FUNCTION_APP_URL 2>$null) | Out-String
+$FunctionAppUrl = $FunctionAppUrl.Trim()
 
 Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
 Write-Host "Storage Account: $StorageAccountName"
@@ -91,6 +93,19 @@ if ($AzureAdDomain) {
     $env:AZURE_AD_DOMAIN = $AzureAdDomain
     Write-Host "✓ Azure AD domain set" -ForegroundColor Green
 }
+
+if ($FunctionAppUrl) {
+    # Format as full URL with https://
+    if (-not $FunctionAppUrl.StartsWith("http")) {
+        $FunctionAppUrl = "https://$FunctionAppUrl"
+    }
+    $env:AZURE_OPERATIONS_API_URL = $FunctionAppUrl
+    Write-Host "✓ Operations API URL set" -ForegroundColor Green
+}
+
+# Note: AZURE_OPERATIONS_API_KEY is optional and typically not set in local development
+# It can be retrieved from Azure Portal or Azure CLI if needed
+$env:AZURE_OPERATIONS_API_KEY = ""
 
 # Check if we have all required values for keyless authentication
 $MissingVars = @()

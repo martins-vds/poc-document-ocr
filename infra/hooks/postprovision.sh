@@ -43,6 +43,7 @@ COSMOSDB_ENDPOINT=$(azd env get-value AZURE_COSMOSDB_ENDPOINT 2>/dev/null || ech
 TENANT_ID=$(azd env get-value AZURE_TENANT_ID 2>/dev/null || echo "")
 WEB_APP_CLIENT_ID=$(azd env get-value AZURE_WEB_APP_CLIENT_ID 2>/dev/null || echo "")
 AZURE_AD_DOMAIN=$(azd env get-value AZURE_AD_DOMAIN 2>/dev/null || echo "")
+FUNCTION_APP_URL=$(azd env get-value AZURE_FUNCTION_APP_URL 2>/dev/null || echo "")
 
 echo "Resource Group: $AZURE_RESOURCE_GROUP"
 echo "Storage Account: $STORAGE_ACCOUNT_NAME"
@@ -84,6 +85,19 @@ if [ -n "$AZURE_AD_DOMAIN" ]; then
     export AZURE_AD_DOMAIN="$AZURE_AD_DOMAIN"
     echo "✓ Azure AD domain set"
 fi
+
+if [ -n "$FUNCTION_APP_URL" ]; then
+    # Format as full URL with https://
+    if [[ ! "$FUNCTION_APP_URL" =~ ^http ]]; then
+        FUNCTION_APP_URL="https://$FUNCTION_APP_URL"
+    fi
+    export AZURE_OPERATIONS_API_URL="$FUNCTION_APP_URL"
+    echo "✓ Operations API URL set"
+fi
+
+# Note: AZURE_OPERATIONS_API_KEY is optional and typically not set in local development
+# It can be retrieved from Azure Portal or Azure CLI if needed
+export AZURE_OPERATIONS_API_KEY=""
 
 # Check if we have all required values for keyless authentication
 missing_vars=()

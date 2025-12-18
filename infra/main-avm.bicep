@@ -15,7 +15,7 @@ param workloadName string = 'documentocr'
 param tenantId string = subscription().tenantId
 
 @description('Azure AD client ID for web app authentication')
-param webAppClientId string
+param webAppClientId string = ''
 
 @description('Azure AD domain for web app authentication')
 param azureAdDomain string

@@ -7,7 +7,7 @@
     },
     "assignRoles": {
       "value": "${ASSIGN_ROLES=false}"
-    }
+    },
     "environmentName": {
       "value": "${AZURE_ENV_NAME}"
     },

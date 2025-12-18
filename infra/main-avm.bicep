@@ -27,6 +27,9 @@ param tags object = {
   ManagedBy: 'Bicep-AVM'
 }
 
+@description('Assign roles')
+param assignRoles bool = false
+
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
@@ -573,7 +576,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
 // Note: AVM does not have a comprehensive role assignment module for complex scenarios
 var principalType = empty(runningOnGh) && empty(runningOnAdo) ? 'User' : 'ServicePrincipal'
 
-module userRoleAssignments 'modules/roleAssignments.bicep' = {
+module userRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles && !empty(principalId)) {
   name: 'user-role-assignments-deployment'
   params: {
     principalId: principalId
@@ -584,7 +587,7 @@ module userRoleAssignments 'modules/roleAssignments.bicep' = {
   }
 }
 
-module systemRoleAssignments 'modules/roleAssignments.bicep' = {
+module systemRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles){
   name: 'system-role-assignments-deployment'
   params: {
     principalId: functionApp.outputs.systemAssignedMIPrincipalId!
@@ -594,7 +597,7 @@ module systemRoleAssignments 'modules/roleAssignments.bicep' = {
   }
 }
 
-module webAppRoleAssignments 'modules/roleAssignments.bicep' = {
+module webAppRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles){
   name: 'web-app-role-assignments-deployment'
   params: {
     principalId: webApp.outputs.systemAssignedMIPrincipalId!

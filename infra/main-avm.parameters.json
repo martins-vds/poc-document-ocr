@@ -5,6 +5,9 @@
     "allowedIps": {
       "value": "${AZURE_ALLOWED_IPS}"
     },
+    "assignRoles": {
+      "value": "${ASSIGN_ROLES=false}"
+    }
     "environmentName": {
       "value": "${AZURE_ENV_NAME}"
     },

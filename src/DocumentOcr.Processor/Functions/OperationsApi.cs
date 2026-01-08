@@ -28,7 +28,7 @@ public class OperationsApi
 
     [Function("StartOperation")]
     public async Task<HttpResponseData> StartOperation(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "operations")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "operations")] HttpRequestData req)
     {
         _logger.LogInformation("Received request to start a new operation");
 

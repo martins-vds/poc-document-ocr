@@ -47,7 +47,7 @@ public class BlobStorageService : IBlobStorageService
         await containerClient.CreateIfNotExistsAsync();
 
         var blobClient = containerClient.GetBlobClient(blobName);
-        content.Position = 0;
+        
         await blobClient.UploadAsync(content, overwrite);
     }
 

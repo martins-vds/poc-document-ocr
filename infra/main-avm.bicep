@@ -20,8 +20,14 @@ param webAppClientId string = ''
 @description('Azure AD domain for web app authentication')
 param azureAdDomain string
 
-@description('Tags to apply to all resources')
-param tags object = {}
+@description('Tags to apply to all resources. Format: key1=value1;key2=value2')
+param tags string = ''
+
+var parsedTags = reduce(
+  filter(split(tags, ';'), t => length(split(t, '=')) == 2),
+  {},
+  (cur, next) => union(cur, { '${split(next, '=')[0]}': split(next, '=')[1] })
+)
 
 @description('Assign roles')
 param assignRoles bool = false
@@ -95,7 +101,7 @@ module vnet 'br/public:avm/res/network/virtual-network:0.7.1' = {
         delegation: 'Microsoft.Web/serverFarms'
       }
     ]
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -122,7 +128,7 @@ module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.0' = [
           registrationEnabled: false
         }
       ]
-      tags: tags
+      tags: parsedTags
     }
   }
 ]
@@ -137,7 +143,7 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.12.0' = 
     dataRetention: 30
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -152,7 +158,7 @@ module applicationInsights 'br/public:avm/res/insights/component:0.7.1' = {
     applicationType: 'web'
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -232,7 +238,7 @@ module storage 'br/public:avm/res/storage/storage-account:0.27.1' = {
         service: 'table'
       }
     ]
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -264,7 +270,7 @@ module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.13.2
         service: 'account'
       }
     ]
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -316,7 +322,7 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.16.0' = {
         service: 'Sql'
       }
     ]
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -331,7 +337,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.5.0' = {
     skuName: 'P1v3'
     skuCapacity: 1
     zoneRedundant: false
-    tags: tags
+    tags: parsedTags
   }
 }
 
@@ -352,7 +358,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
     }
     virtualNetworkSubnetResourceId: vnet.outputs.subnetResourceIds[0]
     storageAccountRequired: true
-    httpsOnly: true    
+    httpsOnly: true
     configs: [
       {
         name: 'appsettings'
@@ -365,7 +371,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       alwaysOn: true
       ftpsState: 'Disabled'
-      minTlsVersion: '1.2'      
+      minTlsVersion: '1.2'
       http20Enabled: true
       ipSecurityRestrictions: map(ipRules, ipRule => {
         ipAddress: lastIndexOf(ipRule.?value, '/') == -1 ? '${ipRule.?value}/32' : ipRule.?value
@@ -406,7 +412,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
     privateEndpoints: [
       {
         name: '${functionAppName}-pe'
-        tags: tags
+        tags: parsedTags
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
@@ -440,7 +446,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
         ]
       }
     ]
-    tags: union(tags, { 'azd-service-name': 'function' })
+    tags: union(parsedTags, { 'azd-service-name': 'function' })
   }
 }
 
@@ -523,7 +529,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
     privateEndpoints: [
       {
         name: '${webAppName}-pe'
-        tags: tags
+        tags: parsedTags
         subnetResourceId: vnet.outputs.subnetResourceIds[1]
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
@@ -565,7 +571,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
         ]
       }
     ]
-    tags: union(tags, { 'azd-service-name': 'web' })
+    tags: union(parsedTags, { 'azd-service-name': 'web' })
   }
 }
 
@@ -573,7 +579,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
 // Note: AVM does not have a comprehensive role assignment module for complex scenarios
 var principalType = empty(runningOnGh) && empty(runningOnAdo) ? 'User' : 'ServicePrincipal'
 
-module userRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles && !empty(principalId)) {
+module userRoleAssignments 'modules/roleAssignments.bicep' = if (assignRoles && !empty(principalId)) {
   name: 'user-role-assignments-deployment'
   params: {
     principalId: principalId
@@ -584,7 +590,7 @@ module userRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles && !
   }
 }
 
-module systemRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles){
+module systemRoleAssignments 'modules/roleAssignments.bicep' = if (assignRoles) {
   name: 'system-role-assignments-deployment'
   params: {
     principalId: functionApp.outputs.systemAssignedMIPrincipalId!
@@ -594,7 +600,7 @@ module systemRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles){
   }
 }
 
-module webAppRoleAssignments 'modules/roleAssignments.bicep' = if(assignRoles){
+module webAppRoleAssignments 'modules/roleAssignments.bicep' = if (assignRoles) {
   name: 'web-app-role-assignments-deployment'
   params: {
     principalId: webApp.outputs.systemAssignedMIPrincipalId!

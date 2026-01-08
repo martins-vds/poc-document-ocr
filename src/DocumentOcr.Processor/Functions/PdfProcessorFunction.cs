@@ -1,16 +1,17 @@
-using System.Text.Json;
-using Azure.Storage.Blobs;
+using DocumentOcr.Common.Interfaces;
+using DocumentOcr.Common.Models;
 using DocumentOcr.Processor.Models;
 using DocumentOcr.Processor.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace DocumentOcr.Processor.Functions;
 
 public class PdfProcessorFunction
 {
     private const string ProcessedDocumentsContainer = "processed-documents";
-    
+
     private readonly ILogger<PdfProcessorFunction> _logger;
     private readonly IPdfToImageService _pdfToImageService;
     private readonly IDocumentIntelligenceService _documentIntelligenceService;
@@ -52,7 +53,7 @@ public class PdfProcessorFunction
         {
             // Deserialize the queue message with operation wrapper
             var messageWrapper = JsonSerializer.Deserialize<QueueMessageWrapper>(queueMessage);
-            
+
             if (messageWrapper?.Message == null || string.IsNullOrEmpty(messageWrapper.OperationId))
             {
                 _logger.LogError("Invalid queue message format. Expected QueueMessageWrapper with OperationId and Message.");
@@ -101,7 +102,7 @@ public class PdfProcessorFunction
             // Step 3: Submit each image for OCR analysis in batch
             _logger.LogInformation("Step 3: Submitting images for OCR analysis");
             var pageResults = new List<PageOcrResult>();
-            
+
             for (int i = 0; i < imageStreams.Count; i++)
             {
                 // Check for cancellation before processing each page
@@ -112,7 +113,7 @@ public class PdfProcessorFunction
                     operation.Status = OperationStatus.Cancelled;
                     operation.CompletedAt = DateTime.UtcNow;
                     await _operationService.UpdateOperationAsync(operation);
-                    
+
                     // Clean up image streams
                     foreach (var pageResult in pageResults)
                     {
@@ -123,10 +124,10 @@ public class PdfProcessorFunction
 
                 var pageNumber = i + 1;
                 var imageStream = imageStreams[i];
-                
+
                 _logger.LogInformation("Analyzing page {PageNumber} of {Total}", pageNumber, imageStreams.Count);
                 var extractedData = await _documentIntelligenceService.AnalyzeDocumentAsync(imageStream);
-                
+
                 pageResults.Add(new PageOcrResult
                 {
                     PageNumber = pageNumber,
@@ -134,7 +135,7 @@ public class PdfProcessorFunction
                     ExtractedData = extractedData
                 });
             }
-            
+
             _logger.LogInformation("OCR analysis completed for all {PageCount} pages", pageResults.Count);
 
             // Step 4: Aggregate results by identifier property
@@ -161,7 +162,7 @@ public class PdfProcessorFunction
                 var aggregatedDoc = aggregatedDocuments[i];
                 var documentNumber = i + 1;
 
-                _logger.LogInformation("Creating PDF for document {Number} (Identifier: {Identifier}) with {PageCount} pages", 
+                _logger.LogInformation("Creating PDF for document {Number} (Identifier: {Identifier}) with {PageCount} pages",
                     documentNumber, aggregatedDoc.Identifier, aggregatedDoc.Pages.Count);
 
                 // Create PDF from images
@@ -170,7 +171,7 @@ public class PdfProcessorFunction
                 // Upload to storage
                 var outputBlobName = $"{Path.GetFileNameWithoutExtension(message.BlobName)}_doc_{documentNumber}.pdf";
                 var outputBlobClient = outputContainerClient.GetBlobClient(outputBlobName);
-                
+
                 pdfStreamResult.Position = 0;
                 await outputBlobClient.UploadAsync(pdfStreamResult, overwrite: true);
 
@@ -224,7 +225,7 @@ public class PdfProcessorFunction
             var resultJson = JsonSerializer.Serialize(processingResult, new JsonSerializerOptions { WriteIndented = true });
             var resultBlobName = $"{Path.GetFileNameWithoutExtension(message.BlobName)}_result.json";
             var resultBlobClient = outputContainerClient.GetBlobClient(resultBlobName);
-            
+
             using var resultStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(resultJson));
             await resultBlobClient.UploadAsync(resultStream, overwrite: true);
 
@@ -245,7 +246,7 @@ public class PdfProcessorFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing PDF");
-            
+
             // Update operation to failed
             if (operation != null)
             {
@@ -254,7 +255,7 @@ public class PdfProcessorFunction
                 operation.Error = ex.Message;
                 await _operationService.UpdateOperationAsync(operation);
             }
-            
+
             throw;
         }
     }

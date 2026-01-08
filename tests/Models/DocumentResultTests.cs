@@ -1,5 +1,4 @@
 using DocumentOcr.Processor.Models;
-using Xunit;
 
 namespace DocumentOcr.Tests.Models;
 
@@ -10,7 +9,7 @@ public class DocumentResultTests
     {
         // Arrange & Act
         var result = new DocumentResult();
-        
+
         // Assert
         Assert.Equal(0, result.DocumentNumber);
         Assert.Equal(0, result.PageCount);
@@ -33,7 +32,7 @@ public class DocumentResultTests
             ExtractedData = new Dictionary<string, object> { { "Content", "Test" } },
             OutputBlobName = "test_doc_1.pdf"
         };
-        
+
         // Assert
         Assert.Equal(1, result.DocumentNumber);
         Assert.Equal(5, result.PageCount);

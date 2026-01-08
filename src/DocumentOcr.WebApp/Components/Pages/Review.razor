@@ -1,8 +1,8 @@
 @page "/review/{id}/{identifier}"
-@using DocumentOcr.Processor.Models
-@using DocumentOcr.Processor.Services
-@using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
+@using DocumentOcr.Common.Interfaces
+@using DocumentOcr.Common.Models
+@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject ICosmosDbService CosmosDbService
 @inject IBlobStorageService BlobStorageService

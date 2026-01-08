@@ -134,15 +134,15 @@ public class OperationService : IOperationService
             throw new InvalidOperationException($"Operation {operationId} not found");
         }
 
-        if (operation.Status == OperationStatus.Succeeded || 
-            operation.Status == OperationStatus.Failed || 
+        if (operation.Status == OperationStatus.Succeeded ||
+            operation.Status == OperationStatus.Failed ||
             operation.Status == OperationStatus.Cancelled)
         {
             throw new InvalidOperationException($"Cannot cancel operation in {operation.Status} status");
         }
 
         operation.CancelRequested = true;
-        
+
         if (operation.Status == OperationStatus.NotStarted)
         {
             operation.Status = OperationStatus.Cancelled;

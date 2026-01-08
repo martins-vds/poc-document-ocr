@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace DocumentOcr.Processor.Models;
+namespace DocumentOcr.Common.Models;
 
 public class DocumentOcrEntity
 {

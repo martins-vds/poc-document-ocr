@@ -1,6 +1,6 @@
+using DocumentOcr.WebApp.Models;
 using System.Text;
 using System.Text.Json;
-using DocumentOcr.WebApp.Models;
 
 namespace DocumentOcr.WebApp.Services;
 
@@ -34,10 +34,10 @@ public class OperationsApiService : IOperationsApiService
 
             if (!string.IsNullOrEmpty(status))
                 queryParams.Add($"status={Uri.EscapeDataString(status)}");
-            
+
             if (maxItems.HasValue)
                 queryParams.Add($"maxItems={maxItems.Value}");
-            
+
             if (!string.IsNullOrEmpty(_functionKey))
                 queryParams.Add($"code={Uri.EscapeDataString(_functionKey)}");
 
@@ -71,7 +71,7 @@ public class OperationsApiService : IOperationsApiService
                 url += $"?code={Uri.EscapeDataString(_functionKey)}";
 
             var response = await _httpClient.GetAsync(url);
-            
+
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 return null;
 

@@ -28,12 +28,12 @@ public class PdfToImageService : IPdfToImageService
             {
                 pdfStream.Position = 0;
                 using var image = Conversion.ToImage(pdfStream, page: i, leaveOpen: true);
-                
+
                 var imageStream = new MemoryStream();
                 image.Encode(imageStream, SKEncodedImageFormat.Png, 100);
                 imageStream.Position = 0;
                 imageStreams.Add(imageStream);
-                
+
                 _logger.LogInformation("Converted page {PageNumber} to image", i + 1);
             }
 

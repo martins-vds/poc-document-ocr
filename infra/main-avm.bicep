@@ -466,7 +466,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
     virtualNetworkSubnetResourceId: vnet.outputs.subnetResourceIds[2]
     httpsOnly: true
     siteConfig: {
-      netFrameworkVersion: 'v8.0'
+      netFrameworkVersion: 'v10.0'
       alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'

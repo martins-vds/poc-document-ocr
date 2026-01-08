@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text.Json;
 using Azure.Storage.Queues;
 using DocumentOcr.Processor.Models;
 using DocumentOcr.Processor.Services;
@@ -7,6 +5,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text.Json;
 
 namespace DocumentOcr.Processor.Functions;
 
@@ -63,7 +63,7 @@ public class OperationsApi
             await queueClient.CreateIfNotExistsAsync();
 
             var messageContent = JsonSerializer.Serialize(queueMessage);
-            
+
             // Store operation ID in the queue message metadata using a wrapper
             var queueMessageWrapper = new
             {
@@ -71,7 +71,7 @@ public class OperationsApi
                 Message = queueMessage
             };
             var messageWithId = JsonSerializer.Serialize(queueMessageWrapper);
-            
+
             await queueClient.SendMessageAsync(messageWithId);
 
             // Set resource URL for status polling
@@ -127,7 +127,7 @@ public class OperationsApi
             };
 
             var response = req.CreateResponse(statusCode);
-            
+
             if (operation.Status == OperationStatus.Running || operation.Status == OperationStatus.NotStarted)
             {
                 response.Headers.Add("Retry-After", "10");
@@ -241,7 +241,7 @@ public class OperationsApi
             await queueClient.CreateIfNotExistsAsync();
 
             var messageContent = JsonSerializer.Serialize(queueMessage);
-            
+
             // Store operation ID in the queue message metadata using a wrapper
             var queueMessageWrapper = new
             {
@@ -249,7 +249,7 @@ public class OperationsApi
                 Message = queueMessage
             };
             var messageWithId = JsonSerializer.Serialize(queueMessageWrapper);
-            
+
             await queueClient.SendMessageAsync(messageWithId);
 
             // Set resource URL for status polling

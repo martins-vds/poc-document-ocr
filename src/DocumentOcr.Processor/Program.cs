@@ -1,11 +1,12 @@
 using Azure.Identity;
+using DocumentOcr.Common.Interfaces;
+using DocumentOcr.Common.Services;
 using DocumentOcr.Processor.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 

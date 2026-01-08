@@ -1,5 +1,4 @@
 using DocumentOcr.Processor.Models;
-using Xunit;
 
 namespace DocumentOcr.Tests.Models;
 
@@ -10,7 +9,7 @@ public class OperationTests
     {
         // Arrange & Act
         var operation = new Operation();
-        
+
         // Assert
         Assert.NotEqual(string.Empty, operation.Id); // Should have a GUID
         Assert.Equal(OperationStatus.NotStarted, operation.Status);
@@ -35,7 +34,7 @@ public class OperationTests
         var createdAt = DateTime.UtcNow;
         var startedAt = DateTime.UtcNow.AddMinutes(1);
         var completedAt = DateTime.UtcNow.AddMinutes(5);
-        
+
         // Act
         var operation = new Operation
         {
@@ -54,7 +53,7 @@ public class OperationTests
             Error = "Test error",
             ResourceUrl = "https://api.example.com/operations/123"
         };
-        
+
         // Assert
         Assert.Equal(operationId, operation.Id);
         Assert.Equal(OperationStatus.Running, operation.Status);
@@ -82,7 +81,7 @@ public class OperationTests
     {
         // Arrange & Act
         var operation = new Operation { Status = status };
-        
+
         // Assert
         Assert.Equal(status, operation.Status);
     }

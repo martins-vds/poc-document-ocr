@@ -1,7 +1,6 @@
 using DocumentOcr.Processor.Models;
 using Microsoft.Extensions.Logging;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Drawing;
+using SkiaSharp;
 
 namespace DocumentOcr.Processor.Services;
 
@@ -20,26 +19,31 @@ public class ImageToPdfService : IImageToPdfService
 
         try
         {
-            var document = new PdfDocument();
+            var pdfStream = new MemoryStream();
 
-            foreach (var page in pages.OrderBy(p => p.PageNumber))
+            using (var document = SKDocument.CreatePdf(pdfStream))
             {
-                page.ImageStream.Position = 0;
-                
-                using var image = XImage.FromStream(() => page.ImageStream);
-                
-                var pdfPage = document.AddPage();
-                pdfPage.Width = image.PixelWidth;
-                pdfPage.Height = image.PixelHeight;
-                
-                using var gfx = XGraphics.FromPdfPage(pdfPage);
-                gfx.DrawImage(image, 0, 0, image.PixelWidth, image.PixelHeight);
-                
-                _logger.LogInformation("Added page {PageNumber} to PDF", page.PageNumber);
+                foreach (var page in pages.OrderBy(p => p.PageNumber))
+                {
+                    page.ImageStream.Position = 0;
+
+                    using var image = SKImage.FromEncodedData(page.ImageStream);
+                    if (image == null)
+                    {
+                        _logger.LogWarning("Failed to decode image for page {PageNumber}", page.PageNumber);
+                        continue;
+                    }
+
+                    using var canvas = document.BeginPage(image.Width, image.Height);
+                    canvas.DrawImage(image, 0, 0);
+                    document.EndPage();
+
+                    _logger.LogInformation("Added page {PageNumber} to PDF", page.PageNumber);
+                }
+
+                document.Close();
             }
 
-            var pdfStream = new MemoryStream();
-            document.Save(pdfStream, false);
             pdfStream.Position = 0;
 
             _logger.LogInformation("Successfully created PDF with {PageCount} pages", pages.Count);

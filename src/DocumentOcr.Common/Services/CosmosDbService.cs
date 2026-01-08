@@ -1,9 +1,10 @@
-using DocumentOcr.Processor.Models;
+using DocumentOcr.Common.Interfaces;
+using DocumentOcr.Common.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace DocumentOcr.Processor.Services;
+namespace DocumentOcr.Common.Services;
 
 public class CosmosDbService : ICosmosDbService
 {

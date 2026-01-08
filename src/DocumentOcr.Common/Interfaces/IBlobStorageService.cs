@@ -1,6 +1,6 @@
 using Azure.Storage.Blobs;
 
-namespace DocumentOcr.Processor.Services;
+namespace DocumentOcr.Common.Interfaces;
 
 public interface IBlobStorageService
 {

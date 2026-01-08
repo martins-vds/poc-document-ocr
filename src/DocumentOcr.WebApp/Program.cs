@@ -1,6 +1,6 @@
 using Azure.Identity;
-using Azure.Storage.Blobs;
-using DocumentOcr.Processor.Services;
+using DocumentOcr.Common.Interfaces;
+using DocumentOcr.Common.Services;
 using DocumentOcr.WebApp.Components;
 using DocumentOcr.WebApp.Services;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;

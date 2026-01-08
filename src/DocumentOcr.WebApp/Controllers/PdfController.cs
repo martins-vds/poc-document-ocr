@@ -1,4 +1,4 @@
-using DocumentOcr.Processor.Services;
+using DocumentOcr.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -29,7 +29,7 @@ public class PdfController : ControllerBase
         try
         {
             var document = await _cosmosDbService.GetDocumentByIdAsync(id, identifier);
-            
+
             if (document == null)
             {
                 _logger.LogWarning("Document not found: {Id}/{Identifier}", id, identifier);
@@ -43,7 +43,7 @@ public class PdfController : ControllerBase
             }
 
             var stream = await _blobStorageService.DownloadBlobAsync(document.ContainerName, document.BlobName);
-            
+
             return File(stream, "application/pdf", enableRangeProcessing: true);
         }
         catch (Exception ex)

@@ -1,8 +1,7 @@
-using DocumentOcr.Processor.Services;
+using DocumentOcr.Common.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace DocumentOcr.Tests.Services;
 
@@ -15,9 +14,9 @@ public class BlobStorageServiceTests
         var mockLogger = new Mock<ILogger<BlobStorageService>>();
         var mockConfiguration = new Mock<IConfiguration>();
         mockConfiguration.Setup(c => c["AzureWebJobsStorage"]).Returns((string?)null);
-        
+
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => 
+        Assert.Throws<InvalidOperationException>(() =>
             new BlobStorageService(mockLogger.Object, mockConfiguration.Object));
     }
 
@@ -28,9 +27,9 @@ public class BlobStorageServiceTests
         var mockLogger = new Mock<ILogger<BlobStorageService>>();
         var mockConfiguration = new Mock<IConfiguration>();
         mockConfiguration.Setup(c => c["AzureWebJobsStorage"]).Returns(string.Empty);
-        
+
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => 
+        Assert.Throws<InvalidOperationException>(() =>
             new BlobStorageService(mockLogger.Object, mockConfiguration.Object));
     }
 }

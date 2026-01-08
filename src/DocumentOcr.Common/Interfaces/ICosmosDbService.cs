@@ -1,6 +1,6 @@
-using DocumentOcr.Processor.Models;
+using DocumentOcr.Common.Models;
 
-namespace DocumentOcr.Processor.Services;
+namespace DocumentOcr.Common.Interfaces;
 
 public interface ICosmosDbService
 {

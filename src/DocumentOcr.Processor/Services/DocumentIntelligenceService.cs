@@ -36,7 +36,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
         try
         {
             documentStream.Position = 0;
-            
+
             using var analysisStream = new MemoryStream();
 
             documentStream.CopyTo(analysisStream);

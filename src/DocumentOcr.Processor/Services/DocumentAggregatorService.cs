@@ -14,7 +14,7 @@ public class DocumentAggregatorService : IDocumentAggregatorService
 
     public List<AggregatedDocument> AggregatePagesByIdentifier(List<PageOcrResult> pageResults, string identifierFieldName)
     {
-        _logger.LogInformation("Aggregating {PageCount} pages by identifier field: {IdentifierFieldName}", 
+        _logger.LogInformation("Aggregating {PageCount} pages by identifier field: {IdentifierFieldName}",
             pageResults.Count, identifierFieldName);
 
         var documentGroups = new Dictionary<string, AggregatedDocument>();
@@ -35,7 +35,7 @@ public class DocumentAggregatorService : IDocumentAggregatorService
         }
 
         var aggregatedDocuments = documentGroups.Values.OrderBy(d => d.Pages.Min(p => p.PageNumber)).ToList();
-        
+
         _logger.LogInformation("Aggregated into {DocumentCount} documents", aggregatedDocuments.Count);
 
         return aggregatedDocuments;
@@ -60,7 +60,7 @@ public class DocumentAggregatorService : IDocumentAggregatorService
             }
         }
 
-        _logger.LogWarning("No identifier found for page {PageNumber}, using page number as identifier", 
+        _logger.LogWarning("No identifier found for page {PageNumber}, using page number as identifier",
             pageResult.PageNumber);
         return $"page_{pageResult.PageNumber}";
     }

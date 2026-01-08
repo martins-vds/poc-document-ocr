@@ -130,8 +130,8 @@ if [ -f "utils/update_settings.py" ]; then
     echo "✓ Local configuration files updated successfully!"
     echo ""
     echo "You can now run the applications locally:"
-    echo "  - Function App: cd src/DocumentOcrProcessor && func start"
-    echo "  - Web App: cd src/DocumentOcrWebApp && dotnet run"
+    echo "  - Function App: cd src/DocumentOcr.Processor && func start"
+    echo "  - Web App: cd src/DocumentOcr.WebApp && dotnet run"
 else
     echo "⚠ Warning: utils/update_settings.py not found"
     echo "Skipping local configuration update"

@@ -96,7 +96,7 @@ Deploy the updated Function App code with the Operations API:
 
 ```bash
 # Navigate to the function app directory
-cd src/DocumentOcrProcessor
+cd src/DocumentOcr.Processor
 
 # Deploy to Azure
 func azure functionapp publish <your-function-app-name>

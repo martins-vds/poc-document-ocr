@@ -19,7 +19,7 @@ This guide will help you get the Document OCR Processor running locally for deve
 
 ```bash
 git clone https://github.com/martins-vds/poc-document-ocr.git
-cd poc-document-ocr/src/DocumentOcrProcessor
+cd poc-document-ocr/src/DocumentOcr.Processor
 ```
 
 ### 2. Configure Azure Authentication (Required for Keyless Auth)
@@ -316,13 +316,13 @@ cat result.json
 
 ### Visual Studio
 
-1. Open `src/DocumentOcrProcessor/DocumentOcrProcessor.csproj` in Visual Studio
+1. Open `src/DocumentOcr.Processor/DocumentOcr.Processor.csproj` in Visual Studio
 2. Set breakpoints in the code
 3. Press F5 to start debugging
 
 ### Visual Studio Code
 
-1. Open the `src/DocumentOcrProcessor` folder in VS Code
+1. Open the `src/DocumentOcr.Processor` folder in VS Code
 2. Install the Azure Functions extension
 3. Press F5 to start debugging
 4. Set breakpoints as needed
@@ -386,7 +386,7 @@ dotnet test
 dotnet test --verbosity normal
 
 # Build and test in one command (from repository root)
-cd ../../ && dotnet build src/DocumentOcrProcessor && cd tests && dotnet test
+cd ../../ && dotnet build src/DocumentOcr.Processor && cd tests && dotnet test
 
 # View function help
 func --help

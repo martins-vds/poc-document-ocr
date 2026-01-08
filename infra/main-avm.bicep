@@ -146,7 +146,7 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.12.0' = 
 }
 
 // Application Insights using AVM
-module applicationInsights 'br/public:avm/res/insights/component:0.6.1' = {
+module applicationInsights 'br/public:avm/res/insights/component:0.7.1' = {
   name: 'application-insights-deployment'
   params: {
     name: applicationInsightsName
@@ -356,7 +356,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
     }
     virtualNetworkSubnetResourceId: vnet.outputs.subnetResourceIds[0]
     storageAccountRequired: true
-    httpsOnly: true
+    httpsOnly: true    
     configs: [
       {
         name: 'appsettings'
@@ -369,7 +369,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       alwaysOn: true
       ftpsState: 'Disabled'
-      minTlsVersion: '1.2'
+      minTlsVersion: '1.2'      
       http20Enabled: true
       ipSecurityRestrictions: map(ipRules, ipRule => {
         ipAddress: lastIndexOf(ipRule.?value, '/') == -1 ? '${ipRule.?value}/32' : ipRule.?value
@@ -471,6 +471,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
+      appCommandLine: 'dotnet DocumentOcr.WebApp.dll'
       ipSecurityRestrictions: map(ipRules, ipRule => {
         ipAddress: lastIndexOf(ipRule.?value, '/') == -1 ? '${ipRule.?value}/32' : ipRule.?value
         action: 'Allow'

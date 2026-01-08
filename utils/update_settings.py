@@ -63,25 +63,25 @@ def get_project_root() -> Path:
 def get_function_settings_path() -> Path:
     """Get path to Function App local.settings.json."""
     root = get_project_root()
-    return root / "src" / "DocumentOcrProcessor" / "local.settings.json"
+    return root / "src" / "DocumentOcr.Processor" / "local.settings.json"
 
 
 def get_function_template_path() -> Path:
     """Get path to Function App local.settings.json.template."""
     root = get_project_root()
-    return root / "src" / "DocumentOcrProcessor" / "local.settings.json.template"
+    return root / "src" / "DocumentOcr.Processor" / "local.settings.json.template"
 
 
 def get_webapp_settings_path() -> Path:
     """Get path to Web App appsettings.Development.json."""
     root = get_project_root()
-    return root / "src" / "DocumentOcrWebApp" / "appsettings.Development.json"
+    return root / "src" / "DocumentOcr.WebApp" / "appsettings.Development.json"
 
 
 def get_webapp_template_path() -> Path:
     """Get path to Web App appsettings.Development.json.template."""
     root = get_project_root()
-    return root / "src" / "DocumentOcrWebApp" / "appsettings.Development.json.template"
+    return root / "src" / "DocumentOcr.WebApp" / "appsettings.Development.json.template"
 
 
 def prompt_for_value(prompt_text: str, default: str = "", required: bool = True) -> str:
@@ -549,9 +549,9 @@ For local development:
     print("\n=== Configuration Updated Successfully ===", file=sys.stderr)
     print("\nNext steps:", file=sys.stderr)
     if not args.webapp_only:
-        print("  1. Review: src/DocumentOcrProcessor/local.settings.json", file=sys.stderr)
+        print("  1. Review: src/DocumentOcr.Processor/local.settings.json", file=sys.stderr)
     if not args.function_only:
-        print("  2. Review: src/DocumentOcrWebApp/appsettings.Development.json", file=sys.stderr)
+        print("  2. Review: src/DocumentOcr.WebApp/appsettings.Development.json", file=sys.stderr)
     print("  3. Ensure you have appropriate Azure credentials configured:", file=sys.stderr)
     print("     - Azure CLI: az login", file=sys.stderr)
     print("     - Or set AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET", file=sys.stderr)

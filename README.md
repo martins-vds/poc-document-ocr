@@ -39,7 +39,7 @@ See [Operations API Documentation](docs/OPERATIONS-API.md) for details on the as
 
 ## Components
 
-### Azure Function App (DocumentOcrProcessor)
+### Azure Function App (DocumentOcr.Processor)
 
 **HTTP Functions (Operations API):**
 - **OperationsApi**: RESTful API for managing long-running operations
@@ -71,7 +71,7 @@ See [Operations API Documentation](docs/OPERATIONS-API.md) for details on the as
 - **ProcessingResult**: Contains the complete processing results for all documents in a PDF
 - **DocumentOcrEntity**: Represents a document in Cosmos DB with review status and metadata
 
-### Web Application (DocumentOcrWebApp)
+### Web Application (DocumentOcr.WebApp)
 
 A Blazor Server application for manual document review:
 
@@ -207,7 +207,7 @@ See [`utils/README.md`](utils/README.md) for detailed usage instructions for all
 
 1. Install dependencies:
    ```bash
-   cd src/DocumentOcrProcessor
+   cd src/DocumentOcr.Processor
    dotnet restore
    ```
 
@@ -224,7 +224,7 @@ See [`utils/README.md`](utils/README.md) for detailed usage instructions for all
 
 4. Run locally:
    ```bash
-   cd ../src/DocumentOcrProcessor
+   cd ../src/DocumentOcr.Processor
    func start
    ```
 

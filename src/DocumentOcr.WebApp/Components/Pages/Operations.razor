@@ -1,0 +1,311 @@
+@page "/operations"
+@using Microsoft.AspNetCore.Authorization
+@using DocumentOcr.WebApp.Services
+@using DocumentOcr.WebApp.Models
+@inject IOperationsApiService OperationsApi
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<PageTitle>Operations</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h1>Extraction Operations</h1>
+            <p class="text-muted">Monitor and manage document processing operations</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="statusFilter" class="form-label">Filter by Status</label>
+            <select id="statusFilter" class="form-select" @bind="selectedStatus" @bind:after="LoadOperationsAsync">
+                <option value="">All Statuses</option>
+                <option value="NotStarted">Not Started</option>
+                <option value="Running">Running</option>
+                <option value="Succeeded">Succeeded</option>
+                <option value="Failed">Failed</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div class="col-md-8 d-flex align-items-end">
+            <button class="btn btn-primary" @onclick="LoadOperationsAsync" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                }
+                Refresh
+            </button>
+            <div class="form-check form-switch ms-3">
+                <input class="form-check-input" type="checkbox" id="autoRefresh" @bind="autoRefresh" @bind:after="OnAutoRefreshChanged">
+                <label class="form-check-label" for="autoRefresh">Auto-refresh (every 10s)</label>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading && operations.Count == 0)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading operations...</p>
+        </div>
+    }
+    else if (operations.Count == 0)
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No operations found.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Operation ID</th>
+                        <th>Status</th>
+                        <th>File</th>
+                        <th>Progress</th>
+                        <th>Created</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var operation in operations.OrderByDescending(o => o.CreatedAt))
+                    {
+                        <tr>
+                            <td>
+                                <code class="small">@operation.OperationId.Substring(0, Math.Min(8, operation.OperationId.Length))</code>
+                            </td>
+                            <td>
+                                <span class="badge @GetStatusBadgeClass(operation.Status)">
+                                    @operation.Status
+                                </span>
+                                @if (operation.CancelRequested && operation.Status == "Running")
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">Cancelling...</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="small">@operation.BlobName</div>
+                                <div class="text-muted" style="font-size: 0.8rem;">@operation.ContainerName</div>
+                            </td>
+                            <td>
+                                @if (operation.Status == "Running" || operation.Status == "Succeeded")
+                                {
+                                    <div class="progress" style="min-width: 150px;">
+                                        <div class="progress-bar @GetProgressBarClass(operation.Status)" 
+                                             role="progressbar" 
+                                             style="width: @GetProgressPercentage(operation)%"
+                                             aria-valuenow="@operation.ProcessedDocuments" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="@operation.TotalDocuments">
+                                            @operation.ProcessedDocuments / @operation.TotalDocuments
+                                        </div>
+                                    </div>
+                                }
+                                else if (!string.IsNullOrEmpty(operation.Error))
+                                {
+                                    <span class="text-danger small" title="@operation.Error">
+                                        <i class="bi bi-exclamation-triangle"></i> Error
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                <small>@operation.CreatedAt.ToLocalTime().ToString("g")</small>
+                            </td>
+                            <td>
+                                <small>@GetDuration(operation)</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    @if (operation.Status == "Running" || operation.Status == "NotStarted")
+                                    {
+                                        <button class="btn btn-outline-warning" 
+                                                @onclick="() => CancelOperationAsync(operation.OperationId)"
+                                                disabled="@(isLoading || operation.CancelRequested)"
+                                                title="Cancel">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    }
+                                    @if (operation.Status == "Failed" || operation.Status == "Cancelled" || operation.Status == "Succeeded")
+                                    {
+                                        <button class="btn btn-outline-primary" 
+                                                @onclick="() => RetryOperationAsync(operation.OperationId)"
+                                                disabled="@isLoading"
+                                                title="Retry">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<OperationDto> operations = new();
+    private bool isLoading = false;
+    private bool autoRefresh = false;
+    private string selectedStatus = "";
+    private string? errorMessage;
+    private string? successMessage;
+    private System.Threading.Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOperationsAsync();
+    }
+
+    private async Task LoadOperationsAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var status = string.IsNullOrEmpty(selectedStatus) ? null : selectedStatus;
+            operations = await OperationsApi.GetOperationsAsync(status);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load operations: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CancelOperationAsync(string operationId)
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await OperationsApi.CancelOperationAsync(operationId);
+            successMessage = "Operation cancelled successfully";
+            await LoadOperationsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to cancel operation: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RetryOperationAsync(string operationId)
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var newOperation = await OperationsApi.RetryOperationAsync(operationId);
+            successMessage = $"Operation retried successfully. New operation ID: {newOperation.OperationId}";
+            await LoadOperationsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to retry operation: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnAutoRefreshChanged()
+    {
+        if (autoRefresh)
+        {
+            refreshTimer = new System.Threading.Timer(async _ =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadOperationsAsync();
+                    StateHasChanged();
+                });
+            }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+        }
+        else
+        {
+            refreshTimer?.Dispose();
+            refreshTimer = null;
+        }
+    }
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "NotStarted" => "bg-secondary",
+        "Running" => "bg-primary",
+        "Succeeded" => "bg-success",
+        "Failed" => "bg-danger",
+        "Cancelled" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    private string GetProgressBarClass(string status) => status switch
+    {
+        "Running" => "progress-bar-striped progress-bar-animated",
+        "Succeeded" => "bg-success",
+        _ => ""
+    };
+
+    private double GetProgressPercentage(OperationDto operation)
+    {
+        if (operation.TotalDocuments == 0) return 0;
+        return (double)operation.ProcessedDocuments / operation.TotalDocuments * 100;
+    }
+
+    private string GetDuration(OperationDto operation)
+    {
+        var endTime = operation.CompletedAt ?? (operation.Status == "Running" ? DateTime.UtcNow : (DateTime?)null);
+        var startTime = operation.StartedAt ?? operation.CreatedAt;
+
+        if (endTime.HasValue)
+        {
+            var duration = endTime.Value - startTime;
+            if (duration.TotalMinutes >= 1)
+                return $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
+            else
+                return $"{duration.Seconds}s";
+        }
+
+        return "-";
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+}

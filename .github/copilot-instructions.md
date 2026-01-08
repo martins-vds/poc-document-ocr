@@ -10,7 +10,7 @@
 
 ```
 src/
-├── DocumentOcrProcessor/                   # ALWAYS run build commands from here
+├── DocumentOcr.Processor/                   # ALWAYS run build commands from here
 │   ├── Functions/PdfProcessorFunction.cs      # Entry point: queue-triggered function
 │   ├── Services/
 │   │   ├── PdfToImageService.cs               # PDF to image conversion
@@ -21,7 +21,7 @@ src/
 │   │   └── CosmosDbService.cs                 # Cosmos DB persistence
 │   ├── Models/                                # QueueMessage, DocumentResult, ProcessingResult, etc.
 │   ├── Program.cs                             # DI setup - register new services here
-│   ├── DocumentOcrProcessor.csproj            # Project file with NuGet packages
+│   ├── DocumentOcr.Processor.csproj            # Project file with NuGet packages
 │   ├── host.json                              # Functions runtime config
 │   └── local.settings.json.template           # Copy to local.settings.json for dev
 
@@ -32,10 +32,10 @@ tests/          # Unit tests (9 tests covering models and services)
 
 ## Build and Validation
 
-### Build Commands (run from `src/DocumentOcrProcessor/` directory)
+### Build Commands (run from `src/DocumentOcr.Processor/` directory)
 
 ```bash
-cd src/DocumentOcrProcessor
+cd src/DocumentOcr.Processor
 
 # Restore packages (15-20s first time, <1s cached)
 dotnet restore
@@ -61,7 +61,7 @@ dotnet clean && dotnet build
 - **Trigger**: Azure Storage Queue (`pdf-processing-queue`), input JSON: `{"BlobName": "...", "ContainerName": "...", "IdentifierFieldName": "..."}`
 - **Flow**: Queue → Download PDF → Convert pages to images → OCR each page → Aggregate by identifier → Create PDFs → Upload to `processed-documents` container → Save to Cosmos DB
 - **Error Handling**: Document Intelligence errors logged but continue processing
-- **Entry Point**: `src/DocumentOcrProcessor/Functions/PdfProcessorFunction.cs` orchestrates entire workflow
+- **Entry Point**: `src/DocumentOcr.Processor/Functions/PdfProcessorFunction.cs` orchestrates entire workflow
 
 ## Common Issues
 
@@ -75,7 +75,7 @@ dotnet clean && dotnet build
 
 ## Validation Checklist
 
-1. ✓ `cd src/DocumentOcrProcessor && dotnet clean && dotnet build` succeeds (~30s)
+1. ✓ `cd src/DocumentOcr.Processor && dotnet clean && dotnet build` succeeds (~30s)
 2. ✓ No compiler warnings
 3. ✓ Update `local.settings.json.template` if adding settings
 4. ✓ Update `docs/` if architecture/deployment changes
@@ -96,11 +96,11 @@ dotnet clean && dotnet build
 
 ## Key Files
 
-Main: `DocumentOcrProcessor/PdfProcessorFunction.cs`, `DocumentOcrProcessor/Program.cs` (DI), `DocumentOcrProcessor/.csproj` (deps), `DocumentOcrProcessor/local.settings.json.template`
+Main: `DocumentOcr.Processor/PdfProcessorFunction.cs`, `DocumentOcr.Processor/Program.cs` (DI), `DocumentOcr.Processor/.csproj` (deps), `DocumentOcr.Processor/local.settings.json.template`
 Docs: `ARCHITECTURE.md`, `QUICKSTART.md`, `DEPLOYMENT.md`
 
 ## Deployment
 
-`cd src/DocumentOcrProcessor && func azure functionapp publish <app-name>` or see `docs/DEPLOYMENT.md` for Azure setup.
+`cd src/DocumentOcr.Processor && func azure functionapp publish <app-name>` or see `docs/DEPLOYMENT.md` for Azure setup.
 
 **Trust these verified instructions. Only explore further if incomplete or errors not documented here.**

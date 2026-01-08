@@ -202,7 +202,7 @@ az functionapp config appsettings set \
 ## Step 4: Deploy Function Code
 
 ```bash
-cd src/DocumentOcrProcessor
+cd src/DocumentOcr.Processor
 func azure functionapp publish func-document-ocr
 ```
 

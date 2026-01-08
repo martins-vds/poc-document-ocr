@@ -8,7 +8,7 @@ The test project is located in the `tests/` directory and follows this structure
 
 ```
 tests/
-├── DocumentOcrProcessor.Tests.csproj   # Test project file
+├── DocumentOcr.Tests.csproj   # Test project file
 ├── README.md                            # Test documentation
 ├── Services/                            # Service layer tests
 │   └── BlobStorageServiceTests.cs      # Blob storage service tests
@@ -41,10 +41,10 @@ dotnet test --verbosity detailed
 dotnet test --filter "FullyQualifiedName~BlobStorageServiceTests"
 
 # Run tests from a specific namespace
-dotnet test --filter "FullyQualifiedName~DocumentOcrProcessor.Tests.Services"
+dotnet test --filter "FullyQualifiedName~DocumentOcr.Tests.Services"
 
 # Run model tests only
-dotnet test --filter "FullyQualifiedName~DocumentOcrProcessor.Tests.Models"
+dotnet test --filter "FullyQualifiedName~DocumentOcr.Tests.Models"
 ```
 
 ### Test Coverage
@@ -201,7 +201,7 @@ dotnet test
 
 ```bash
 # Restore packages
-dotnet restore tests/DocumentOcrProcessor.Tests.csproj
+dotnet restore tests/DocumentOcr.Tests.csproj
 ```
 
 ### Test Discovery Issues

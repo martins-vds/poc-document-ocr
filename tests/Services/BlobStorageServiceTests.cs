@@ -1,10 +1,10 @@
-using DocumentOcrProcessor.Services;
+using DocumentOcr.Processor.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace DocumentOcrProcessor.Tests.Services;
+namespace DocumentOcr.Tests.Services;
 
 public class BlobStorageServiceTests
 {

@@ -1,7 +1,7 @@
-using DocumentOcrProcessor.Models;
+using DocumentOcr.Processor.Models;
 using Xunit;
 
-namespace DocumentOcrProcessor.Tests.Models;
+namespace DocumentOcr.Tests.Models;
 
 public class OperationTests
 {

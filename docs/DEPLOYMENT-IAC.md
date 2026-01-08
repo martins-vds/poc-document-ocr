@@ -103,7 +103,7 @@ Create an Azure AD app registration for the web application:
 1. **Create App Registration**:
    - Navigate to Azure Portal → Azure Active Directory → App registrations
    - Click "New registration"
-   - Name: `DocumentOcrWebApp-dev` (or your environment name)
+   - Name: `DocumentOcr.WebApp-dev` (or your environment name)
    - Redirect URI: You can use a placeholder initially like `https://localhost/signin-oidc`
    - Click "Register"
 
@@ -427,7 +427,7 @@ azd env get-value AZURE_RESOURCE_GROUP
 **Solution:**
 1. Ensure .NET 8.0 SDK is installed: `dotnet --version`
 2. Run from project root: `./infra/scripts/build-function.sh`
-3. Check for build errors: `cd src/DocumentOcrProcessor && dotnet build`
+3. Check for build errors: `cd src/DocumentOcr.Processor && dotnet build`
 
 ### Issue: Deploy Script Fails
 

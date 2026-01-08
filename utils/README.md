@@ -110,14 +110,14 @@ Optional:
 
 ### What It Does
 
-1. **For Azure Function App** (`src/DocumentOcrProcessor/local.settings.json`):
+1. **For Azure Function App** (`src/DocumentOcr.Processor/local.settings.json`):
    - Creates the file from template if it doesn't exist
    - Updates Azure Storage connection string
    - Updates Document Intelligence endpoint and API key
    - Updates Cosmos DB endpoint, key, database, and container names
    - Sets FUNCTIONS_WORKER_RUNTIME to `dotnet-isolated`
 
-2. **For Web App** (`src/DocumentOcrWebApp/appsettings.Development.json`):
+2. **For Web App** (`src/DocumentOcr.WebApp/appsettings.Development.json`):
    - Creates the file from `appsettings.json` template if it doesn't exist
    - Updates Azure AD configuration for authentication
    - Updates Cosmos DB connection settings

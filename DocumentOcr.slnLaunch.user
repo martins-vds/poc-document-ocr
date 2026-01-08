@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "All",
+    "Projects": [
+      {
+        "Path": "src\\DocumentOcr.Processor\\DocumentOcr.Processor.csproj",
+        "Action": "StartWithoutDebugging"
+      },
+      {
+        "Path": "src\\DocumentOcr.WebApp\\DocumentOcr.WebApp.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

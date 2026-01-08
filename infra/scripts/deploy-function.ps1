@@ -13,7 +13,7 @@ Write-Host "================================" -ForegroundColor Cyan
 # Navigate to the source directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
-$SrcDir = Join-Path $ProjectRoot "src" "DocumentOcrProcessor"
+$SrcDir = Join-Path $ProjectRoot "src" "DocumentOcr.Processor"
 
 Set-Location $SrcDir
 

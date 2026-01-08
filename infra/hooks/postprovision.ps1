@@ -140,8 +140,8 @@ if (Test-Path "utils/update_settings.py") {
     Write-Host "✓ Local configuration files updated successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "You can now run the applications locally:"
-    Write-Host "  - Function App: cd src/DocumentOcrProcessor && func start"
-    Write-Host "  - Web App: cd src/DocumentOcrWebApp && dotnet run"
+    Write-Host "  - Function App: cd src/DocumentOcr.Processor && func start"
+    Write-Host "  - Web App: cd src/DocumentOcr.WebApp && dotnet run"
 }
 else {
     Write-Host "⚠ Warning: utils/update_settings.py not found" -ForegroundColor Yellow

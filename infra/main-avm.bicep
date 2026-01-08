@@ -490,7 +490,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
         }
         {
           name: 'AzureAd__Instance'
-          value: 'https://login.microsoftonline.com/'
+          value: environment().authentication.loginEndpoint
         }
         {
           name: 'AzureAd__Domain'
@@ -523,6 +523,19 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = {
         {
           name: 'AzureWebJobsStorage__accountName'
           value: storageAccountName
+        }
+
+        {
+          name: 'Storage__AccountName'
+          value: storageAccountName
+        }
+        {
+          name: 'OperationsApi__BaseUrl'
+          value: 'https://${functionApp.outputs.defaultHostname}'
+        }
+        {
+          name: 'Upload__ContainerName'
+          value: 'uploaded-pdfs'
         }
       ]
     }

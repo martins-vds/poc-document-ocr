@@ -368,7 +368,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
       }
     ]
     siteConfig: {
-      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
+      linuxFxVersion: 'DOTNET-ISOLATED|10.0'
       alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'

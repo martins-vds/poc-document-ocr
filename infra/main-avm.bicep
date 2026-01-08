@@ -21,11 +21,7 @@ param webAppClientId string = ''
 param azureAdDomain string
 
 @description('Tags to apply to all resources')
-param tags object = {
-  Environment: environmentName
-  Workload: workloadName
-  ManagedBy: 'Bicep-AVM'
-}
+param tags object = {}
 
 @description('Assign roles')
 param assignRoles bool = false

@@ -36,7 +36,7 @@
       "value": "${AZURE_AD_DOMAIN}"
     },
     "tags": {
-      "value": "${AZURE_TAGS={}}"
+      "value": "${AZURE_TAGS}"
     }
   }
 }

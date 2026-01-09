@@ -1,10 +1,7 @@
-using Azure.Identity;
-using Azure.Storage.Queues;
 using DocumentOcr.Processor.Models;
 using DocumentOcr.Processor.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
@@ -16,16 +13,16 @@ public class OperationsApi
 {
     private readonly ILogger<OperationsApi> _logger;
     private readonly IOperationService _operationService;
-    private readonly IConfiguration _configuration;
+    private readonly IQueueService _queueService;
 
     public OperationsApi(
         ILogger<OperationsApi> logger,
         IOperationService operationService,
-        IConfiguration configuration)
+        IQueueService queueService)
     {
         _logger = logger;
         _operationService = operationService;
-        _configuration = configuration;
+        _queueService = queueService;
     }
 
     [Function("StartOperation")]
@@ -60,42 +57,6 @@ public class OperationsApi
                 IdentifierFieldName = operation.IdentifierFieldName
             };
 
-            var queueServiceUriString = _configuration["AzureWebJobsStorage:queueServiceUri"];
-            QueueClient? queueClient;
-
-            if (!string.IsNullOrEmpty(queueServiceUriString))
-            {
-                if (queueServiceUriString.EndsWith('/'))
-                {
-                    queueServiceUriString = $"{queueServiceUriString}pdf-processing-queue";
-                }
-                else
-                {
-                    queueServiceUriString = $"{queueServiceUriString}/pdf-processing-queue";
-                }
-
-                if (!Uri.TryCreate(queueServiceUriString, new UriCreationOptions(), out var queueServiceUri))
-                {
-                    throw new InvalidOperationException("Invalid queue service URI");
-                }
-
-                queueClient = new QueueClient(queueServiceUri, new DefaultAzureCredential());
-            }
-            else
-            {
-                var queueServiceConnectionString = _configuration["AzureWebJobsStorage"];
-
-                if (string.IsNullOrEmpty(queueServiceConnectionString))
-                {
-                    throw new InvalidOperationException("Queue service URI or connection string must be provided in configuration");
-                }
-
-                queueClient = new QueueClient(queueServiceConnectionString, "pdf-processing-queue");
-            }
-
-            await queueClient.CreateIfNotExistsAsync();
-            var messageContent = JsonSerializer.Serialize(queueMessage);
-
             // Store operation ID in the queue message metadata using a wrapper
             var queueMessageWrapper = new
             {
@@ -104,7 +65,7 @@ public class OperationsApi
             };
             var messageWithId = JsonSerializer.Serialize(queueMessageWrapper);
 
-            await queueClient.SendMessageAsync(messageWithId);
+            await _queueService.SendMessageAsync(messageWithId);
 
             // Set resource URL for status polling
             var baseUrl = req.Url.GetLeftPart(UriPartial.Authority);
@@ -268,12 +229,6 @@ public class OperationsApi
                 IdentifierFieldName = newOperation.IdentifierFieldName
             };
 
-            var connectionString = _configuration["AzureWebJobsStorage"];
-            var queueClient = new QueueClient(connectionString, "pdf-processing-queue");
-            await queueClient.CreateIfNotExistsAsync();
-
-            var messageContent = JsonSerializer.Serialize(queueMessage);
-
             // Store operation ID in the queue message metadata using a wrapper
             var queueMessageWrapper = new
             {
@@ -282,7 +237,7 @@ public class OperationsApi
             };
             var messageWithId = JsonSerializer.Serialize(queueMessageWrapper);
 
-            await queueClient.SendMessageAsync(messageWithId);
+            await _queueService.SendMessageAsync(messageWithId);
 
             // Set resource URL for status polling
             var baseUrl = req.Url.GetLeftPart(UriPartial.Authority);

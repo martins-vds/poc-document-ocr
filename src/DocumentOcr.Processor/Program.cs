@@ -21,6 +21,7 @@ builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IPdfToImageService, PdfToImageService>();
 builder.Services.AddScoped<IDocumentAggregatorService, DocumentAggregatorService>();
 builder.Services.AddScoped<IImageToPdfService, ImageToPdfService>();
+builder.Services.AddSingleton<IQueueService, QueueService>();
 
 // Register Cosmos DB client as singleton
 builder.Services.AddSingleton(sp =>

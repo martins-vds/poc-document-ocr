@@ -407,6 +407,10 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
           name: 'CosmosDb__OperationsContainerName'
           value: 'Operations'
         }
+        {
+          name: 'Storage__AccountName'
+          value: storage.outputs.name
+        }
       ]
     }
     privateEndpoints: [

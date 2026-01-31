@@ -41,6 +41,8 @@ param runningOnGh string = ''
 @description('Whether the deployment is running on Azure DevOps Pipeline')
 param runningOnAdo string = ''
 
+param documentIntelligenceModelId string = 'prebuilt-document'
+
 param allowedIps string = ''
 var ipRules = reduce(
   filter(array(split(allowedIps, ';')), o => length(trim(o)) > 0),
@@ -390,6 +392,10 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
         {
           name: 'DocumentIntelligence__Endpoint'
           value: documentIntelligence.outputs.endpoint
+        }
+        {
+          name: 'DocumentIntelligence__ModelId'
+          value: documentIntelligenceModelId
         }
         {
           name: 'CosmosDb__Endpoint'

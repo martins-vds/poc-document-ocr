@@ -37,6 +37,9 @@
     },
     "tags": {
       "value": "${AZURE_TAGS}"
+    },
+    "documentIntelligenceModelId": {
+      "value": "${AZURE_DOCUMENT_INTELLIGENCE_MODEL_ID=prebuilt-document}"
     }
   }
 }

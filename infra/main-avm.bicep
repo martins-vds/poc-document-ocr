@@ -252,6 +252,7 @@ module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.13.2
     customSubDomainName: documentIntelligenceName
     sku: 'S0'
     publicNetworkAccess: !empty(ipRules) ? 'Enabled' : 'Disabled'
+    restrictOutboundNetworkAccess: false
     networkAcls: {
       defaultAction: 'Deny'
       ipRules: ipRules

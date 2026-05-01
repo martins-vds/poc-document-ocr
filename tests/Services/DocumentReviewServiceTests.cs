@@ -196,4 +196,119 @@ public class DocumentReviewServiceTests
         Assert.Equal(existingReviewer, result.ReviewedBy);
         Assert.Equal(existingTime, result.ReviewedAt);
     }
+
+    // ---------- Edge-case coverage ----------
+
+    [Fact]
+    public async Task ApplyEdits_BlankReviewer_ThrowsArgumentException()
+    {
+        var entity = NewEntity();
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Confirmed, null),
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, " "));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_DocumentMissing_Throws()
+    {
+        var cosmos = new Mock<ICosmosDbService>();
+        cosmos.Setup(c => c.GetDocumentByIdAsync("doc-x", "TK-x")).ReturnsAsync((DocumentOcrEntity?)null);
+        var service = new DocumentReviewService(cosmos.Object, NullLogger<DocumentReviewService>.Instance, () => FixedClock);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Confirmed, null),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-x", "TK-x", edits, Reviewer));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_UnknownFieldName_Throws()
+    {
+        var entity = NewEntity();
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["notARealField"] = new(SchemaFieldStatus.Confirmed, null),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_MissingSchemaEntry_Throws()
+    {
+        var entity = NewEntity(s => s.Remove("accusedName"));
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Confirmed, null),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_TransitionToPending_Throws()
+    {
+        var entity = NewEntity();
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Pending, null),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_ConfirmedWithDifferentReviewedValue_Throws()
+    {
+        var entity = NewEntity();
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Confirmed, "different-from-ocr"),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_CorrectedWithoutReviewedValue_Throws()
+    {
+        var entity = NewEntity();
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Corrected, null),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
+    }
+
+    [Fact]
+    public async Task ApplyEdits_CorrectedEqualToOcrValue_Throws()
+    {
+        var entity = NewEntity();
+        var (service, _) = BuildService(entity);
+        var edits = new Dictionary<string, FieldEdit>
+        {
+            ["accusedName"] = new(SchemaFieldStatus.Corrected, "ocr"), // matches OcrValue
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
+    }
 }

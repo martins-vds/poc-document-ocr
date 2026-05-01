@@ -11,9 +11,23 @@ public class BlobStorageService : IBlobStorageService
     private readonly ILogger<BlobStorageService> _logger;
     private readonly BlobServiceClient _blobServiceClient;
 
-    public BlobStorageService(ILogger<BlobStorageService> logger, IConfiguration configuration)
+    public BlobStorageService(BlobServiceClient blobServiceClient, ILogger<BlobStorageService> logger)
     {
+        _blobServiceClient = blobServiceClient ?? throw new ArgumentNullException(nameof(blobServiceClient));
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Convenience constructor used by the DI container in production. Builds a
+    /// <see cref="BlobServiceClient"/> from configuration using Managed Identity.
+    /// </summary>
+    public BlobStorageService(ILogger<BlobStorageService> logger, IConfiguration configuration)
+        : this(CreateClient(configuration), logger)
+    {
+    }
+
+    internal static BlobServiceClient CreateClient(IConfiguration configuration)
+    {
         var storageAccountName = configuration["Storage:AccountName"];
 
         if (string.IsNullOrEmpty(storageAccountName))
@@ -22,7 +36,7 @@ public class BlobStorageService : IBlobStorageService
         }
 
         var blobServiceUri = new Uri($"https://{storageAccountName}.blob.core.windows.net");
-        _blobServiceClient = new BlobServiceClient(blobServiceUri, new DefaultAzureCredential());
+        return new BlobServiceClient(blobServiceUri, new DefaultAzureCredential());
     }
 
     public async Task<Stream> DownloadBlobAsync(string containerName, string blobName)
@@ -47,7 +61,7 @@ public class BlobStorageService : IBlobStorageService
         await containerClient.CreateIfNotExistsAsync();
 
         var blobClient = containerClient.GetBlobClient(blobName);
-        
+
         await blobClient.UploadAsync(content, overwrite);
     }
 

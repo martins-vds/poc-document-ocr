@@ -14,13 +14,22 @@ public class QueueService : IQueueService
     private readonly ILogger<QueueService> _logger;
     private readonly QueueClient _queueClient;
 
-    public QueueService(IConfiguration configuration, ILogger<QueueService> logger)
+    public QueueService(QueueClient queueClient, ILogger<QueueService> logger)
     {
+        _queueClient = queueClient ?? throw new ArgumentNullException(nameof(queueClient));
         _logger = logger;
-        _queueClient = CreateQueueClient(configuration);
     }
 
-    private static QueueClient CreateQueueClient(IConfiguration configuration)
+    /// <summary>
+    /// Convenience constructor used by the DI container in production. Builds the
+    /// <see cref="QueueClient"/> from configuration.
+    /// </summary>
+    public QueueService(IConfiguration configuration, ILogger<QueueService> logger)
+        : this(CreateQueueClient(configuration), logger)
+    {
+    }
+
+    internal static QueueClient CreateQueueClient(IConfiguration configuration)
     {
         var queueServiceUriString = configuration["AzureWebJobsStorage:queueServiceUri"];
 

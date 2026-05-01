@@ -142,4 +142,76 @@ public class DocumentLockServiceTests
         Assert.Equal("earlier@contoso.com", result.LastCheckedInBy);
         Assert.Equal(earlier, result.LastCheckedInAt);
     }
+
+    // ---------- ETag retry coverage (ReplaceWithSingleRetry) ----------
+
+    [Fact]
+    public async Task TryCheckout_ETagConflict_RefetchesAndRetriesOnce()
+    {
+        var entity = new DocumentOcrEntity { Id = "doc-1", Identifier = "TK-1", ETag = "\"v1\"" };
+        var fresh = new DocumentOcrEntity { Id = "doc-1", Identifier = "TK-1", ETag = "\"v2\"" };
+
+        var cosmos = new Mock<ICosmosDbService>();
+        cosmos.SetupSequence(c => c.GetDocumentByIdAsync("doc-1", "TK-1"))
+              .ReturnsAsync(entity)
+              .ReturnsAsync(fresh);
+        cosmos.SetupSequence(c => c.ReplaceWithETagAsync(It.IsAny<DocumentOcrEntity>(), It.IsAny<CancellationToken>()))
+              .ThrowsAsync(new Microsoft.Azure.Cosmos.CosmosException("conflict", System.Net.HttpStatusCode.PreconditionFailed, 0, "", 0))
+              .ReturnsAsync(fresh);
+
+        var service = new DocumentLockService(cosmos.Object, NullLogger<DocumentLockService>.Instance, () => Now);
+
+        var result = await service.TryCheckoutAsync("doc-1", "TK-1", Reviewer);
+
+        Assert.True(result.Acquired);
+        Assert.Equal(Reviewer, result.Document!.CheckedOutBy);
+        cosmos.Verify(c => c.ReplaceWithETagAsync(It.IsAny<DocumentOcrEntity>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        cosmos.Verify(c => c.GetDocumentByIdAsync("doc-1", "TK-1"), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task TryCheckout_DocumentMissing_Throws()
+    {
+        var cosmos = new Mock<ICosmosDbService>();
+        cosmos.Setup(c => c.GetDocumentByIdAsync(It.IsAny<string>(), It.IsAny<string>()))
+              .ReturnsAsync((DocumentOcrEntity?)null);
+        var service = new DocumentLockService(cosmos.Object, NullLogger<DocumentLockService>.Instance, () => Now);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.TryCheckoutAsync("missing", "TK-x", Reviewer));
+    }
+
+    [Fact]
+    public async Task TryCheckout_BlankReviewer_ThrowsArgumentException()
+    {
+        var (service, _, _) = Build();
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.TryCheckoutAsync("doc-1", "TK-1", " "));
+    }
+
+    [Fact]
+    public async Task Checkin_HeldByOther_Throws()
+    {
+        var (service, _, _) = Build(e =>
+        {
+            e.CheckedOutBy = Other;
+            e.CheckedOutAt = Now.AddMinutes(-5);
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CheckinAsync("doc-1", "TK-1", Reviewer));
+    }
+
+    [Fact]
+    public async Task CancelCheckout_HeldByOther_Throws()
+    {
+        var (service, _, _) = Build(e =>
+        {
+            e.CheckedOutBy = Other;
+            e.CheckedOutAt = Now.AddMinutes(-5);
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CancelCheckoutAsync("doc-1", "TK-1", Reviewer));
+    }
 }

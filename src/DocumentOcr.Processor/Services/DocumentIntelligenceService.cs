@@ -38,9 +38,27 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
         }
     }
 
-    public DocumentIntelligenceService(ILogger<DocumentIntelligenceService> logger, IConfiguration configuration)
+    public DocumentIntelligenceService(DocumentAnalysisClient client, ILogger<DocumentIntelligenceService> logger, string modelId = "prebuilt-document")
     {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
         _logger = logger;
+        _modelId = string.IsNullOrWhiteSpace(modelId) ? _modelId : modelId;
+    }
+
+    /// <summary>
+    /// Convenience constructor used by the DI container in production. Builds the
+    /// <see cref="DocumentAnalysisClient"/> from configuration.
+    /// </summary>
+    public DocumentIntelligenceService(ILogger<DocumentIntelligenceService> logger, IConfiguration configuration)
+        : this(
+            CreateClient(configuration),
+            logger,
+            configuration["DocumentIntelligence:ModelId"] ?? "prebuilt-document")
+    {
+    }
+
+    internal static DocumentAnalysisClient CreateClient(IConfiguration configuration)
+    {
         var endpoint = configuration["DocumentIntelligence:Endpoint"];
 
         if (string.IsNullOrEmpty(endpoint))
@@ -48,8 +66,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
             throw new InvalidOperationException("Document Intelligence endpoint is missing. Please configure DocumentIntelligence:Endpoint.");
         }
 
-        _modelId = configuration["DocumentIntelligence:ModelId"] ?? _modelId;
-        _client = new DocumentAnalysisClient(new Uri(endpoint), new DefaultAzureCredential());
+        return new DocumentAnalysisClient(new Uri(endpoint), new DefaultAzureCredential());
     }
 
     public async Task<Dictionary<string, object>> AnalyzeDocumentAsync(Stream documentStream)

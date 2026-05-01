@@ -64,7 +64,7 @@ See [Operations API Documentation](docs/OPERATIONS-API.md) for details on the as
 
 **Models:**
 - **Operation**: Tracks status and progress of long-running operations
-- **QueueMessage**: Represents the message received from the queue with blob information and identifier field name
+- **QueueMessage**: Represents the message received from the queue with blob information
 - **PageOcrResult**: Contains OCR results for an individual page
 - **AggregatedDocument**: Groups pages by their identifier
 - **DocumentResult**: Contains the extracted data and metadata for a single document
@@ -143,7 +143,7 @@ Your Azure credentials will be used to authenticate to all services!
 The application aggregates pages into documents by extracting an identifier field from each page's OCR results. Pages with the same identifier value are grouped into the same document.
 
 **Key Features:**
-- Configurable identifier field name (default: "identifier")
+- Identifier field name is configured server-side via the `DocumentProcessing:IdentifierFieldName` app setting on the Function App (default: `"identifier"`)
 - Automatically groups pages by identifier
 - Pages without an identifier (field not found, empty, or null) are treated as individual single-page documents
 - Supports any string-based identifier field from OCR results
@@ -152,7 +152,6 @@ The application aggregates pages into documents by extracting an identifier fiel
 
 The function expects queue messages in the following JSON format:
 
-### Basic Usage (Default Identifier)
 ```json
 {
     "BlobName": "document.pdf",
@@ -160,20 +159,7 @@ The function expects queue messages in the following JSON format:
 }
 ```
 
-This uses the default identifier field name "identifier".
-
-### Custom Identifier Field
-```json
-{
-    "BlobName": "document.pdf",
-    "ContainerName": "uploaded-pdfs",
-    "IdentifierFieldName": "documentId"
-}
-```
-
-This tells the processor to look for a field named "documentId" in the OCR results to group pages into documents.
-
-**Example:** If page 1 has `documentId: "4314"` and page 32 also has `documentId: "4314"`, both pages will be grouped into the same document PDF.
+The identifier field name is read from the Function App configuration; it is not part of the queue message or the API request.
 
 ## Utility Scripts
 

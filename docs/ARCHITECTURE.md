@@ -137,7 +137,6 @@ See [OPERATIONS-API.md](OPERATIONS-API.md) for complete API documentation.
 - Extracts PDF attachment
 - Uploads PDF to Azure Storage Blob container
 - Sends message to Storage Queue with blob reference
-- Can optionally specify custom identifier field name
 
 ### 2. Azure Function (Queue Triggered)
 - Triggered by messages in the queue
@@ -145,7 +144,7 @@ See [OPERATIONS-API.md](OPERATIONS-API.md) for complete API documentation.
 - Orchestrates the document processing workflow:
   1. Convert PDF pages to images
   2. Submit images for OCR analysis
-  3. Aggregate pages by identifier (specified in queue message via `IdentifierFieldName`)
+  3. Aggregate pages by identifier (field name configured via the `DocumentProcessing:IdentifierFieldName` app setting)
   4. Create PDFs from aggregated pages
   5. Upload results to storage
 
@@ -159,7 +158,7 @@ The application groups pages into documents based on identifier fields found in 
 
 - Extracts identifier field from each page's OCR data
 - Groups pages with matching identifiers into the same document
-- Configurable field name (default: "identifier")
+- Field name is configured via the `DocumentProcessing:IdentifierFieldName` app setting (default: "identifier")
 - Pages without identifiers (field not found, empty, or null) are treated as separate single-page documents using `page_{number}` as the identifier
 
 ### 5. Document Intelligence Service
@@ -187,23 +186,15 @@ The application groups pages into documents based on identifier fields found in 
 ## Data Flow
 
 1. **Input**: Queue message with blob reference
-   
-   Default identifier:
+
    ```json
    {
      "BlobName": "upload-2025-01-10.pdf",
      "ContainerName": "uploaded-pdfs"
    }
    ```
-   
-   Custom identifier field:
-   ```json
-   {
-     "BlobName": "upload-2025-01-10.pdf",
-     "ContainerName": "uploaded-pdfs",
-     "IdentifierFieldName": "documentId"
-   }
-   ```
+
+   The identifier field name used during aggregation is read from the Function App's `DocumentProcessing:IdentifierFieldName` setting and is not part of the message.
 
 2. **Processing**:
    - Download PDF from blob storage

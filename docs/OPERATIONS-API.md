@@ -58,10 +58,11 @@ Starts a new document processing operation by uploading a PDF for processing.
 ```json
 {
   "blobName": "upload-2025-01-10.pdf",
-  "containerName": "uploaded-pdfs",
-  "identifierFieldName": "identifier"  // optional, defaults to "identifier"
+  "containerName": "uploaded-pdfs"
 }
 ```
+
+The identifier field used to aggregate pages is configured server-side via the Function App's `DocumentProcessing:IdentifierFieldName` setting and cannot be overridden per request.
 
 **Response:** `202 Accepted`
 ```json
@@ -580,8 +581,7 @@ All queue messages must use the operation tracking format:
   "OperationId": "123e4567-e89b-12d3-a456-426614174000",
   "Message": {
     "BlobName": "sample.pdf",
-    "ContainerName": "uploaded-pdfs",
-    "IdentifierFieldName": "identifier"
+    "ContainerName": "uploaded-pdfs"
   }
 }
 ```

@@ -28,15 +28,11 @@ The file upload feature allows you to submit PDF documents for OCR processing di
    - Maximum 10 files per upload session
    - Each file can be up to 50 MB
 3. Review the selected files in the list (showing file name and size)
-4. (Optional) Specify a custom identifier field name
-   - Default is "identifier"
-   - This field is used to group pages into separate documents
-   - Pages without this field will be treated as individual single-page documents
-5. Click "Upload and Start Extraction"
-6. Each file will be uploaded to blob storage sequentially
-7. A separate extraction operation will start for each file
-8. View the upload results showing success/failure for each file
-9. You'll be redirected to the Operations page to monitor all operations
+4. Click "Upload and Start Extraction"
+5. Each file will be uploaded to blob storage sequentially
+6. A separate extraction operation will start for each file
+7. View the upload results showing success/failure for each file
+8. You'll be redirected to the Operations page to monitor all operations
 
 **Multiple File Upload:**
 - Upload up to 10 PDF files simultaneously
@@ -46,11 +42,7 @@ The file upload feature allows you to submit PDF documents for OCR processing di
 - Failed uploads are shown with error messages while successful uploads continue
 
 **Identifier Field:**
-The identifier field name tells the OCR system which field to use for grouping pages. For example:
-- If you specify "documentId" as the identifier
-- Pages with the same documentId value (e.g., "12345") will be grouped into one document
-- Pages with different documentId values will be split into separate documents
-- Pages where the identifier field is not found, empty, or null are treated as individual single-page documents
+Pages are grouped into documents based on a configured identifier field extracted from OCR results. The field name is set on the Function App via the `DocumentProcessing:IdentifierFieldName` app setting (default: `"identifier"`) and is not exposed in the upload UI. Pages where the identifier field is not found, empty, or null are treated as individual single-page documents.
 
 ### Operations Monitoring
 

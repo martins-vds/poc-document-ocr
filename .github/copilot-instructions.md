@@ -58,7 +58,7 @@ dotnet clean && dotnet build
 
 ## Architecture Quick Reference
 
-- **Trigger**: Azure Storage Queue (`pdf-processing-queue`), input JSON: `{"BlobName": "...", "ContainerName": "...", "IdentifierFieldName": "..."}`
+- **Trigger**: Azure Storage Queue (`pdf-processing-queue`), input JSON: `{"BlobName": "...", "ContainerName": "..."}` (the identifier field name used for aggregation comes from the `DocumentProcessing:IdentifierFieldName` app setting)
 - **Flow**: Queue → Download PDF → Convert pages to images → OCR each page → Aggregate by identifier → Create PDFs → Upload to `processed-documents` container → Save to Cosmos DB
 - **Error Handling**: Document Intelligence errors logged but continue processing
 - **Entry Point**: `src/DocumentOcr.Processor/Functions/PdfProcessorFunction.cs` orchestrates entire workflow

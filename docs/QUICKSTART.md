@@ -255,14 +255,9 @@ az storage message put \
   --use-emulator \
   --queue-name pdf-processing-queue \
   --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
-
-# With custom identifier field name
-az storage message put \
-  --account-name devstoreaccount1 \
-  --use-emulator \
-  --queue-name pdf-processing-queue \
-  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs","IdentifierFieldName":"documentId"}'
 ```
+
+> The identifier field used to aggregate pages is configured on the Function App via the `DocumentProcessing:IdentifierFieldName` app setting (default: `identifier`); it is not part of the queue message.
 
 Or using PowerShell:
 

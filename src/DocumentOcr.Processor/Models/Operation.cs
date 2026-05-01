@@ -16,9 +16,6 @@ public class Operation
     [JsonProperty("containerName")]
     public string ContainerName { get; set; } = string.Empty;
 
-    [JsonProperty("identifierFieldName")]
-    public string IdentifierFieldName { get; set; } = "identifier";
-
     [JsonProperty("createdAt")]
     public DateTime CreatedAt { get; set; }
 

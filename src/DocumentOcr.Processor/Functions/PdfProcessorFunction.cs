@@ -3,6 +3,7 @@ using DocumentOcr.Common.Models;
 using DocumentOcr.Processor.Models;
 using DocumentOcr.Processor.Services;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -11,6 +12,7 @@ namespace DocumentOcr.Processor.Functions;
 public class PdfProcessorFunction
 {
     private const string ProcessedDocumentsContainer = "processed-documents";
+    private const string DefaultIdentifierFieldName = "identifier";
 
     private readonly ILogger<PdfProcessorFunction> _logger;
     private readonly IPdfToImageService _pdfToImageService;
@@ -20,6 +22,7 @@ public class PdfProcessorFunction
     private readonly IBlobStorageService _blobStorageService;
     private readonly ICosmosDbService _cosmosDbService;
     private readonly IOperationService _operationService;
+    private readonly string _identifierFieldName;
 
     public PdfProcessorFunction(
         ILogger<PdfProcessorFunction> logger,
@@ -29,7 +32,8 @@ public class PdfProcessorFunction
         IImageToPdfService imageToPdfService,
         IBlobStorageService blobStorageService,
         ICosmosDbService cosmosDbService,
-        IOperationService operationService)
+        IOperationService operationService,
+        IConfiguration configuration)
     {
         _logger = logger;
         _pdfToImageService = pdfToImageService;
@@ -39,6 +43,9 @@ public class PdfProcessorFunction
         _blobStorageService = blobStorageService;
         _cosmosDbService = cosmosDbService;
         _operationService = operationService;
+
+        var configured = configuration["DocumentProcessing:IdentifierFieldName"];
+        _identifierFieldName = string.IsNullOrWhiteSpace(configured) ? DefaultIdentifierFieldName : configured;
     }
 
     [Function("PdfProcessorFunction")]
@@ -139,8 +146,8 @@ public class PdfProcessorFunction
             _logger.LogInformation("OCR analysis completed for all {PageCount} pages", pageResults.Count);
 
             // Step 4: Aggregate results by identifier property
-            _logger.LogInformation("Step 4: Aggregating pages by identifier field: {IdentifierFieldName}", message.IdentifierFieldName);
-            var aggregatedDocuments = _documentAggregatorService.AggregatePagesByIdentifier(pageResults, message.IdentifierFieldName);
+            _logger.LogInformation("Step 4: Aggregating pages by identifier field: {IdentifierFieldName}", _identifierFieldName);
+            var aggregatedDocuments = _documentAggregatorService.AggregatePagesByIdentifier(pageResults, _identifierFieldName);
             _logger.LogInformation("Aggregated into {DocumentCount} documents", aggregatedDocuments.Count);
 
             // Update operation with aggregated count

@@ -8,6 +8,7 @@
         "CosmosDb:Endpoint": "https://<your-cosmosdb-account>.documents.azure.com:443/",
         "CosmosDb:DatabaseName": "DocumentOcrDb",
         "CosmosDb:ContainerName": "ProcessedDocuments",
-        "CosmosDb:OperationsContainerName": "Operations"
+        "CosmosDb:OperationsContainerName": "Operations",
+        "DocumentProcessing:IdentifierFieldName": "identifier"
     }
 }

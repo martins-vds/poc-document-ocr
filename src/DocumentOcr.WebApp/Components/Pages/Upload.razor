@@ -42,12 +42,8 @@
                     
                     <div class="mb-3">
                         <label for="fileUpload" class="form-label">Choose PDF files to upload (up to 10)</label>
-                        <InputFile id="fileUpload" 
-                                   class="form-control" 
-                                   OnChange="HandleFilesSelected" 
-                                   accept=".pdf"
-                                   multiple
-                                   disabled="@isUploading" />
+                        <InputFile id="fileUpload" class="form-control" OnChange="HandleFilesSelected" accept=".pdf"
+                                   multiple disabled="@isUploading" />
                         @if (selectedFiles.Any())
                         {
                             <div class="mt-2">
@@ -67,22 +63,8 @@
                         }
                     </div>
 
-                    <div class="mb-3">
-                        <label for="identifierField" class="form-label">Identifier Field Name (Optional)</label>
-                        <input type="text" 
-                               id="identifierField" 
-                               class="form-control" 
-                               @bind="identifierFieldName" 
-                               placeholder="identifier"
-                               disabled="@isUploading" />
-                        <div class="form-text">
-                            The field name used to group pages into documents (default: "identifier")
-                        </div>
-                    </div>
-
                     <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-lg" 
-                                @onclick="UploadFiles" 
+                        <button class="btn btn-primary btn-lg" @onclick="UploadFiles"
                                 disabled="@(!selectedFiles.Any() || isUploading)">
                             @if (isUploading)
                             {
@@ -100,11 +82,8 @@
                     @if (isUploading)
                     {
                         <div class="progress mt-3" style="height: 25px;">
-                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                 role="progressbar" 
-                                 style="width: @uploadProgress%"
-                                 aria-valuenow="@uploadProgress" 
-                                 aria-valuemin="0" 
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                                 style="width: @uploadProgress%" aria-valuenow="@uploadProgress" aria-valuemin="0"
                                  aria-valuemax="100">
                                 @uploadProgress%
                             </div>
@@ -148,7 +127,6 @@
                     <h5 class="card-title"><i class="bi bi-info-circle"></i> How it works</h5>
                     <ol class="small">
                         <li>Select one or more PDF files (up to 10)</li>
-                        <li>Optionally specify an identifier field name</li>
                         <li>Click "Upload and Start Extraction"</li>
                         <li>Each file will be uploaded to storage</li>
                         <li>A separate extraction operation will start for each file</li>
@@ -157,14 +135,8 @@
                     <hr />
                     <h6>Multiple Files</h6>
                     <p class="small">
-                        You can upload up to 10 PDF files at once. Each file will be processed independently 
+                        You can upload up to 10 PDF files at once. Each file will be processed independently
                         with its own operation, allowing parallel processing for faster results.
-                    </p>
-                    <hr />
-                    <h6>Identifier Field</h6>
-                    <p class="small">
-                        The identifier field is used to group pages with the same identifier value into a single document. 
-                        For example, if pages 1 and 5 both have "documentId: 12345", they will be grouped together.
                     </p>
                 </div>
             </div>
@@ -174,7 +146,6 @@
 
 @code {
     private List<IBrowserFile> selectedFiles = new();
-    private string identifierFieldName = "identifier";
     private bool isUploading = false;
     private string? errorMessage;
     private string? successMessage;
@@ -276,9 +247,8 @@
 
                     // Start the extraction operation
                     var operation = await OperationsApi.StartOperationAsync(
-                        blobName, 
-                        containerName, 
-                        string.IsNullOrWhiteSpace(identifierFieldName) ? null : identifierFieldName);
+                        blobName,
+                        containerName);
 
                     uploadResults.Add(new UploadResult
                     {

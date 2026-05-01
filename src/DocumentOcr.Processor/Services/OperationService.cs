@@ -20,13 +20,12 @@ public class OperationService : IOperationService
         _container = cosmosClient.GetContainer(databaseName, containerName);
     }
 
-    public async Task<Operation> CreateOperationAsync(string blobName, string containerName, string identifierFieldName = "identifier")
+    public async Task<Operation> CreateOperationAsync(string blobName, string containerName)
     {
         var operation = new Operation
         {
             BlobName = blobName,
             ContainerName = containerName,
-            IdentifierFieldName = identifierFieldName,
             Status = OperationStatus.NotStarted,
             CreatedAt = DateTime.UtcNow
         };

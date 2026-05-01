@@ -15,7 +15,6 @@ public class OperationTests
         Assert.Equal(OperationStatus.NotStarted, operation.Status);
         Assert.Equal(string.Empty, operation.BlobName);
         Assert.Equal(string.Empty, operation.ContainerName);
-        Assert.Equal("identifier", operation.IdentifierFieldName);
         Assert.Equal(0, operation.ProcessedDocuments);
         Assert.Equal(0, operation.TotalDocuments);
         Assert.False(operation.CancelRequested);
@@ -42,7 +41,6 @@ public class OperationTests
             Status = OperationStatus.Running,
             BlobName = "test.pdf",
             ContainerName = "uploaded-pdfs",
-            IdentifierFieldName = "customId",
             CreatedAt = createdAt,
             StartedAt = startedAt,
             CompletedAt = completedAt,
@@ -59,7 +57,6 @@ public class OperationTests
         Assert.Equal(OperationStatus.Running, operation.Status);
         Assert.Equal("test.pdf", operation.BlobName);
         Assert.Equal("uploaded-pdfs", operation.ContainerName);
-        Assert.Equal("customId", operation.IdentifierFieldName);
         Assert.Equal(createdAt, operation.CreatedAt);
         Assert.Equal(startedAt, operation.StartedAt);
         Assert.Equal(completedAt, operation.CompletedAt);

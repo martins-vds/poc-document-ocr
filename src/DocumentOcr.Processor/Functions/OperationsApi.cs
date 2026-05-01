@@ -43,18 +43,16 @@ public class OperationsApi
                 return badResponse;
             }
 
-            // Create operation record
+            // Create operation record.
             var operation = await _operationService.CreateOperationAsync(
                 startRequest.BlobName,
-                startRequest.ContainerName,
-                startRequest.IdentifierFieldName ?? "identifier");
+                startRequest.ContainerName);
 
             // Queue the processing message
             var queueMessage = new QueueMessage
             {
                 BlobName = operation.BlobName,
-                ContainerName = operation.ContainerName,
-                IdentifierFieldName = operation.IdentifierFieldName
+                ContainerName = operation.ContainerName
             };
 
             // Store operation ID in the queue message metadata using a wrapper
@@ -218,15 +216,13 @@ public class OperationsApi
             // Create a new operation with the same parameters
             var newOperation = await _operationService.CreateOperationAsync(
                 operation.BlobName,
-                operation.ContainerName,
-                operation.IdentifierFieldName);
+                operation.ContainerName);
 
             // Queue the processing message
             var queueMessage = new QueueMessage
             {
                 BlobName = newOperation.BlobName,
-                ContainerName = newOperation.ContainerName,
-                IdentifierFieldName = newOperation.IdentifierFieldName
+                ContainerName = newOperation.ContainerName
             };
 
             // Store operation ID in the queue message metadata using a wrapper
@@ -329,6 +325,4 @@ public class StartOperationRequest
     public string BlobName { get; set; } = string.Empty;
     [JsonPropertyName("containerName")]
     public string ContainerName { get; set; } = string.Empty;
-    [JsonPropertyName("identifierFieldName")]
-    public string? IdentifierFieldName { get; set; }
 }

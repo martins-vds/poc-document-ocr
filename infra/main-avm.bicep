@@ -414,6 +414,10 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
           value: 'Operations'
         }
         {
+          name: 'DocumentProcessing__IdentifierFieldName'
+          value: 'identifier'
+        }
+        {
           name: 'Storage__AccountName'
           value: storage.outputs.name
         }

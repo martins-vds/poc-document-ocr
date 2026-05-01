@@ -6,6 +6,20 @@
 
 **Tests**: Included. Constitution II ("Testing Standards") is NON-NEGOTIABLE for this repository — every behavioral change ships with tests under `tests/`.
 
+**TDD enforcement (NON-NEGOTIABLE)**: For every behavior-changing task in Phases 3–5, the corresponding test task MUST be authored, committed, and observed **failing (red)** before the implementation task is started. Implementation tasks then make the test pass (**green**). Refactor only after green. The explicit red→green pairings are:
+
+| Test task (red first) | Implementation task (green)            |
+| --------------------- | -------------------------------------- |
+| T004                  | T003                                   |
+| T006                  | T005                                   |
+| T010                  | T014                                   |
+| T011                  | T012 (and T013 for the response shape) |
+| T020                  | T016 + T022                            |
+| T021                  | T018 + T024                            |
+| T025                  | T013 (response shape) + T026           |
+
+A pull request that lands an implementation task without first showing the paired test failing on the prior commit MUST be rejected in review.
+
 **Organization**: Tasks are grouped by user story so each story can be implemented, tested, and demoed independently. Foundational phase contains the shared `PageSelection` model and contract field additions that every story depends on.
 
 ## Format
@@ -145,7 +159,8 @@ This is a multi-project .NET solution per the constitution:
 
 ### Within each story
 
-- Tests authored before or alongside implementation; for behavior-changing tasks (T012, T014) the corresponding test (T010, T011) MUST be in place and red before implementation lands (Constitution II red→green rule for new behavior).
+- **TDD red→green is mandatory** (see the pairing table at the top of this file). The test task MUST land in a commit where it is observed failing; the implementation task is the very next commit and MUST turn it green. No squashing test+impl into a single commit.
+- For behavior-changing tasks (T012, T014) the corresponding test (T010, T011) MUST be in place and red before implementation lands (Constitution II red→green rule for new behavior).
 - Models before services before endpoints before UI.
 
 ### Parallel opportunities

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "code-testing-agent": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/code-testing-agent/SKILL.md",
+      "computedHash": "c5bd1f36e380e0bf8826bc8946118573b0088ec8bbbe5886f59e22089aac39c9"
+    },
+    "dotnet-best-practices": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/dotnet-best-practices/SKILL.md",
+      "computedHash": "9ef94db7f06c167d544369817e5a4415eeb7886dcff0d47026837a1aada260e3"
+    },
+    "dotnet-design-pattern-review": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/dotnet-design-pattern-review/SKILL.md",
+      "computedHash": "0b2b93ae1950e075045546dcf8d5a0971eea77abc5707916c99033c334accf69"
+    },
+    "dotnet-test-frameworks": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/dotnet-test-frameworks/SKILL.md",
+      "computedHash": "e6d6966724b236372f500df9cc840f99753979b1c88904a0240e79ea88b4c78c"
+    },
+    "migrate-nullable-references": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-upgrade/skills/migrate-nullable-references/SKILL.md",
+      "computedHash": "dd10c50d8e8ae7928e7fcc5b6e25920e6953d6f065001ee8c0ca3b1119dd1735"
+    },
+    "optimizing-ef-core-queries": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-data/skills/optimizing-ef-core-queries/SKILL.md",
+      "computedHash": "265a890a57f60bf55d79fb92483176aca3c6e5c88c23cd75d18911e8354d0e87"
+    },
+    "run-tests": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/run-tests/SKILL.md",
+      "computedHash": "49f264597359379b0a4029d22fd8b61d97dca23c410c810330751ba66e91fba4"
+    },
+    "test-anti-patterns": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/test-anti-patterns/SKILL.md",
+      "computedHash": "8850c9cdebe7b4e3967a87a11f05f0c3437756d0d1ddb7f2c6838a532d7c708f"
+    }
+  }
+}

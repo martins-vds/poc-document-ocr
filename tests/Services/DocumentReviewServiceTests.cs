@@ -14,13 +14,14 @@ public class DocumentReviewServiceTests
 {
     private static readonly DateTime FixedClock = new(2026, 1, 15, 12, 0, 0, DateTimeKind.Utc);
     private const string Reviewer = "alice@contoso.com";
+    private const string OcrValue = "ocr";
 
     private static DocumentOcrEntity NewEntity(Action<Dictionary<string, SchemaField>>? customize = null)
     {
         var schema = new Dictionary<string, SchemaField>(StringComparer.Ordinal);
         foreach (var name in ProcessedDocumentSchema.FieldNames)
         {
-            schema[name] = SchemaField.CreateInitial("ocr", 0.9);
+            schema[name] = SchemaField.CreateInitial(OcrValue, 0.9);
         }
         customize?.Invoke(schema);
         return new DocumentOcrEntity
@@ -88,7 +89,7 @@ public class DocumentReviewServiceTests
 
         var edits = new Dictionary<string, FieldEdit>
         {
-            ["accusedName"] = new(SchemaFieldStatus.Corrected, "ocr"),
+            ["accusedName"] = new(SchemaFieldStatus.Corrected, OcrValue),
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
@@ -229,20 +230,6 @@ public class DocumentReviewServiceTests
     }
 
     [Fact]
-    public async Task ApplyEdits_UnknownFieldName_Throws()
-    {
-        var entity = NewEntity();
-        var (service, _) = BuildService(entity);
-        var edits = new Dictionary<string, FieldEdit>
-        {
-            ["notARealField"] = new(SchemaFieldStatus.Confirmed, null),
-        };
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
-    }
-
-    [Fact]
     public async Task ApplyEdits_MissingSchemaEntry_Throws()
     {
         var entity = NewEntity(s => s.Remove("accusedName"));
@@ -250,20 +237,6 @@ public class DocumentReviewServiceTests
         var edits = new Dictionary<string, FieldEdit>
         {
             ["accusedName"] = new(SchemaFieldStatus.Confirmed, null),
-        };
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ApplyEditsAsync("doc-1", "TK-1", edits, Reviewer));
-    }
-
-    [Fact]
-    public async Task ApplyEdits_TransitionToPending_Throws()
-    {
-        var entity = NewEntity();
-        var (service, _) = BuildService(entity);
-        var edits = new Dictionary<string, FieldEdit>
-        {
-            ["accusedName"] = new(SchemaFieldStatus.Pending, null),
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

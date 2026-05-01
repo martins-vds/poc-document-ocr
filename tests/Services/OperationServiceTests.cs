@@ -150,6 +150,9 @@ public class OperationServiceTests
         Assert.Single(result);
         Assert.NotNull(capturedQuery);
         Assert.Contains("@status", capturedQuery!.QueryText);
+        var statusParam = capturedQuery.GetQueryParameters()
+            .Single(p => p.Name == "@status");
+        Assert.Equal(OperationStatus.Running.ToString(), statusParam.Value?.ToString());
     }
 
     [Fact]

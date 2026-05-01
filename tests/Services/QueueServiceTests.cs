@@ -24,9 +24,9 @@ public class QueueServiceTests
         queue.Setup(q => q.CreateIfNotExistsAsync(
             It.IsAny<IDictionary<string, string>>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Response)null!);
+            .ReturnsAsync(Mock.Of<Response>());
         queue.Setup(q => q.SendMessageAsync("hello"))
-            .ReturnsAsync((Response<SendReceipt>)null!);
+            .ReturnsAsync(Mock.Of<Response<SendReceipt>>());
 
         var service = new QueueService(queue.Object, new Mock<ILogger<QueueService>>().Object);
 

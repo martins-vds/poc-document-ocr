@@ -20,7 +20,7 @@ public class BlobStorageServiceMockedTests
             It.IsAny<IDictionary<string, string>>(),
             It.IsAny<BlobContainerEncryptionScopeOptions>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Response<BlobContainerInfo>)null!);
+            .ReturnsAsync(Mock.Of<Response<BlobContainerInfo>>());
 
         var serviceClient = new Mock<BlobServiceClient>();
         serviceClient.Setup(s => s.GetBlobContainerClient(It.IsAny<string>())).Returns(container.Object);
@@ -42,7 +42,7 @@ public class BlobStorageServiceMockedTests
         var (service, _, container, blob) = BuildService();
         blob.Setup(b => b.DownloadToAsync(It.IsAny<Stream>()))
             .Callback<Stream>(s => s.WriteByte(0xAB))
-            .ReturnsAsync((Response)null!);
+            .ReturnsAsync(Mock.Of<Response>());
 
         var stream = await service.DownloadBlobAsync("c", "b");
 
@@ -56,7 +56,7 @@ public class BlobStorageServiceMockedTests
     {
         var (service, _, container, blob) = BuildService();
         blob.Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Response<BlobContentInfo>)null!);
+            .ReturnsAsync(Mock.Of<Response<BlobContentInfo>>());
 
         using var data = new MemoryStream(new byte[] { 1, 2, 3 });
         await service.UploadBlobAsync("c", "b", data);

@@ -110,9 +110,11 @@ public static class ReviewUiHelpers
     }
 
     /// <summary>
-    /// First page in the processed PDF where the entity's identifier appears,
-    /// or the first inferred page as a fallback. Used to position the PDF
-    /// viewer on initial load.
+    /// First page in the per-identifier processed PDF where the entity's
+    /// identifier was extracted. Returns a <em>local</em> page number
+    /// (1-based index within the aggregated PDF), not the original-PDF
+    /// page number stored in <see cref="PageProvenanceEntry.PageNumber"/>.
+    /// Falls back to local page 1 when only inferred entries exist.
     /// </summary>
     public static int? GetPrimaryPageNumber(DocumentOcrEntity? entity)
     {
@@ -125,6 +127,27 @@ public static class ReviewUiHelpers
             .FirstOrDefault(p => p.IdentifierSource == IdentifierSource.Extracted
                               && string.Equals(p.ExtractedIdentifier, entity.Identifier, StringComparison.Ordinal));
 
-        return match?.PageNumber ?? entity.PageProvenance[0].PageNumber;
+        var originalPage = match?.PageNumber ?? entity.PageProvenance[0].PageNumber;
+
+        // Map original page → local index in the per-identifier PDF.
+        // PageNumbers preserves insertion order matching the aggregated PDF.
+        if (entity.PageNumbers.Count == 0)
+        {
+            return 1;
+        }
+
+        var localIndex = entity.PageNumbers.IndexOf(originalPage);
+        return localIndex >= 0 ? localIndex + 1 : 1;
+    }
+
+    /// <summary>
+    /// True when the schema field is declared as <see cref="bool"/> in
+    /// <see cref="ProcessedDocumentSchema.FieldTypes"/> (the two signature
+    /// flags). Drives whether the editor renders a True/False dropdown.
+    /// </summary>
+    public static bool IsBooleanField(string fieldName)
+    {
+        return ProcessedDocumentSchema.FieldTypes.TryGetValue(fieldName, out var t)
+               && t == typeof(bool);
     }
 }

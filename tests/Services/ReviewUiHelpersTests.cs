@@ -173,22 +173,44 @@ public class ReviewUiHelpersTests
         Assert.Equal("field-row confidence-unknown status-pending", ReviewUiHelpers.GetFieldRowCssClass(null));
     }
 
-    // ── Page-number lookup from provenance ──────────────────────────────
+    // ── Page-number lookup from provenance (LOCAL page in per-identifier PDF) ──
 
     [Fact]
-    public void GetFieldPageNumber_FirstExtractedPageWithMatchingIdentifier()
+    public void GetPrimaryPageNumber_ReturnsLocalIndexOfFirstExtractedPage()
     {
-        // Documents are aggregated per-identifier; each provenance entry
-        // points to a page in the *processed* PDF where that identifier
-        // appears. The "primary" page used for jumping is the first one.
+        // Original PDF had pages 28, 29, 30 belong to identifier ABC.
+        // The aggregated per-identifier PDF only contains those 3 pages,
+        // numbered 1, 2, 3 locally. The reviewer must see local page 1
+        // (where the identifier was first extracted), not original 28.
         var entity = new DocumentOcrEntity
         {
             Identifier = "ABC",
+            PageNumbers = new List<int> { 28, 29, 30 },
             PageProvenance = new List<PageProvenanceEntry>
             {
-                PageProvenanceEntry.Inferred(1),
-                PageProvenanceEntry.Extracted(2, "ABC"),
-                PageProvenanceEntry.Extracted(3, "ABC"),
+                PageProvenanceEntry.Extracted(28, "ABC"),
+                PageProvenanceEntry.Extracted(29, "ABC"),
+                PageProvenanceEntry.Extracted(30, "ABC"),
+            },
+        };
+
+        Assert.Equal(1, ReviewUiHelpers.GetPrimaryPageNumber(entity));
+    }
+
+    [Fact]
+    public void GetPrimaryPageNumber_ExtractedAfterInferred_ReturnsLocalPageOfFirstExtracted()
+    {
+        // Original pages 5,6,7 — page 5 was forward-filled (Inferred),
+        // page 6 had the extracted identifier. Locally, page 6 is index 2.
+        var entity = new DocumentOcrEntity
+        {
+            Identifier = "ABC",
+            PageNumbers = new List<int> { 5, 6, 7 },
+            PageProvenance = new List<PageProvenanceEntry>
+            {
+                PageProvenanceEntry.Inferred(5),
+                PageProvenanceEntry.Extracted(6, "ABC"),
+                PageProvenanceEntry.Extracted(7, "ABC"),
             },
         };
 
@@ -196,11 +218,12 @@ public class ReviewUiHelpersTests
     }
 
     [Fact]
-    public void GetPrimaryPageNumber_OnlyInferred_ReturnsFirstPage()
+    public void GetPrimaryPageNumber_OnlyInferred_ReturnsLocalPage1()
     {
         var entity = new DocumentOcrEntity
         {
             Identifier = "ABC",
+            PageNumbers = new List<int> { 5, 6 },
             PageProvenance = new List<PageProvenanceEntry>
             {
                 PageProvenanceEntry.Inferred(5),
@@ -208,7 +231,7 @@ public class ReviewUiHelpersTests
             },
         };
 
-        Assert.Equal(5, ReviewUiHelpers.GetPrimaryPageNumber(entity));
+        Assert.Equal(1, ReviewUiHelpers.GetPrimaryPageNumber(entity));
     }
 
     [Fact]
@@ -222,5 +245,18 @@ public class ReviewUiHelpersTests
     public void GetPrimaryPageNumber_NullEntity_ReturnsNull()
     {
         Assert.Null(ReviewUiHelpers.GetPrimaryPageNumber(null));
+    }
+
+    // ── Boolean field detection ─────────────────────────────────────────
+
+    [Theory]
+    [InlineData("judgeSignature", true)]
+    [InlineData("endorsementSignature", true)]
+    [InlineData("fileTkNumber", false)]
+    [InlineData("mainCharge", false)]
+    [InlineData("unknownField", false)]
+    public void IsBooleanField_ReturnsTrueOnlyForSignatureFields(string name, bool expected)
+    {
+        Assert.Equal(expected, ReviewUiHelpers.IsBooleanField(name));
     }
 }

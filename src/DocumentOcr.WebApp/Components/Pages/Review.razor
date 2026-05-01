@@ -72,8 +72,8 @@ else
                 <div class="alert alert-warning py-2 mb-0 mt-2 small">
                     <strong>Page-boundary warning:</strong> @InferredPageCount of @document.PageCount pages had their identifier
                     forward-filled. Pages: @string.Join(", ", document.PageProvenance
-                                            .Where(p => p.IdentifierSource == IdentifierSource.Inferred)
-                                            .Select(p => p.PageNumber.ToString()))
+                                                                .Where(p => p.IdentifierSource == IdentifierSource.Inferred)
+                                                                .Select(p => p.PageNumber.ToString()))
                 </div>
             }
 
@@ -123,8 +123,19 @@ else
                         </div>
                         @if (CanEdit)
                         {
-                            <input class="form-control form-control-sm mb-2" value="@localValue"
-                                   @oninput="e => SetEdit(fieldName, e.Value?.ToString())" />
+                            @if (ReviewUiHelpers.IsBooleanField(fieldName))
+                            {
+                                <select class="form-select form-select-sm mb-2" value="@localValue"
+                                        @onchange="e => SetEdit(fieldName, e.Value?.ToString())">
+                                    <option value="True">True</option>
+                                    <option value="False">False</option>
+                                </select>
+                            }
+                            else
+                            {
+                                <input class="form-control form-control-sm mb-2" value="@localValue"
+                                       @oninput="e => SetEdit(fieldName, e.Value?.ToString())" />
+                            }
                             <div class="field-actions">
                                 <button class="btn btn-sm btn-outline-success" @onclick="() => MarkConfirmed(fieldName)"
                                         disabled="@saving">Confirm</button>

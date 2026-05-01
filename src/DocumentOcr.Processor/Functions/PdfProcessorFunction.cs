@@ -22,6 +22,7 @@ public class PdfProcessorFunction
     private readonly IBlobStorageService _blobStorageService;
     private readonly ICosmosDbService _cosmosDbService;
     private readonly IOperationService _operationService;
+    private readonly IDocumentSchemaMapperService _schemaMapper;
     private readonly string _identifierFieldName;
 
     public PdfProcessorFunction(
@@ -33,6 +34,7 @@ public class PdfProcessorFunction
         IBlobStorageService blobStorageService,
         ICosmosDbService cosmosDbService,
         IOperationService operationService,
+        IDocumentSchemaMapperService schemaMapper,
         IConfiguration configuration)
     {
         _logger = logger;
@@ -43,6 +45,7 @@ public class PdfProcessorFunction
         _blobStorageService = blobStorageService;
         _cosmosDbService = cosmosDbService;
         _operationService = operationService;
+        _schemaMapper = schemaMapper;
 
         var configured = configuration["DocumentProcessing:IdentifierFieldName"];
         _identifierFieldName = string.IsNullOrWhiteSpace(configured) ? DefaultIdentifierFieldName : configured;
@@ -169,6 +172,11 @@ public class PdfProcessorFunction
                 var aggregatedDoc = aggregatedDocuments[i];
                 var documentNumber = i + 1;
 
+                if (await TrySkipDuplicateAsync(aggregatedDoc, processingResult, operation.Id))
+                {
+                    continue;
+                }
+
                 _logger.LogInformation("Creating PDF for document {Number} (Identifier: {Identifier}) with {PageCount} pages",
                     documentNumber, aggregatedDoc.Identifier, aggregatedDoc.Pages.Count);
 
@@ -182,12 +190,15 @@ public class PdfProcessorFunction
                 pdfStreamResult.Position = 0;
                 await outputBlobClient.UploadAsync(pdfStreamResult, overwrite: true);
 
-                // Combine extracted data from all pages
-                var combinedExtractedData = new Dictionary<string, object>
+                // FR-020 — emit a structured warning when any page in the
+                // document had its identifier inferred (forward-filled).
+                var inferredCount = aggregatedDoc.PageProvenance.Count(p => p.IdentifierSource == IdentifierSource.Inferred);
+                if (inferredCount > 0)
                 {
-                    ["PageCount"] = aggregatedDoc.Pages.Count,
-                    ["Pages"] = aggregatedDoc.Pages.Select(p => p.ExtractedData).ToList()
-                };
+                    _logger.LogWarning(
+                        "FR-020 inferred-identifier pages — OperationId={OperationId} Identifier={Identifier} InferredPages={InferredCount}",
+                        operation.Id, aggregatedDoc.Identifier, inferredCount);
+                }
 
                 var documentResult = new DocumentResult
                 {
@@ -195,31 +206,30 @@ public class PdfProcessorFunction
                     PageCount = aggregatedDoc.Pages.Count,
                     PageNumbers = aggregatedDoc.Pages.Select(p => p.PageNumber).OrderBy(p => p).ToList(),
                     Identifier = aggregatedDoc.Identifier,
-                    ExtractedData = combinedExtractedData,
-                    OutputBlobName = outputBlobName
+                    ExtractedData = new Dictionary<string, object>(),
+                    OutputBlobName = outputBlobName,
                 };
 
                 processingResult.Documents.Add(documentResult);
                 _logger.LogInformation("Saved document {Number} to blob: {BlobName}", documentNumber, outputBlobName);
 
-                // Persist to Cosmos DB
+                // Persist to Cosmos DB via the schema mapper (T024 / T030).
                 var blobUrl = outputBlobClient.Uri.ToString();
-                var cosmosEntity = new DocumentOcrEntity
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    DocumentNumber = documentNumber,
-                    OriginalFileName = message.BlobName,
-                    Identifier = aggregatedDoc.Identifier,
-                    PageCount = aggregatedDoc.Pages.Count,
-                    PageNumbers = aggregatedDoc.Pages.Select(p => p.PageNumber).OrderBy(p => p).ToList(),
-                    PdfBlobUrl = blobUrl,
-                    ExtractedData = combinedExtractedData,
-                    ProcessedAt = DateTime.UtcNow,
-                    ContainerName = ProcessedDocumentsContainer,
-                    BlobName = outputBlobName
-                };
+                var cosmosEntity = _schemaMapper.Map(
+                    aggregatedDoc,
+                    documentNumber,
+                    message.BlobName,
+                    blobUrl,
+                    outputBlobName);
 
                 await _cosmosDbService.CreateDocumentAsync(cosmosEntity);
+
+                // FR-013 — structured consolidation outcome.
+                var populated = cosmosEntity.Schema.Values.Count(f => f.OcrValue is not null);
+                var nullCount = cosmosEntity.Schema.Count - populated;
+                _logger.LogInformation(
+                    "FR-013 consolidation outcome - OperationId={OperationId} Identifier={Identifier} SourcePages={SourcePages} PopulatedFields={Populated} NullFields={NullCount}",
+                    operation.Id, aggregatedDoc.Identifier, aggregatedDoc.Pages.Count, populated, nullCount);
 
                 pdfStreamResult.Dispose();
 
@@ -265,6 +275,31 @@ public class PdfProcessorFunction
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// FR-019 — duplicate-identifier pre-check. If a record with the given
+    /// identifier already exists in Cosmos DB, logs a warning, records the
+    /// identifier in <paramref name="processingResult"/>, and returns
+    /// <c>true</c> to signal the caller to skip the document. Operation
+    /// still succeeds.
+    /// </summary>
+    internal async Task<bool> TrySkipDuplicateAsync(
+        AggregatedDocument aggregatedDoc,
+        ProcessingResult processingResult,
+        string operationId)
+    {
+        var existing = await _cosmosDbService.GetByIdentifierAsync(aggregatedDoc.Identifier);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        _logger.LogWarning(
+            "FR-019 duplicate skip — OperationId={OperationId} Identifier={Identifier} ExistingDocumentId={ExistingId}",
+            operationId, aggregatedDoc.Identifier, existing.Id);
+        processingResult.SkippedDuplicateIdentifiers.Add(aggregatedDoc.Identifier);
+        return true;
     }
 }
 

@@ -1,8 +1,19 @@
+using DocumentOcr.Common.Models;
 using DocumentOcr.Processor.Models;
 using Microsoft.Extensions.Logging;
 
 namespace DocumentOcr.Processor.Services;
 
+/// <summary>
+/// T031 — Linear forward-fill aggregation per research.md D2.
+///
+/// Pages are processed in PageNumber order. When a page extracts an identifier
+/// it starts (or continues) a group. Pages without an extracted identifier
+/// inherit the most recently seen identifier (forward-fill) and are recorded
+/// with <see cref="IdentifierSource.Inferred"/>. Pages preceding the first
+/// extracted identifier form an "unknown" group whose provenance entries are
+/// all Inferred.
+/// </summary>
 public class DocumentAggregatorService : IDocumentAggregatorService
 {
     private readonly ILogger<DocumentAggregatorService> _logger;
@@ -17,51 +28,74 @@ public class DocumentAggregatorService : IDocumentAggregatorService
         _logger.LogInformation("Aggregating {PageCount} pages by identifier field: {IdentifierFieldName}",
             pageResults.Count, identifierFieldName);
 
-        var documentGroups = new Dictionary<string, AggregatedDocument>();
+        var ordered = pageResults.OrderBy(p => p.PageNumber).ToList();
 
-        foreach (var pageResult in pageResults)
+        var groups = new List<AggregatedDocument>();
+        AggregatedDocument? current = null;
+        string? currentIdentifier = null;
+
+        foreach (var page in ordered)
         {
-            var identifier = ExtractIdentifier(pageResult, identifierFieldName);
+            var extracted = TryExtractIdentifier(page, identifierFieldName);
 
-            if (!documentGroups.ContainsKey(identifier))
+            if (extracted is not null)
             {
-                documentGroups[identifier] = new AggregatedDocument
+                if (currentIdentifier is null || !string.Equals(extracted, currentIdentifier, StringComparison.Ordinal))
                 {
-                    Identifier = identifier
-                };
-            }
+                    current = new AggregatedDocument { Identifier = extracted };
+                    groups.Add(current);
+                    currentIdentifier = extracted;
+                }
 
-            documentGroups[identifier].Pages.Add(pageResult);
+                current!.Pages.Add(page);
+                current.PageProvenance.Add(PageProvenanceEntry.Extracted(page.PageNumber, extracted));
+            }
+            else if (current is not null)
+            {
+                current.Pages.Add(page);
+                current.PageProvenance.Add(PageProvenanceEntry.Inferred(page.PageNumber));
+                _logger.LogWarning(
+                    "FR-020 - page {PageNumber} had no extracted identifier; forward-filling from '{Identifier}'.",
+                    page.PageNumber, currentIdentifier);
+            }
+            else
+            {
+                current = new AggregatedDocument { Identifier = string.Empty };
+                groups.Add(current);
+                currentIdentifier = null;
+                current.Pages.Add(page);
+                current.PageProvenance.Add(PageProvenanceEntry.Inferred(page.PageNumber));
+                _logger.LogWarning(
+                    "FR-020 - page {PageNumber} appears before any extracted identifier; assigning to synthetic group.",
+                    page.PageNumber);
+            }
         }
 
-        var aggregatedDocuments = documentGroups.Values.OrderBy(d => d.Pages.Min(p => p.PageNumber)).ToList();
-
-        _logger.LogInformation("Aggregated into {DocumentCount} documents", aggregatedDocuments.Count);
-
-        return aggregatedDocuments;
+        _logger.LogInformation("Aggregated into {DocumentCount} documents", groups.Count);
+        return groups;
     }
 
-    private string ExtractIdentifier(PageOcrResult pageResult, string identifierFieldName)
+    private static string? TryExtractIdentifier(PageOcrResult pageResult, string identifierFieldName)
     {
-        if (pageResult.ExtractedData.ContainsKey("Fields"))
+        if (!pageResult.ExtractedData.TryGetValue("Fields", out var fieldsObj) ||
+            fieldsObj is not Dictionary<string, object> fields)
         {
-            var fields = pageResult.ExtractedData["Fields"] as Dictionary<string, object>;
-            if (fields != null && fields.ContainsKey(identifierFieldName))
-            {
-                var fieldData = fields[identifierFieldName] as Dictionary<string, object>;
-                if (fieldData != null && fieldData.ContainsKey("valueString"))
-                {
-                    return fieldData["valueString"]?.ToString() ?? $"page_{pageResult.PageNumber}";
-                }
-                if (fieldData != null && fieldData.ContainsKey("content"))
-                {
-                    return fieldData["content"]?.ToString() ?? $"page_{pageResult.PageNumber}";
-                }
-            }
+            return null;
+        }
+        if (!fields.TryGetValue(identifierFieldName, out var fieldObj) ||
+            fieldObj is not Dictionary<string, object> fieldData)
+        {
+            return null;
         }
 
-        _logger.LogWarning("No identifier found for page {PageNumber}, using page number as identifier",
-            pageResult.PageNumber);
-        return $"page_{pageResult.PageNumber}";
+        if (fieldData.TryGetValue("valueString", out var s) && s is string ss && !string.IsNullOrWhiteSpace(ss))
+        {
+            return ss;
+        }
+        if (fieldData.TryGetValue("content", out var c) && c is string cs && !string.IsNullOrWhiteSpace(cs))
+        {
+            return cs;
+        }
+        return null;
     }
 }

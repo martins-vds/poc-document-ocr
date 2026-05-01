@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../src/DocumentOcr.Common/DocumentOcr.Common.csproj" />
     <ProjectReference Include="../src/DocumentOcr.Processor/DocumentOcr.Processor.csproj" />
   </ItemGroup>
 

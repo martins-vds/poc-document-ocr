@@ -262,11 +262,32 @@ The function creates the following outputs in the `processed-documents` containe
 The result JSON contains:
 - Original file name
 - Total number of documents found
+- Skipped duplicate identifiers (FR-019)
 - For each document:
   - Document number
   - Page count
-  - Extracted data (structured fields from Document Intelligence)
   - Output blob name
+
+### Cosmos DB record (one per `fileTkNumber`)
+
+Each consolidated document is also persisted to the `ProcessedDocuments`
+container in Cosmos DB with the following shape (feature
+`001-document-schema-aggregation`):
+
+- `id`, `identifier` (partition key, = `fileTkNumber`), `originalFileName`,
+  `pdfBlobUrl`, `documentNumber`, `pageCount`, `pageNumbers[]`, `processedAt`
+- `schema`: dictionary of all 13 reviewable fields. Each entry is a
+  `SchemaField` with `ocrValue`, `ocrConfidence`, `reviewedValue`,
+  `reviewedAt`, `reviewedBy`, `fieldStatus` (`Pending` / `Confirmed` /
+  `Corrected`).
+- `pageProvenance[]`: per-page entries marking each as `Extracted` or
+  `Inferred` (forward-filled).
+- `reviewStatus` (`Pending` / `Reviewed`), `reviewedBy`, `reviewedAt` —
+  stamped immutably on the first transition to `Reviewed`.
+- `checkedOutBy`, `checkedOutAt` — pessimistic lock fields surfaced in
+  the WebApp.
+- `lastCheckedInBy`, `lastCheckedInAt` — last successful check-in.
+- `_etag` — Cosmos-managed concurrency token.
 
 ## Example Result
 

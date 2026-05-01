@@ -84,7 +84,7 @@ dotnet clean && dotnet build
 ## Critical Constraints
 
 - NO GitHub workflows/CI/CD, tests, or linting - simple POC
-- Target: `net8.0`, Runtime: `dotnet-isolated` (required for Functions v4)
+- Target: `net10.0`, Runtime: `dotnet-isolated` (required for Functions v4)
 - Queue: `pdf-processing-queue`, Output: `processed-documents` container
 
 ## Making Changes

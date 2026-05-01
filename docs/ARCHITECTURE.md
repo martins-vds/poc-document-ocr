@@ -4,6 +4,26 @@
 
 The Document OCR Processor is a complete Azure solution that combines automated document processing with manual review capabilities. The system uses Azure Functions for queue-triggered OCR processing and a Blazor web application for human review and validation of extracted data. Documents are processed through Azure Document Intelligence, stored in Cosmos DB, and made available for review through a secure web interface.
 
+## Schema-driven consolidation (feature 001-document-schema-aggregation)
+
+The processor pipeline is:
+
+```
+DocumentAggregatorService  (forward-fill identifier per FR-020)
+  → DocumentSchemaMapperService  (per-field merge: highest-confidence / concat / signature → bool)
+  → CosmosDbService.CreateDocumentAsync  (one record per fileTkNumber, 13 SchemaFields, ETag for optimistic concurrency)
+```
+
+The Blazor WebApp consumes:
+
+```
+ReviewController
+  → IDocumentLockService  (24h opportunistic stale-checkout release)
+  → IDocumentReviewService  (per-field state machine + Pending → Reviewed transition)
+  → ICurrentUserService  (UPN from authenticated principal)
+```
+
+
 ## Architecture Diagram
 
 ```

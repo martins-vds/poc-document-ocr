@@ -43,6 +43,12 @@ namespace DocumentOcr.WebApp
             // Register Blob Storage service
             builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
+            // T040 — review/lock/auth services for the Review page (US5).
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+            builder.Services.AddScoped<IDocumentReviewService, DocumentReviewService>();
+            builder.Services.AddScoped<IDocumentLockService, DocumentLockService>();
+
             // Register HTTP client and Operations API service
             builder.Services.AddHttpClient<IOperationsApiService, OperationsApiService>();
 

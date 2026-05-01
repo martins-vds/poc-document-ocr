@@ -39,5 +39,6 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddScoped<ICosmosDbService, CosmosDbService>();
 builder.Services.AddScoped<IOperationService, OperationService>();
+builder.Services.AddScoped<IDocumentSchemaMapperService, DocumentSchemaMapperService>();
 
 builder.Build().Run();

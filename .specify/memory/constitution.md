@@ -166,7 +166,7 @@ classes of cloud breach.
 
 ## Engineering Constraints & Technology Standards
 
-- Runtime: .NET 8.0 SDK; Functions host MUST remain `dotnet-isolated` on
+- Runtime: .NET 10.0 SDK; Functions host MUST remain `dotnet-isolated` on
   Functions v4. Upgrades require a constitution amendment.
 - Project layout MUST remain: `src/DocumentOcr.Common` (shared models and
   interfaces), `src/DocumentOcr.Processor` (Functions host), and

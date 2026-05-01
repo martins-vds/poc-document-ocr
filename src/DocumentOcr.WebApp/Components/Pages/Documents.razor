@@ -1,6 +1,7 @@
 @page "/documents"
 @using DocumentOcr.Common.Interfaces
 @using DocumentOcr.Common.Models
+@using DocumentOcr.Common.Services
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject ICosmosDbService CosmosDbService
@@ -11,12 +12,20 @@
 <h1>Document Review</h1>
 
 <div class="row mb-3">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <label for="statusFilter" class="form-label">Filter by Status:</label>
         <select id="statusFilter" class="form-select" @onchange="OnStatusFilterChanged">
             <option value="">All Documents</option>
             <option value="Pending">Pending Review</option>
             <option value="Reviewed">Reviewed</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label for="checkoutFilter" class="form-label">Checkout state:</label>
+        <select id="checkoutFilter" class="form-select" @onchange="OnCheckoutFilterChanged">
+            <option value="All">All</option>
+            <option value="Free">Free</option>
+            <option value="CheckedOut">Checked out</option>
         </select>
     </div>
 </div>
@@ -25,7 +34,7 @@
 {
     <p><em>Loading documents...</em></p>
 }
-else if (documents == null || !documents.Any())
+else if (filteredDocuments == null || !filteredDocuments.Any())
 {
     <div class="alert alert-info">No documents found.</div>
 }
@@ -38,26 +47,28 @@ else
                 <th>Identifier</th>
                 <th>Original File Name</th>
                 <th>Pages</th>
+                <th>Fields reviewed</th>
                 <th>Status</th>
-                <th>Assigned To</th>
+                <th>Checked out by</th>
                 <th>Processed At</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var doc in documents)
+            @foreach (var doc in filteredDocuments)
             {
                 <tr>
                     <td>@doc.DocumentNumber</td>
                     <td>@doc.Identifier</td>
                     <td>@doc.OriginalFileName</td>
                     <td>@doc.PageCount</td>
+                    <td>@DocumentListFilter.CountFieldsReviewed(doc) / @doc.Schema.Count</td>
                     <td>
                         <span class="badge @GetStatusBadgeClass(doc.ReviewStatus)">
                             @doc.ReviewStatus
                         </span>
                     </td>
-                    <td>@(doc.AssignedTo ?? "Unassigned")</td>
+                    <td>@(string.IsNullOrEmpty(doc.CheckedOutBy) ? "-" : doc.CheckedOutBy)</td>
                     <td>@doc.ProcessedAt.ToString("yyyy-MM-dd HH:mm")</td>
                     <td>
                         <button class="btn btn-sm btn-primary" @onclick="@(e => ReviewDocument(doc.Id, doc.Identifier))">
@@ -72,8 +83,10 @@ else
 
 @code {
     private List<DocumentOcrEntity>? documents;
+    private IEnumerable<DocumentOcrEntity>? filteredDocuments;
     private bool isLoading = true;
-    private string? selectedStatus;
+    private ReviewStatus? selectedStatus;
+    private DocumentListFilter.CheckoutFilter selectedCheckout = DocumentListFilter.CheckoutFilter.All;
 
     protected override async Task OnInitializedAsync()
     {
@@ -85,12 +98,14 @@ else
         isLoading = true;
         try
         {
-            documents = await CosmosDbService.GetDocumentsAsync(selectedStatus, maxItems: 100);
+            documents = await CosmosDbService.GetDocumentsAsync(reviewStatus: null, maxItems: 100);
+            ApplyFilters();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading documents: {ex.Message}");
             documents = new List<DocumentOcrEntity>();
+            filteredDocuments = documents;
         }
         finally
         {
@@ -98,10 +113,23 @@ else
         }
     }
 
-    private async Task OnStatusFilterChanged(ChangeEventArgs e)
+    private void ApplyFilters()
     {
-        selectedStatus = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value.ToString();
-        await LoadDocuments();
+        if (documents is null) { filteredDocuments = null; return; }
+        filteredDocuments = DocumentListFilter.Filter(documents, selectedStatus, selectedCheckout).ToList();
+    }
+
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString();
+        selectedStatus = string.IsNullOrEmpty(raw) ? null : Enum.Parse<ReviewStatus>(raw);
+        ApplyFilters();
+    }
+
+    private void OnCheckoutFilterChanged(ChangeEventArgs e)
+    {
+        selectedCheckout = Enum.Parse<DocumentListFilter.CheckoutFilter>(e.Value?.ToString() ?? "All");
+        ApplyFilters();
     }
 
     private void ReviewDocument(string id, string identifier)
@@ -109,13 +137,10 @@ else
         NavigationManager.NavigateTo($"/review/{id}/{identifier}");
     }
 
-    private string GetStatusBadgeClass(string status)
+    private string GetStatusBadgeClass(ReviewStatus status) => status switch
     {
-        return status switch
-        {
-            "Pending" => "bg-warning",
-            "Reviewed" => "bg-success",
-            _ => "bg-secondary"
-        };
-    }
+        ReviewStatus.Pending => "bg-warning",
+        ReviewStatus.Reviewed => "bg-success",
+        _ => "bg-secondary",
+    };
 }

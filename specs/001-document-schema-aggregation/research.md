@@ -85,7 +85,7 @@ This document records the technical-decision research dispatched for Phase 0. Ev
 
 **Rationale**: Constitution mandates determinism and abstraction over external services; both already idiomatic in the existing test project. Adding the `Common` reference is a single-line `.csproj` change.
 
-**Note**: `tests/DocumentOcr.Tests.csproj` currently targets `net10.0` while `Common` and `Processor` target `net8.0` (per constitution). This is a pre-existing inconsistency; not in scope for this feature. If `dotnet test` exhibits an issue, the test project will be downgraded to `net8.0` as a one-line fix and noted in the PR — but this is not a planning-time blocker.
+**Note**: `tests/DocumentOcr.Tests.csproj` currently targets `net10.0` while `Common` and `Processor` target `net10.0` (per constitution). This is a pre-existing inconsistency; not in scope for this feature. If `dotnet test` exhibits an issue, the test project will be downgraded to `net10.0` as a one-line fix and noted in the PR — but this is not a planning-time blocker.
 
 ---
 

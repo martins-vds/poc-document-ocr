@@ -117,4 +117,72 @@ public class CosmosDbService : ICosmosDbService
             throw;
         }
     }
+
+    /// <summary>
+    /// T023 — ETag-conditional replace per data-model.md and research.md D1.
+    /// Sets <c>IfMatchEtag = entity.ETag</c>; surfaces a 412 as <c>CosmosException</c>.
+    /// </summary>
+    public async Task<DocumentOcrEntity> ReplaceWithETagAsync(DocumentOcrEntity entity, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("ETag-conditional replace for document {Id} (etag {ETag})", entity.Id, entity.ETag);
+            var options = new ItemRequestOptions { IfMatchEtag = entity.ETag };
+            var response = await _container.ReplaceItemAsync(
+                entity,
+                entity.Id,
+                new PartitionKey(entity.Identifier),
+                options,
+                cancellationToken);
+            return response.Resource;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.PreconditionFailed)
+        {
+            _logger.LogWarning("ETag conflict on replace for document {Id}", entity.Id);
+            throw;
+        }
+        catch (CosmosException ex)
+        {
+            _logger.LogError(ex, "Error replacing document {Id} (status {StatusCode})", entity.Id, ex.StatusCode);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// T023 / T018a — Single-partition point query for the existing record
+    /// (if any) with the given <c>identifier</c> (= partition key).
+    /// </summary>
+    public async Task<DocumentOcrEntity?> GetByIdentifierAsync(string identifier, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(identifier))
+        {
+            return null;
+        }
+
+        try
+        {
+            var query = new QueryDefinition("SELECT TOP 1 * FROM c WHERE c.identifier = @id")
+                .WithParameter("@id", identifier);
+
+            var iterator = _container.GetItemQueryIterator<DocumentOcrEntity>(
+                query,
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(identifier), MaxItemCount = 1 });
+
+            while (iterator.HasMoreResults)
+            {
+                var page = await iterator.ReadNextAsync(cancellationToken);
+                foreach (var item in page)
+                {
+                    return item;
+                }
+            }
+
+            return null;
+        }
+        catch (CosmosException ex)
+        {
+            _logger.LogError(ex, "Error querying by identifier {Identifier} (status {StatusCode})", identifier, ex.StatusCode);
+            throw;
+        }
+    }
 }

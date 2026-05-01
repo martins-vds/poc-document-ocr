@@ -44,7 +44,7 @@ Detect the test platform and framework, run tests, and apply filters using `dotn
 |-------|----------|-------------|
 | Project or solution path | No | Path to the test project (.csproj) or solution (.sln). Defaults to current directory. |
 | Filter expression | No | Filter expression to select specific tests |
-| Target framework | No | Target framework moniker to run against (e.g., `net8.0`) |
+| Target framework | No | Target framework moniker to run against (e.g., `net10.0`) |
 
 ## Critical Rules — Avoid Cross-Platform Mistakes
 
@@ -113,7 +113,7 @@ Common flags:
 
 | Flag | Description |
 |------|-------------|
-| `--framework <TFM>` | Target a specific framework in multi-TFM projects (e.g., `net8.0`) |
+| `--framework <TFM>` | Target a specific framework in multi-TFM projects (e.g., `net10.0`) |
 | `--no-build` | Skip build, use previously built output |
 | `--filter <EXPRESSION>` | Run selected tests (see [Step 3](#step-3-run-filtered-tests)) |
 | `--logger trx` | Generate TRX results file |

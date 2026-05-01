@@ -14,6 +14,30 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
 
     private readonly string _modelId = "prebuilt-document";
 
+    /// <summary>
+    /// T033 — Map a Document Intelligence signature field value to the
+    /// canonical string representation used downstream by
+    /// <see cref="DocumentSchemaMapperService"/>. Falls back to <c>"present"</c>
+    /// when the SDK returns null or throws — the SDK occasionally yields
+    /// null for signature fields even when one is detected.
+    /// </summary>
+    internal static string MapSignatureValue(DocumentField fieldValue)
+    {
+        if (fieldValue is null)
+        {
+            return SignaturePresent;
+        }
+        try
+        {
+            var raw = fieldValue.Value.AsString();
+            return string.IsNullOrWhiteSpace(raw) ? SignaturePresent : raw;
+        }
+        catch
+        {
+            return SignaturePresent;
+        }
+    }
+
     public DocumentIntelligenceService(ILogger<DocumentIntelligenceService> logger, IConfiguration configuration)
     {
         _logger = logger;
@@ -135,7 +159,7 @@ public class DocumentIntelligenceService : IDocumentIntelligenceService
                             break;
                         case Azure.AI.FormRecognizer.DocumentAnalysis.DocumentFieldType.Signature:
                             // Signature fields indicate presence of a signature, not the actual signature data
-                            fieldData["valueSignature"] = SignaturePresent;
+                            fieldData["valueSignature"] = MapSignatureValue(fieldValue);
                             break;
                     }
 

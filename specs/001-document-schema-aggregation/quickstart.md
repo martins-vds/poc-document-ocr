@@ -18,7 +18,7 @@ cd ..
 dotnet build
 ```
 
-If `tests/DocumentOcr.Tests.csproj` fails to build because of the `net10.0` vs `net8.0` mismatch noted in `research.md` D6, change its `<TargetFramework>` to `net8.0`.
+If `tests/DocumentOcr.Tests.csproj` fails to build because of the `net10.0` vs `net10.0` mismatch noted in `research.md` D6, change its `<TargetFramework>` to `net10.0`.
 
 ---
 

@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="../src/DocumentOcr.Common/DocumentOcr.Common.csproj" />
     <ProjectReference Include="../src/DocumentOcr.Processor/DocumentOcr.Processor.csproj" />
+    <ProjectReference Include="../src/DocumentOcr.WebApp/DocumentOcr.WebApp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 @page "/review/{Id}/{Identifier}"
-@using System.Net.Http.Json
 @using DocumentOcr.Common.Interfaces
 @using DocumentOcr.Common.Models
+@using DocumentOcr.WebApp.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize]
@@ -30,112 +30,117 @@ else if (document is null)
 }
 else
 {
-    <h1>Review: @document.Identifier</h1>
-    <p>
-        <strong>Original file:</strong> @document.OriginalFileName
-        &nbsp;|&nbsp;<strong>Pages:</strong> @document.PageCount
-        &nbsp;|&nbsp;<strong>Status:</strong>
-        <span class="badge @StatusBadge(document.ReviewStatus)">@document.ReviewStatus</span>
-    </p>
-
-    @if (!string.IsNullOrEmpty(document.CheckedOutBy))
-    {
-        if (string.Equals(document.CheckedOutBy, currentUser, StringComparison.OrdinalIgnoreCase))
-        {
-            <div class="alert alert-info">
-                You are reviewing this document. Edits are saved per-field.
+    <div class="review-page">
+        <div class="review-header">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h2 class="mb-1">Review: @document.Identifier</h2>
+                    <div class="text-muted small">
+                        <strong>@document.OriginalFileName</strong>
+                        &nbsp;|&nbsp;@document.PageCount page(s)
+                        &nbsp;|&nbsp;<span class="badge @StatusBadge(document.ReviewStatus)">@document.ReviewStatus</span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    @if (string.IsNullOrEmpty(document.CheckedOutBy))
+                    {
+                        <button class="btn btn-primary btn-sm" @onclick="HandleCheckout">Check out for review</button>
+                    }
+                    else if (CanEdit)
+                    {
+                        <button class="btn btn-success btn-sm" @onclick="SaveAndCheckIn">Check in</button>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="CancelCheckout">Cancel checkout</button>
+                    }
+                    <button class="btn btn-link btn-sm" @onclick="GoBack">Back</button>
+                </div>
             </div>
-        }
-        else
-        {
-            <div class="alert alert-warning">
-                Checked out by <strong>@document.CheckedOutBy</strong>
-                @if (document.CheckedOutAt is not null)
-                {
-                    <span> at @document.CheckedOutAt.Value.ToString("yyyy-MM-dd HH:mm")</span>
-                }
-                — read-only.
-            </div>
-        }
-    }
-    else
-    {
-        <button class="btn btn-primary mb-3" @onclick="HandleCheckout">Check out for review</button>
-    }
 
-    @if (HasInferredPages)
-    {
-        <div class="alert alert-warning">
-            <strong>Page-boundary warning (FR-020):</strong>
-            @InferredPageCount of @document.PageCount pages had their identifier
-            forward-filled (no <code>fileTkNumber</code> on those pages).
-            Verify the identifier is correct for those pages:
-            @string.Join(", ", document.PageProvenance
-                .Where(p => p.IdentifierSource == IdentifierSource.Inferred)
-                .Select(p => p.PageNumber.ToString()))
-        </div>
-    }
-
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th style="width: 22%;">Field</th>
-                <th style="width: 28%;">OCR value</th>
-                <th style="width: 10%;">Confidence</th>
-                <th style="width: 10%;">Status</th>
-                <th style="width: 30%;">Reviewed value</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var name in ProcessedDocumentSchema.FieldNames)
+            @if (!string.IsNullOrEmpty(document.CheckedOutBy) && !CanEdit)
             {
-                var field = document.Schema.TryGetValue(name, out var f) ? f : null;
-                if (field is null) continue;
-                var localValue = editValues.TryGetValue(name, out var v) ? v : (field.ReviewedValue?.ToString() ?? field.OcrValue?.ToString() ?? string.Empty);
-                <tr>
-                    <td>@name</td>
-                    <td><code>@(field.OcrValue?.ToString() ?? "(none)")</code></td>
-                    <td>@(field.OcrConfidence?.ToString("0.00") ?? "-")</td>
-                    <td>
-                        <span class="badge @FieldBadge(field.FieldStatus)">@field.FieldStatus</span>
-                    </td>
-                    <td>
-                        @if (CanEdit)
+                <div class="alert alert-warning py-2 mb-0 mt-2 small">
+                    Checked out by <strong>@document.CheckedOutBy</strong>
+                    @if (document.CheckedOutAt is not null)
+                    {
+                        <span> at @document.CheckedOutAt.Value.ToString("yyyy-MM-dd HH:mm")</span>
+                    }
+                    — read-only.
+                </div>
+            }
+
+            @if (HasInferredPages)
+            {
+                <div class="alert alert-warning py-2 mb-0 mt-2 small">
+                    <strong>Page-boundary warning:</strong> @InferredPageCount of @document.PageCount pages had their identifier
+                    forward-filled. Pages: @string.Join(", ", document.PageProvenance
+                                            .Where(p => p.IdentifierSource == IdentifierSource.Inferred)
+                                            .Select(p => p.PageNumber.ToString()))
+                </div>
+            }
+
+            @if (saveStatus is not null)
+            {
+                <div class="alert @saveAlertClass py-2 mb-0 mt-2 small">@saveStatus</div>
+            }
+        </div>
+
+        <div class="review-split">
+            <div class="review-pdf-pane">
+                <iframe name="pdfFrame" src="@PdfUrl" title="PDF preview"></iframe>
+            </div>
+            <div class="review-form-pane">
+                @foreach (var name in ProcessedDocumentSchema.FieldNames)
+                {
+                    if (!document.Schema.TryGetValue(name, out var field) || field is null) { continue; }
+                    var rowClass = ReviewUiHelpers.GetFieldRowCssClass(field);
+                    var band = ReviewUiHelpers.GetConfidenceBand(field.OcrConfidence);
+                    var bandClass = ReviewUiHelpers.GetConfidenceCssClass(band);
+                    var localValue = editValues.TryGetValue(name, out var v) ? v :
+            ReviewUiHelpers.GetEditableInitialValue(field);
+                    var reviewedDisplay = ReviewUiHelpers.GetReviewedValueDisplay(field);
+                    var saving = savingField == name;
+                    var fieldName = name;
+                    <div class="@rowClass">
+                        <div class="field-name">
+                            <span>@fieldName</span>
+                            <span class="confidence-badge @bandClass">
+                                @(field.OcrConfidence?.ToString("P0") ?? "no confidence") · @band
+                            </span>
+                            <span class="badge @FieldBadge(field.FieldStatus)">@field.FieldStatus</span>
+                            @if (PrimaryPage is int pp)
+                            {
+                                <a class="page-jump-link" href="@ReviewUiHelpers.GetPdfUrl(document.Id, document.Identifier, pp)"
+                                   target="pdfFrame">page @pp</a>
+                            }
+                        </div>
+                        @if (field.ReviewedAt is not null)
                         {
-                            <input class="form-control form-control-sm" value="@localValue"
-                                   @oninput="e => SetEdit(name, e.Value?.ToString())" />
-                            <div class="btn-group mt-1" role="group">
-                                <button class="btn btn-sm btn-outline-success" @onclick="() => MarkFieldConfirmed(name)">Confirm</button>
-                                <button class="btn btn-sm btn-outline-warning" @onclick="() => MarkFieldCorrected(name)">Correct</button>
+                            <div class="field-meta">
+                                Reviewed by @field.ReviewedBy at @field.ReviewedAt.Value.ToString("yyyy-MM-dd HH:mm")
                             </div>
                         }
-                        else
+                        <div class="ocr-value">@(field.OcrValue?.ToString() ?? "(none)")</div>
+                        <div class="reviewed-value">@(string.IsNullOrEmpty(reviewedDisplay) ? "no review yet" : reviewedDisplay)
+                        </div>
+                        @if (CanEdit)
                         {
-                            <span>@localValue</span>
+                            <input class="form-control form-control-sm mb-2" value="@localValue"
+                                   @oninput="e => SetEdit(fieldName, e.Value?.ToString())" />
+                            <div class="field-actions">
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => MarkConfirmed(fieldName)"
+                                        disabled="@saving">Confirm</button>
+                                <button class="btn btn-sm btn-outline-warning" @onclick="() => MarkCorrected(fieldName)"
+                                        disabled="@saving">Correct</button>
+                                @if (saving)
+                                {
+                                    <span class="text-muted small align-self-center">Saving…</span>
+                                }
+                            </div>
                         }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    @if (CanEdit)
-    {
-        <div class="d-flex gap-2 mt-3">
-            <button class="btn btn-success" @onclick="SaveAndCheckIn">Save & Check In</button>
-            <button class="btn btn-secondary" @onclick="CancelCheckout">Cancel checkout</button>
-            <button class="btn btn-link" @onclick="GoBack">Back</button>
+                    </div>
+                }
+            </div>
         </div>
-    }
-    else
-    {
-        <button class="btn btn-link mt-3" @onclick="GoBack">Back</button>
-    }
-
-    @if (saveStatus is not null)
-    {
-        <div class="alert @saveAlertClass mt-3">@saveStatus</div>
-    }
+    </div>
 }
 
 @code {
@@ -148,9 +153,16 @@ else
     private bool loading = true;
 
     private readonly Dictionary<string, string?> editValues = new();
-    private readonly Dictionary<string, FieldEdit> pendingEdits = new();
+    private string? savingField;
     private string? saveStatus;
     private string saveAlertClass = "alert-success";
+
+    private int? PrimaryPage => ReviewUiHelpers.GetPrimaryPageNumber(document);
+
+    private string PdfUrl =>
+        document is null
+            ? string.Empty
+            : ReviewUiHelpers.GetPdfUrl(document.Id, document.Identifier, PrimaryPage);
 
     protected override async Task OnInitializedAsync()
     {
@@ -189,18 +201,17 @@ else
             var result = await LockService.TryCheckoutAsync(document.Id, document.Identifier, currentUser);
             if (!result.Acquired)
             {
-                saveStatus = $"Already checked out by {result.HeldBy}.";
-                saveAlertClass = "alert-warning";
+                Notify($"Already checked out by {result.HeldBy}.", "alert-warning");
             }
             else
             {
                 document = result.Document!;
+                Notify("Checked out. Edits auto-save per field.", "alert-info");
             }
         }
         catch (Exception ex)
         {
-            saveStatus = ex.Message;
-            saveAlertClass = "alert-danger";
+            Notify(ex.Message, "alert-danger");
         }
     }
 
@@ -209,15 +220,39 @@ else
         editValues[field] = value;
     }
 
-    private void MarkFieldConfirmed(string field)
-    {
-        pendingEdits[field] = new FieldEdit(SchemaFieldStatus.Confirmed, null);
-    }
+    private Task MarkConfirmed(string field) =>
+        ApplySingleEdit(field, new FieldEdit(SchemaFieldStatus.Confirmed, null));
 
-    private void MarkFieldCorrected(string field)
+    private Task MarkCorrected(string field)
     {
         editValues.TryGetValue(field, out var v);
-        pendingEdits[field] = new FieldEdit(SchemaFieldStatus.Corrected, v);
+        return ApplySingleEdit(field, new FieldEdit(SchemaFieldStatus.Corrected, v));
+    }
+
+    private async Task ApplySingleEdit(string field, FieldEdit edit)
+    {
+        if (document is null || currentUser is null) return;
+        try
+        {
+            savingField = field;
+            document = await ReviewService.ApplyEditsAsync(
+                document.Id, document.Identifier,
+                new Dictionary<string, FieldEdit> { [field] = edit },
+                currentUser);
+            if (document.Schema.TryGetValue(field, out var f))
+            {
+                editValues[field] = ReviewUiHelpers.GetEditableInitialValue(f);
+            }
+            Notify($"Saved '{field}'.", "alert-success");
+        }
+        catch (Exception ex)
+        {
+            Notify($"Failed to save '{field}': {ex.Message}", "alert-danger");
+        }
+        finally
+        {
+            savingField = null;
+        }
     }
 
     private async Task SaveAndCheckIn()
@@ -225,19 +260,12 @@ else
         if (document is null || currentUser is null) return;
         try
         {
-            if (pendingEdits.Count > 0)
-            {
-                document = await ReviewService.ApplyEditsAsync(document.Id, document.Identifier, pendingEdits, currentUser);
-                pendingEdits.Clear();
-            }
             document = await LockService.CheckinAsync(document.Id, document.Identifier, currentUser);
-            saveStatus = "Saved and checked in.";
-            saveAlertClass = "alert-success";
+            Notify("Checked in.", "alert-success");
         }
         catch (Exception ex)
         {
-            saveStatus = ex.Message;
-            saveAlertClass = "alert-danger";
+            Notify(ex.Message, "alert-danger");
         }
     }
 
@@ -247,15 +275,18 @@ else
         try
         {
             document = await LockService.CancelCheckoutAsync(document.Id, document.Identifier, currentUser);
-            pendingEdits.Clear();
-            saveStatus = "Checkout cancelled. Saved per-field edits retained.";
-            saveAlertClass = "alert-info";
+            Notify("Checkout cancelled. Per-field saves retained.", "alert-info");
         }
         catch (Exception ex)
         {
-            saveStatus = ex.Message;
-            saveAlertClass = "alert-danger";
+            Notify(ex.Message, "alert-danger");
         }
+    }
+
+    private void Notify(string message, string alertClass)
+    {
+        saveStatus = message;
+        saveAlertClass = alertClass;
     }
 
     private void GoBack() => NavigationManager.NavigateTo("/documents");

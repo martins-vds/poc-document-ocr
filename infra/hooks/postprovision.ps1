@@ -153,3 +153,64 @@ Write-Host "================================================================" -F
 Write-Host "Keyless authentication configuration complete!" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
+
+# ----------------------------------------------------------------------
+# FR-010 — legacy-record wipe guard (feature 001-document-schema-aggregation)
+# ----------------------------------------------------------------------
+# Detect legacy Cosmos records that lack the new `schema` property.
+# Destructive: requires CONFIRM_WIPE_DOCUMENTS=yes to perform the wipe.
+# Otherwise exit 1 with a loud message.
+
+if ($CosmosDbAccountName -and (Get-Command az -ErrorAction SilentlyContinue)) {
+    Write-Host "FR-010: scanning Cosmos container for legacy records..."
+    $legacyQuery = "SELECT VALUE COUNT(1) FROM c WHERE NOT IS_DEFINED(c.schema)"
+    $legacyCount = 0
+    try {
+        $raw = az cosmosdb sql query `
+            --account-name $CosmosDbAccountName `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --database-name "DocumentOcrDb" `
+            --container-name "ProcessedDocuments" `
+            --query-text $legacyQuery `
+            --query "[0]" -o tsv 2>$null
+        if ($raw) { $legacyCount = [int]$raw }
+    }
+    catch { $legacyCount = 0 }
+
+    if ($legacyCount -gt 0) {
+        if ($env:CONFIRM_WIPE_DOCUMENTS -eq "yes") {
+            Write-Host "⚠ Wiping $legacyCount legacy record(s) per CONFIRM_WIPE_DOCUMENTS=yes..." -ForegroundColor Yellow
+            az cosmosdb sql container delete `
+                --account-name $CosmosDbAccountName `
+                --resource-group $env:AZURE_RESOURCE_GROUP `
+                --database-name "DocumentOcrDb" `
+                --name "ProcessedDocuments" `
+                --yes | Out-Null
+            az cosmosdb sql container create `
+                --account-name $CosmosDbAccountName `
+                --resource-group $env:AZURE_RESOURCE_GROUP `
+                --database-name "DocumentOcrDb" `
+                --name "ProcessedDocuments" `
+                --partition-key-path "/identifier" | Out-Null
+            Write-Host "✓ Container recreated with partition key /identifier." -ForegroundColor Green
+        }
+        else {
+            Write-Host ""
+            Write-Host "================================================================" -ForegroundColor Red
+            Write-Host "❌ FR-010: $legacyCount legacy record(s) without 'schema' detected" -ForegroundColor Red
+            Write-Host "================================================================" -ForegroundColor Red
+            Write-Host "These records predate feature 001-document-schema-aggregation and"
+            Write-Host "are incompatible with the current code. The Review page WILL"
+            Write-Host "misrender them and the processor's duplicate-skip pre-check WILL"
+            Write-Host "preserve them indefinitely."
+            Write-Host ""
+            Write-Host "To wipe and recreate the ProcessedDocuments container, re-run with:"
+            Write-Host "  `$env:CONFIRM_WIPE_DOCUMENTS='yes'; azd hooks run postprovision"
+            Write-Host ""
+            exit 1
+        }
+    }
+    else {
+        Write-Host "✓ No legacy records detected." -ForegroundColor Green
+    }
+}

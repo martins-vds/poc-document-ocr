@@ -2,7 +2,64 @@
 
 This document describes the user experience improvements made to the Review page for better document validation.
 
-## Overview
+## Schema-driven layout (feature 001-document-schema-aggregation)
+
+> **Update — May 2026:** the per-page tabbed layout described below was
+> superseded by a single schema-driven form. Each Cosmos record now stores
+> exactly one consolidated `SchemaField` per identifier, so the page no
+> longer needs to surface per-page tabs. The screenshots below remain for
+> historical context.
+
+### Single-form layout
+
+The Review page renders all 13 reviewable fields from
+`ProcessedDocumentSchema.FieldNames` in catalog order. Each row shows:
+
+- the immutable `OcrValue`,
+- the `OcrConfidence` (0–1, two decimals),
+- a `FieldStatus` badge — `Pending` (warning), `Confirmed` (success),
+  `Corrected` (info),
+- an editable `ReviewedValue` input (visible only when the current user
+  holds the checkout),
+- per-row `[Confirm]` / `[Correct]` actions that accumulate into a
+  pending-edits buffer flushed by `[Save & Check In]`.
+
+### Checkout banner (FR-021 / FR-025)
+
+When the document is loaded, a banner reflects the lock state:
+
+- **You hold the checkout** — informational banner, edits enabled.
+- **Held by another reviewer** — warning banner naming the holder UPN
+  and the timestamp; the form renders read-only.
+- **Free** — `[Check out for review]` button replaces the banner.
+
+### Page-boundary indicator (FR-020)
+
+If any entry in `PageProvenance` has
+`IdentifierSource == Inferred`, a yellow banner above the table lists
+the page numbers whose identifier was forward-filled. This is the
+visual surface for the `FR-020 inferred-identifier pages` warning that
+the processor logs.
+
+### Field-status badge palette
+
+| Status    | Bootstrap class | Meaning                                                  |
+| --------- | --------------- | -------------------------------------------------------- |
+| Pending   | `bg-warning`    | Reviewer has not touched the field.                      |
+| Confirmed | `bg-success`    | Reviewer accepted `OcrValue` (no value change recorded). |
+| Corrected | `bg-info`       | Reviewer overrode `OcrValue` with `ReviewedValue`.       |
+
+### Document-level review status
+
+Once every field is non-`Pending`, the record-level `ReviewStatus`
+flips to `Reviewed` and the first-reviewer UPN + timestamp are stamped
+immutably (FR-017 / FR-018).
+
+---
+
+## Legacy (pre-001-document-schema-aggregation)
+
+
 
 The Review page has been enhanced to provide reviewers with more context about the quality of extracted data, making it easier to identify fields that need attention and verify the accuracy of OCR results. The page now features a **tabbed interface** that organizes fields by page, making it easier to review multi-page documents.
 

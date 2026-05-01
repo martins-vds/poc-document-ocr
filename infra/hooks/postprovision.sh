@@ -142,3 +142,65 @@ echo "================================================================"
 echo "Keyless authentication configuration complete!"
 echo "================================================================"
 echo ""
+
+# ----------------------------------------------------------------------
+# FR-010 — legacy-record wipe guard (feature 001-document-schema-aggregation)
+# ----------------------------------------------------------------------
+# Detect legacy Cosmos records that lack the new `schema` property
+# (pre-001-document-schema-aggregation shape). These are incompatible
+# with the rewritten Review page and the schema-driven mapper, so they
+# MUST be removed before the new code path overwrites them.
+#
+# Destructive: the wipe deletes ALL items in the
+# DocumentOcrDb.ProcessedDocuments container. Require explicit opt-in
+# via CONFIRM_WIPE_DOCUMENTS=yes. If a legacy record is detected and
+# the env var is unset, exit non-zero with a loud message so the
+# operator knows action is required.
+
+if [ -n "$COSMOSDB_ACCOUNT_NAME" ] && command -v az >/dev/null 2>&1; then
+    echo "FR-010: scanning Cosmos container for legacy records..."
+    LEGACY_QUERY='SELECT VALUE COUNT(1) FROM c WHERE NOT IS_DEFINED(c.schema)'
+    LEGACY_COUNT=$(az cosmosdb sql query \
+        --account-name "$COSMOSDB_ACCOUNT_NAME" \
+        --resource-group "$AZURE_RESOURCE_GROUP" \
+        --database-name "DocumentOcrDb" \
+        --container-name "ProcessedDocuments" \
+        --query-text "$LEGACY_QUERY" \
+        --query "[0]" -o tsv 2>/dev/null || echo "0")
+
+    if [ "$LEGACY_COUNT" -gt 0 ] 2>/dev/null; then
+        if [ "${CONFIRM_WIPE_DOCUMENTS:-no}" = "yes" ]; then
+            echo "⚠ Wiping $LEGACY_COUNT legacy record(s) per CONFIRM_WIPE_DOCUMENTS=yes..."
+            az cosmosdb sql container delete \
+                --account-name "$COSMOSDB_ACCOUNT_NAME" \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --database-name "DocumentOcrDb" \
+                --name "ProcessedDocuments" \
+                --yes >/dev/null
+            az cosmosdb sql container create \
+                --account-name "$COSMOSDB_ACCOUNT_NAME" \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --database-name "DocumentOcrDb" \
+                --name "ProcessedDocuments" \
+                --partition-key-path "/identifier" >/dev/null
+            echo "✓ Container recreated with partition key /identifier."
+        else
+            echo ""
+            echo "================================================================"
+            echo "❌ FR-010: $LEGACY_COUNT legacy record(s) without 'schema' detected"
+            echo "================================================================"
+            echo "These records predate feature 001-document-schema-aggregation and"
+            echo "are incompatible with the current code. The Review page WILL"
+            echo "misrender them and the processor's duplicate-skip pre-check WILL"
+            echo "preserve them indefinitely."
+            echo ""
+            echo "To wipe and recreate the ProcessedDocuments container, re-run:"
+            echo "  CONFIRM_WIPE_DOCUMENTS=yes azd hooks run postprovision"
+            echo ""
+            exit 1
+        fi
+    else
+        echo "✓ No legacy records detected."
+    fi
+fi
+

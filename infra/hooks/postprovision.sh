@@ -39,6 +39,8 @@ fi
 
 # Get additional values from azd outputs
 DOC_INTELLIGENCE_ENDPOINT=$(azd env get-value AZURE_DOCUMENTINTELLIGENCE_ENDPOINT 2>/dev/null || echo "")
+DOC_INTELLIGENCE_MODEL_ID=$(azd env get-value AZURE_DOCUMENTINTELLIGENCE_MODEL_ID 2>/dev/null || echo "")
+IDENTIFIER_FIELD_NAME=$(azd env get-value AZURE_DOCUMENTPROCESSING_IDENTIFIER_FIELD_NAME 2>/dev/null || echo "")
 COSMOSDB_ENDPOINT=$(azd env get-value AZURE_COSMOSDB_ENDPOINT 2>/dev/null || echo "")
 TENANT_ID=$(azd env get-value AZURE_TENANT_ID 2>/dev/null || echo "")
 WEB_APP_CLIENT_ID=$(azd env get-value AZURE_WEB_APP_CLIENT_ID 2>/dev/null || echo "")
@@ -62,6 +64,16 @@ fi
 if [ -n "$DOC_INTELLIGENCE_ENDPOINT" ]; then
     export AZURE_DOCUMENTINTELLIGENCE_ENDPOINT="$DOC_INTELLIGENCE_ENDPOINT"
     echo "✓ Document Intelligence endpoint set"
+fi
+
+if [ -n "$DOC_INTELLIGENCE_MODEL_ID" ]; then
+    export AZURE_DOCUMENTINTELLIGENCE_MODEL_ID="$DOC_INTELLIGENCE_MODEL_ID"
+    echo "✓ Document Intelligence model ID set ($DOC_INTELLIGENCE_MODEL_ID)"
+fi
+
+if [ -n "$IDENTIFIER_FIELD_NAME" ]; then
+    export AZURE_DOCUMENTPROCESSING_IDENTIFIER_FIELD_NAME="$IDENTIFIER_FIELD_NAME"
+    echo "✓ Document processing identifier field name set ($IDENTIFIER_FIELD_NAME)"
 fi
 
 if [ -n "$COSMOSDB_ENDPOINT" ]; then

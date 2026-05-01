@@ -39,7 +39,10 @@
       "value": "${AZURE_TAGS}"
     },
     "documentIntelligenceModelId": {
-      "value": "${AZURE_DOCUMENT_INTELLIGENCE_MODEL_ID=prebuilt-document}"
+      "value": "${AZURE_DOCUMENTINTELLIGENCE_MODEL_ID=prebuilt-document}"
+    },
+    "documentProcessingIdentifierFieldName": {
+      "value": "${AZURE_DOCUMENTPROCESSING_IDENTIFIER_FIELD_NAME=identifier}"
     }
   }
 }

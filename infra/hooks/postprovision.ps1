@@ -42,6 +42,10 @@ if (-not $CosmosDbAccountName) {
 # Get additional values from azd outputs
 $DocIntelligenceEndpoint = (azd env get-value AZURE_DOCUMENTINTELLIGENCE_ENDPOINT 2>$null) | Out-String
 $DocIntelligenceEndpoint = $DocIntelligenceEndpoint.Trim()
+$DocIntelligenceModelId = (azd env get-value AZURE_DOCUMENTINTELLIGENCE_MODEL_ID 2>$null) | Out-String
+$DocIntelligenceModelId = $DocIntelligenceModelId.Trim()
+$IdentifierFieldName = (azd env get-value AZURE_DOCUMENTPROCESSING_IDENTIFIER_FIELD_NAME 2>$null) | Out-String
+$IdentifierFieldName = $IdentifierFieldName.Trim()
 $CosmosDbEndpoint = (azd env get-value AZURE_COSMOSDB_ENDPOINT 2>$null) | Out-String
 $CosmosDbEndpoint = $CosmosDbEndpoint.Trim()
 $TenantId = (azd env get-value AZURE_TENANT_ID 2>$null) | Out-String
@@ -70,6 +74,16 @@ if ($StorageAccountName) {
 if ($DocIntelligenceEndpoint) {
     $env:AZURE_DOCUMENTINTELLIGENCE_ENDPOINT = $DocIntelligenceEndpoint
     Write-Host "✓ Document Intelligence endpoint set" -ForegroundColor Green
+}
+
+if ($DocIntelligenceModelId) {
+    $env:AZURE_DOCUMENTINTELLIGENCE_MODEL_ID = $DocIntelligenceModelId
+    Write-Host "✓ Document Intelligence model ID set ($DocIntelligenceModelId)" -ForegroundColor Green
+}
+
+if ($IdentifierFieldName) {
+    $env:AZURE_DOCUMENTPROCESSING_IDENTIFIER_FIELD_NAME = $IdentifierFieldName
+    Write-Host "✓ Document processing identifier field name set ($IdentifierFieldName)" -ForegroundColor Green
 }
 
 if ($CosmosDbEndpoint) {

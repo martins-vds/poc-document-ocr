@@ -131,7 +131,9 @@ def update_function_settings(
     doc_intelligence_endpoint: str,
     cosmosdb_endpoint: str,
     cosmosdb_database: str = "DocumentOcrDb",
-    cosmosdb_container: str = "ProcessedDocuments"
+    cosmosdb_container: str = "ProcessedDocuments",
+    doc_intelligence_model_id: str = "",
+    identifier_field_name: str = ""
 ) -> None:
     """Update Azure Function local.settings.json using keyless authentication."""
     settings_path = get_function_settings_path()
@@ -169,6 +171,10 @@ def update_function_settings(
     settings["Values"]["FUNCTIONS_WORKER_RUNTIME"] = "dotnet-isolated"
     settings["Values"]["Storage:AccountName"] = storage_account
     settings["Values"]["DocumentIntelligence:Endpoint"] = doc_intelligence_endpoint
+    if doc_intelligence_model_id:
+        settings["Values"]["DocumentIntelligence:ModelId"] = doc_intelligence_model_id
+    if identifier_field_name:
+        settings["Values"]["DocumentProcessing:IdentifierFieldName"] = identifier_field_name
     settings["Values"]["CosmosDb:Endpoint"] = cosmosdb_endpoint
     settings["Values"]["CosmosDb:DatabaseName"] = cosmosdb_database
     settings["Values"]["CosmosDb:ContainerName"] = cosmosdb_container
@@ -283,6 +289,12 @@ def from_azd_env() -> Dict[str, str]:
     config["doc_intelligence_endpoint"] = os.environ.get("AZURE_DOCUMENTINTELLIGENCE_ENDPOINT")
     if not config["doc_intelligence_endpoint"]:
         missing.append("AZURE_DOCUMENTINTELLIGENCE_ENDPOINT")
+
+    # Optional custom model ID; falls back to service default when absent.
+    config["doc_intelligence_model_id"] = os.environ.get("AZURE_DOCUMENTINTELLIGENCE_MODEL_ID", "")
+
+    # Optional identifier field name used by DocumentAggregatorService.
+    config["identifier_field_name"] = os.environ.get("AZURE_DOCUMENTPROCESSING_IDENTIFIER_FIELD_NAME", "")
     
     # Cosmos DB (keyless)
     config["cosmosdb_endpoint"] = os.environ.get("AZURE_COSMOSDB_ENDPOINT")
@@ -340,6 +352,16 @@ def interactive_mode() -> Dict[str, str]:
     config["doc_intelligence_endpoint"] = prompt_for_value(
         "  Endpoint (must end with /)",
         default="https://your-resource.cognitiveservices.azure.com/"
+    )
+    config["doc_intelligence_model_id"] = prompt_for_value(
+        "  Model ID (custom model name, or blank for prebuilt-document)",
+        default="",
+        required=False
+    )
+    config["identifier_field_name"] = prompt_for_value(
+        "  Identifier field name (DocumentProcessing:IdentifierFieldName, blank to skip)",
+        default="",
+        required=False
     )
     
     print("\nCosmos DB:", file=sys.stderr)
@@ -432,6 +454,16 @@ For local development:
         help='Document Intelligence endpoint URL (trailing slash will be added if missing)'
     )
     parser.add_argument(
+        '--doc-intelligence-model-id',
+        default='',
+        help='Document Intelligence model ID (e.g. custom model name); leave blank to use the service default'
+    )
+    parser.add_argument(
+        '--identifier-field-name',
+        default='',
+        help='Field name extracted by Document Intelligence used to group pages (DocumentProcessing:IdentifierFieldName)'
+    )
+    parser.add_argument(
         '--cosmosdb-endpoint',
         help='Cosmos DB endpoint URL (trailing slash will be added if missing)'
     )
@@ -488,6 +520,8 @@ For local development:
         config = {
             'storage_account': args.storage_account,
             'doc_intelligence_endpoint': args.doc_intelligence_endpoint,
+            'doc_intelligence_model_id': args.doc_intelligence_model_id or "",
+            'identifier_field_name': args.identifier_field_name or "",
             'cosmosdb_endpoint': args.cosmosdb_endpoint,
             'cosmosdb_database': args.cosmosdb_database,
             'cosmosdb_container': args.cosmosdb_container,
@@ -522,7 +556,9 @@ For local development:
                 doc_intelligence_endpoint=config['doc_intelligence_endpoint'],
                 cosmosdb_endpoint=config['cosmosdb_endpoint'],
                 cosmosdb_database=config['cosmosdb_database'],
-                cosmosdb_container=config['cosmosdb_container']
+                cosmosdb_container=config['cosmosdb_container'],
+                doc_intelligence_model_id=config.get('doc_intelligence_model_id', ''),
+                identifier_field_name=config.get('identifier_field_name', '')
             )
         except Exception as e:
             print(f"Error updating Function App settings: {e}", file=sys.stderr)

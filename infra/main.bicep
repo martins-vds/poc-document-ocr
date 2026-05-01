@@ -43,6 +43,8 @@ param runningOnAdo string = ''
 
 param documentIntelligenceModelId string = 'prebuilt-document'
 
+param documentProcessingIdentifierFieldName string = 'identifier'
+
 param allowedIps string = ''
 var ipRules = reduce(
   filter(array(split(allowedIps, ';')), o => length(trim(o)) > 0),
@@ -415,7 +417,7 @@ module functionApp 'br/public:avm/res/web/site:0.19.3' = {
         }
         {
           name: 'DocumentProcessing__IdentifierFieldName'
-          value: 'identifier'
+          value: documentProcessingIdentifierFieldName
         }
         {
           name: 'Storage__AccountName'

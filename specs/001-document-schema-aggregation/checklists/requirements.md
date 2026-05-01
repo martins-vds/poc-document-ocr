@@ -31,9 +31,14 @@
 
 ## Notes
 
-- All clarifications resolved (Q1–Q6). See `Resolved Clarifications` section in `spec.md`.
-- New per-field schema (`SchemaField`: `ocrValue`, `ocrConfidence`, `reviewedValue`, `reviewedAt`, `reviewedBy`, `fieldStatus`) is encoded in FR-014; immutability of OCR provenance in FR-015 and SC-007; per-field state machine in FR-016; record-level rollup in FR-017; partial reviews in FR-018 and SC-008.
+- All clarifications resolved (Q1–Q11). See `Resolved Clarifications` section in `spec.md`.
+- New per-field schema (`SchemaField`) in FR-014; immutability of OCR provenance in FR-015 / SC-007; per-field state machine in FR-016; record-level rollup in FR-017; partial reviews in FR-018 / SC-008.
 - Concatenated-field confidence aggregation = **minimum** of contributing pages (FR-005, Q4).
+- Re-processing of an existing record is a no-op (FR-019, SC-009, Q7).
+- Missing-identifier forward-fill with `pageProvenance` (FR-020, **PageProvenance** entity, SC-010, Q8).
+- Explicit checkout / check-in model (FR-021, SC-011, Q9) with 24h opportunistic auto-release (FR-022, Q9a), explicit Save during checkout (FR-023, Q9b), Cancel-Checkout semantics (FR-021, Q9c), no per-reviewer cap (FR-021, Q9d).
+- Distinct semantics for `lastCheckedInBy` / `lastCheckedInAt` vs. `reviewedBy` / `reviewedAt` (FR-024, SC-012, Q10); `reviewedBy` / `reviewedAt` are immutable after first transition to `Reviewed`.
+- Documents list shows progress + checkout (FR-025, Q11).
 - TDD mandate from Constitution Principle II is encoded as User Story 3 / FR-012 / SC-005.
 - Constitution Check anticipated for `/speckit.plan`:
   - I. Code Quality — services to be added behind interfaces in `DocumentOcr.Common`.

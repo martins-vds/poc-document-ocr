@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-document-schema-aggregation`
 **Created**: 2026-05-01
-**Status**: Draft (clarifications resolved)
+**Status**: Draft (clarifications Q1–Q11 resolved)
 **Input**: User description: "Implement the feature specification based on the updated constitution. I want the processor to generate a document with the following schema: fileTkNumber → string, pageNumber → counted as pageCount, criminalCodeForm → string, policeFileNumber → string, agency → string, accusedSex → string, accusedName → string, accusedDatefBirth → string, mainCharge → string (concatenated across pages), signedOn → string, judgeSignature → bool, endorsementSignature → bool, endorsementSignedOn → string, additionalCharges → string (concatenated across pages). The processor currently persists all pages of a document in the database; this must change so the database stores the processed (consolidated) document. A physical document can span multiple pages."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -87,6 +87,26 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
 
 ---
 
+### User Story 5 - Reviewer checks out a document, edits, and checks it back in (Priority: P1)
+
+A reviewer takes exclusive ownership of a record by checking it out, makes any number of saves while it is checked out, and releases the lock by checking it in. Other reviewers can see the record (read-only) while it is checked out but cannot edit it. Check-in releases the lock regardless of how many fields the reviewer marked as `Confirmed` / `Corrected`; review status is independent and is derived from per-field state per FR-017.
+
+**Why this priority**: Without an explicit ownership model, two reviewers can edit the same record concurrently and the last save silently overwrites the first. Checkout removes that failure mode, gives reviewers explicit control over which records they own, and keeps the data model simple (no merge logic). P1 because the entire review workflow depends on it.
+
+**Independent Test**: Reviewer A checks out a record. Verify reviewer B sees it as locked and cannot edit. Reviewer A saves twice (partial reviews) and then checks in without marking every field. Verify the record is unlocked, all of A's saved edits are persisted, the record-level `reviewStatus` is still `Pending` (because not every field is non-`Pending`), and `lastCheckedInBy` / `lastCheckedInAt` reflect A's check-in.
+
+**Acceptance Scenarios**:
+
+1. **Given** an unlocked record, **When** reviewer A checks it out, **Then** the record gains `checkedOutBy = A` and `checkedOutAt = <now>`; reviewer B sees the record in the list with a "checked out by A" indicator and cannot open it for editing.
+2. **Given** reviewer A holds a checkout, **When** reviewer A clicks Save, **Then** edits to `reviewedValue` / `fieldStatus` are persisted; the lock is **not** released; A can continue editing.
+3. **Given** reviewer A holds a checkout and has saved some edits, **When** reviewer A clicks Check In, **Then** any unsaved edits in this session are persisted, the lock is released (`checkedOutBy` and `checkedOutAt` cleared), `lastCheckedInBy = A` and `lastCheckedInAt = <now>` are set, and the record-level `reviewStatus` is recomputed per FR-017.
+4. **Given** reviewer A holds a checkout, **When** reviewer A clicks Cancel Checkout, **Then** edits made in the current browser session that were never saved are discarded, edits previously saved during this checkout are kept, the lock is released, `lastCheckedInBy` / `lastCheckedInAt` are **not** updated (Cancel is not a check-in), and the record returns to the pool.
+5. **Given** a record was checked out more than 24 hours ago, **When** any reviewer attempts to check it out, **Then** the system auto-releases the stale checkout (preserving previously-saved edits), records the auto-release in logs at warning level with the original `checkedOutBy` and `checkedOutAt`, and grants the new checkout.
+6. **Given** a checkout brings every field's `fieldStatus` to `Confirmed` or `Corrected` for the first time, **When** the reviewer checks in, **Then** the record-level `reviewStatus` becomes `Reviewed`, `reviewedBy` is set to the checking-in reviewer, and `reviewedAt` is set to the check-in timestamp; subsequent check-outs and check-ins MUST NOT modify `reviewedBy` or `reviewedAt`.
+7. **Given** reviewer A has many records checked out simultaneously (no per-reviewer cap), **When** A checks out an additional record, **Then** the operation succeeds and all prior checkouts remain held by A.
+
+---
+
 ### Edge Cases
 
 - A schema field is missing from every page → the field is persisted with `ocrValue = null` (string fields) or `ocrValue = false` (boolean fields), `ocrConfidence = null`, `reviewedValue = null`, and `fieldStatus = "Pending"`; `pageCount` is still accurate. Reviewer sees an empty editable input.
@@ -102,6 +122,15 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
 - A reviewer edits a field and then reverts the edit back to the original `ocrValue` → `fieldStatus` becomes `Confirmed` (not `Corrected`) and `reviewedValue` equals `ocrValue`.
 - A reviewer saves a partial review (some fields touched, some not) → only the touched fields move out of `Pending`; the record-level `reviewStatus` remains `Pending` until every field is non-`Pending`.
 - Existing per-page records present in Cosmos DB from previous runs → the documents container is wiped during deployment of this feature; only documents processed under the new schema appear afterward.
+- A PDF is re-processed (re-queued, redelivered, or manually re-uploaded) and a record with the same `fileTkNumber` already exists → the new processing run is skipped: the new extraction is logged at warning level with operation ID, identifier, and the existing record's id; nothing is overwritten. The operator MUST explicitly delete the existing record to force re-processing. The operation transitions to `Succeeded` (not `Failed`) with a note that the document was skipped as a duplicate.
+- Identifier field (`fileTkNumber`) missing on one or more pages of a multi-document PDF → forward-fill: pages without `fileTkNumber` are attached to the nearest preceding page that has one. Leading pages with no preceding identifier form a synthetic record keyed `unknown-<blob>-<firstPage>`. The consolidated record records, per contributing page, whether the page was attributed by direct extraction or by inference (forward-fill); a warning is logged with operation ID, blob name, and the inferred page numbers. The Review page surfaces a visible indicator on records that contain any inferred pages so the reviewer can verify the document boundary.
+- Identifier field missing on every page of the entire PDF → a single synthetic record keyed `unknown-<blob>-1` is emitted with all pages marked as inferred; warning logged.
+- Two reviewers attempt to open the same record → the first to click Check Out gains exclusive ownership; the second sees the record in the list with a "checked out by <user>" indicator and a read-only view; no concurrent editing is possible.
+- A reviewer attempts to check out a record they already hold → the operation is a no-op (success); the existing checkout is preserved.
+- A reviewer attempts to check in a record they do not hold → the operation fails with a clear error; no state is modified.
+- A reviewer's checkout has been held for more than 24 hours of wall-clock time without any save or check-in → the next reviewer to attempt check-out triggers an auto-release: previously-saved edits are kept, `checkedOutBy` and `checkedOutAt` are cleared, a warning is logged, and the new checkout proceeds.
+- A record is checked out and the holder makes no edits before checking in → check-in succeeds; `lastCheckedInBy` / `lastCheckedInAt` are updated; no per-field state changes; record-level `reviewStatus` is unchanged.
+- A reviewer holds checkouts on many records simultaneously → supported with no system-imposed cap; each record's checkout is tracked independently.
 
 ## Requirements *(mandatory)*
 
@@ -132,7 +161,7 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
 - **FR-009**: When a schema field is absent from every page of a document, the system MUST persist `ocrValue = null` for string fields, `ocrValue = false` for boolean fields, `ocrConfidence = null`, `reviewedValue = null`, and `fieldStatus = "Pending"`. `pageCount` MUST always be a positive integer reflecting the actual number of source pages for the document.
 - **FR-010**: As part of deploying this feature, the existing documents container in Cosmos DB MUST be wiped (all per-page legacy records removed); the deployment runbook MUST document this destructive step, and the deployment MUST NOT proceed if the operator has not explicitly acknowledged it. No automated migration of legacy per-page records to the new schema is required or supported.
 - **FR-011**: The WebApp Review page MUST render the consolidated schema (one editable form per document) once the persistence change is in effect; the existing per-page tab UI MUST be updated or removed accordingly. Confidence-level UX vocabulary defined in `docs/REVIEW-PAGE-UX.md` MUST continue to apply, sourcing each field's color/badge from the field's `ocrConfidence` value, and MUST visually distinguish per-field statuses (`Pending`, `Confirmed`, `Corrected`).
-- **FR-012**: The behavior described in FR-001 through FR-011 and FR-014 through FR-018 MUST be covered by automated tests in the `tests/` project, written before the corresponding production code per the constitution's TDD mandate.
+- **FR-012**: The behavior described in FR-001 through FR-011 and FR-014 through FR-025 MUST be covered by automated tests in the `tests/` project, written before the corresponding production code per the constitution's TDD mandate.
 - **FR-013**: The system MUST log, at information level, the consolidation outcome for each document including operation ID, identifier, source page count, and the count of schema fields populated vs. left null/false.
 - **FR-014**: Every schema field except `pageCount` MUST be persisted as a structured object with the following properties:
   - `ocrValue` — the value produced by consolidation (string, boolean, or `null`); immutable after extraction.
@@ -150,11 +179,29 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
   - A field's `fieldStatus` MUST NOT transition back to `Pending` once it has left that state.
 - **FR-017**: The record-level `reviewStatus` MUST be derived from per-field statuses: `Pending` if any schema field's `fieldStatus` is `Pending`, otherwise `Reviewed`. The record-level `reviewStatus` MUST be recomputed and persisted on every save.
 - **FR-018**: The WebApp Review page MUST allow partial reviews: saving with some fields still in `Pending` MUST be permitted; only the fields the reviewer interacted with on that save MUST transition out of `Pending`.
+- **FR-019**: The processor MUST treat re-processing of an existing record as a no-op: when a consolidated record with the same `fileTkNumber` already exists in the documents container, the new extraction MUST NOT be persisted, MUST NOT modify any field of the existing record, and MUST be logged at warning level with operation ID, identifier, existing record id, and a `"duplicate skipped"` reason. The owning operation MUST transition to `Succeeded` with a status detail noting the skip. Forcing re-processing requires an operator to delete the existing record first; no automated override is provided.
+- **FR-020**: The processor MUST forward-fill the aggregation identifier (`fileTkNumber`) across pages: any page that does not directly extract `fileTkNumber` MUST be attributed to the nearest preceding page that did. Leading pages with no preceding identifier MUST form a synthetic record keyed `unknown-<blob>-<firstPage>`. The consolidated record MUST record per contributing page whether the page was attributed by direct extraction (`extracted`) or by inference (`inferred`), via a `pageProvenance` collection (exact storage shape is a planning-time decision). The system MUST log a warning at information level whenever any pages are attributed by inference, including operation ID, blob name, target identifier, and the inferred page numbers.
+- **FR-021**: The system MUST support reviewer checkout / check-in of consolidated records:
+  - Each record MUST carry `checkedOutBy` (string identifier of the holder, or `null`) and `checkedOutAt` (UTC timestamp, or `null`).
+  - A checkout request MUST atomically set both fields when they are currently `null`; if `checkedOutBy` is non-null and refers to another reviewer, the request MUST fail with a clear conflict error.
+  - A checkout request from the current holder MUST be a successful no-op.
+  - While a record is checked out, only the holder MUST be permitted to modify any field. Other reviewers MAY view the record read-only.
+  - A check-in request from the holder MUST persist any pending edits, clear `checkedOutBy` and `checkedOutAt`, set `lastCheckedInBy` and `lastCheckedInAt`, and recompute the record-level `reviewStatus` per FR-017.
+  - A check-in request from a non-holder MUST fail with a clear error and modify no state.
+  - A Cancel Checkout request from the holder MUST discard edits made in the current browser session that were never saved, MUST keep edits previously saved during the same checkout, MUST clear `checkedOutBy` and `checkedOutAt`, and MUST NOT update `lastCheckedInBy` / `lastCheckedInAt` (Cancel is not a check-in).
+  - The system MUST NOT impose a per-reviewer cap on the number of simultaneous checkouts.
+- **FR-022**: A checkout that has been held for more than 24 hours of wall-clock time without any save or check-in is considered stale. The system MUST auto-release stale checkouts opportunistically: when any reviewer attempts to check out a stale record, the system MUST clear `checkedOutBy` and `checkedOutAt`, preserve all previously-saved edits, log a warning at information level with the original holder and timestamps, and proceed with the requesting reviewer's checkout.
+- **FR-023**: Saves during a checkout MUST be explicit (driven by an explicit Save action), MAY occur any number of times during a single checkout, and MUST persist `reviewedValue` / `reviewedAt` / `reviewedBy` / `fieldStatus` changes for the touched fields. Save MUST NOT release the checkout. Continuous autosave is out of scope.
+- **FR-024**: The record-level lifecycle fields MUST have the following distinct semantics, kept independent of one another:
+  - `lastCheckedInBy` / `lastCheckedInAt` — set on every check-in (including check-ins where no field transitioned out of `Pending`); represent "who most recently returned this record to the pool, and when". Cancel Checkout MUST NOT update these.
+  - `reviewedBy` / `reviewedAt` — set the first time the record-level `reviewStatus` transitions from `Pending` to `Reviewed`; represent "who first brought this record to fully-reviewed, and when". Once set, they MUST NOT be modified by any subsequent checkout, save, or check-in.
+- **FR-025**: The documents list page MUST display, for each record, at minimum: the record-level `reviewStatus` (`Pending` / `Reviewed`), a fields-reviewed progress indicator showing the count of non-`Pending` fields out of the total number of schema fields with per-field state (e.g., `5/13`; `pageCount` is excluded because it has no `fieldStatus`), and the current `checkedOutBy` value (or an empty indicator when `null`). The list MUST be filterable by `reviewStatus` and by checkout state (any / mine / others / unlocked).
 
 ### Key Entities
 
-- **ProcessedDocument**: The new consolidated record. One per logical document. Holds the 14 schema fields plus operational metadata (id, original file name, processed-at timestamp, blob URL, record-level `reviewStatus`, assignment). Replaces the previous shape of `DocumentOcrEntity.ExtractedData` (which held a per-page `Pages[]` array). The same record represents both the unreviewed (`reviewStatus = "Pending"`, every field `Pending`) and the reviewed (`reviewStatus = "Reviewed"`, every field `Confirmed` or `Corrected`) states.
+- **ProcessedDocument**: The new consolidated record. One per logical document. Holds the 14 schema fields plus operational metadata (id, original file name, processed-at timestamp, blob URL, record-level `reviewStatus`, `reviewedBy`, `reviewedAt`, `lastCheckedInBy`, `lastCheckedInAt`, `checkedOutBy`, `checkedOutAt`, `pageProvenance`). Replaces the previous shape of `DocumentOcrEntity.ExtractedData` (which held a per-page `Pages[]` array). The same record represents both the unreviewed (`reviewStatus = "Pending"`, every field `Pending`) and the reviewed (`reviewStatus = "Reviewed"`, every field `Confirmed` or `Corrected`) states.
 - **SchemaField**: The structured per-field object defined in **FR-014**. Carries `ocrValue`, `ocrConfidence`, `reviewedValue`, `reviewedAt`, `reviewedBy`, `fieldStatus`. Used for every schema field except `pageCount`.
+- **PageProvenance**: A per-record collection (one entry per contributing source page) that records whether the page's identifier (`fileTkNumber`) was attributed by direct extraction (`extracted`) or by forward-fill inference (`inferred`). Used to surface document-boundary uncertainty to the reviewer per FR-020.
 - **PageOcrResult** *(unchanged)*: Internal, transient. Per-page OCR output produced by Document Intelligence. Used as input to consolidation; not persisted.
 - **Operation** *(unchanged)*: Tracks the long-running pipeline status surfaced via the Operations API.
 
@@ -166,10 +213,14 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
 - **SC-002**: Every persisted record contains all 14 schema fields with the correct types and the per-field structure defined in FR-014; no record contains a `pageNumber` field or a `Pages[]` array.
 - **SC-003**: For multi-page documents containing `mainCharge` or `additionalCharges` on more than one page, the persisted `ocrValue` contains the contributions from every contributing page in page order with no duplication and no omission, and the persisted `ocrConfidence` equals the minimum of the contributing pages' confidence values (or `null` if none reported one).
 - **SC-004**: A reviewer opening any processed document in the WebApp can read and edit all 14 fields in under 30 seconds with no need to switch tabs or navigate per-page views.
-- **SC-005**: The full automated test suite passes on the final commit, and every new behavioral requirement (FR-001 through FR-011 and FR-014 through FR-018) maps to at least one test that demonstrably failed prior to its corresponding implementation commit.
+- **SC-005**: The full automated test suite passes on the final commit, and every new behavioral requirement (FR-001 through FR-011 and FR-014 through FR-025) maps to at least one test that demonstrably failed prior to its corresponding implementation commit.
 - **SC-006**: No regression in pipeline throughput: end-to-end processing time for a typical 10-page PDF remains within the constitution's p95 budget of 60 seconds.
 - **SC-007**: For any reviewed record, the original OCR extraction is fully recoverable from the persisted document: for every schema field, `ocrValue` and `ocrConfidence` match the values produced at extraction time, regardless of how many reviewer edits have occurred.
 - **SC-008**: For any record, `reviewStatus = "Reviewed"` if and only if every schema field has `fieldStatus ∈ {"Confirmed", "Corrected"}`; this invariant holds after every save (verified by an automated test).
+- **SC-009**: Re-processing a PDF whose `fileTkNumber` already has a record in the documents container produces no change to that record (verified by snapshot equality before/after) and a warning log entry; the owning operation completes as `Succeeded`.
+- **SC-010**: For any persisted record, the `pageProvenance` collection length equals `pageCount`, and every entry is one of `extracted` / `inferred`; records containing any `inferred` entry are visually flagged on the Review page.
+- **SC-011**: At any point in time, every record is held by at most one reviewer (verified by a uniqueness assertion on `checkedOutBy` per record); a checkout request against a held record fails with a clear conflict error and never silently succeeds.
+- **SC-012**: After a check-in, `lastCheckedInBy` and `lastCheckedInAt` reflect the checking-in reviewer and the check-in timestamp. After the first check-in that brings the record to fully-reviewed, `reviewedBy` and `reviewedAt` are also set; subsequent activity updates only `lastCheckedInBy` / `lastCheckedInAt` and never modifies `reviewedBy` / `reviewedAt` (verified by an automated test).
 
 ## Assumptions
 
@@ -182,6 +233,9 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
 - The Operations API surface (`Running`/`Succeeded`/`Failed`/`Cancelled`) is unchanged; only the contents of completed-operation results change.
 - Existing unit tests in `tests/` continue to pass; only the per-page-persistence assertions (if any) need to be updated alongside the new tests.
 - "Major feature, TDD mandatory" is interpreted per Constitution Principle II: every new behavioral requirement gets a failing test first, then implementation. No integration/E2E tests against live Azure are required (and are forbidden by Principle II).
+- Stale-checkout auto-release is opportunistic (triggered by the next checkout attempt), not driven by a background timer. This avoids introducing a scheduled job for a POC; if reviewer experience demands proactive release in a future iteration, a TimerTrigger function can be added without changing the persisted shape.
+- The 24-hour stale threshold is a configurable system constant; changing it does not require a spec amendment.
+- Within a single checkout, "saved edits" means edits persisted via an explicit Save action. Cancel Checkout discards only edits made in the current browser session that were never persisted (typed-but-not-saved); edits saved earlier in the same checkout remain.
 
 ---
 
@@ -193,3 +247,12 @@ A reviewer opening the Review page sees the 14 schema fields as a single editabl
 - **Q4 (Aggregated confidence for concatenated fields)** → **Minimum** of the contributing pages' confidence values ("chain is as strong as its weakest link"); `null` if no contributing page reports a confidence. Encoded in **FR-005** and **FR-014**.
 - **Q5 (Audit trail of original OCR values)** → **Yes, per field forever**: every schema field persists immutable `ocrValue` / `ocrConfidence` alongside mutable `reviewedValue` / `reviewedAt` / `reviewedBy` / `fieldStatus`. One schema, two end-states (unreviewed = all `Pending`; reviewed = all `Confirmed`/`Corrected`). Encoded in **FR-014**, **FR-015**, and **SC-007**.
 - **Q6 (Per-field review status & record-level rollup)** → **Per-field `Pending` / `Confirmed` / `Corrected`** with record-level `reviewStatus = Reviewed` only when every field is non-`Pending`; partial reviews are supported. Encoded in **FR-016**, **FR-017**, **FR-018**, and **SC-008**.
+- **Q7 (Re-processing existing records)** → **Skip**. If a record with the same `fileTkNumber` already exists, the new extraction is logged and discarded; nothing is overwritten. Operator must delete the existing record to force re-processing. Encoded in **FR-019**, **SC-009**, and the corresponding edge case.
+- **Q8 (Missing identifier field on some pages)** → **Forward-fill with provenance + flag**. Pages without `fileTkNumber` attach to the nearest preceding page that has one; leading orphan pages form a synthetic `unknown-<blob>-<firstPage>` record. Per-page provenance (`extracted` vs. `inferred`) is persisted; warning is logged; Review page flags inferred pages so reviewers can verify document boundaries. Encoded in **FR-020**, the **PageProvenance** entity, **SC-010**, and the corresponding edge cases.
+- **Q9 (Concurrent reviewer edits)** → **Explicit checkout / check-in** (pessimistic lock by user action). Single holder per record; no per-reviewer cap on concurrent checkouts; check-in is independent of review status. Encoded in **FR-021**, **SC-011**, and the corresponding edge cases. Sub-clarifications:
+  - **Q9a (Stale checkouts)** → 24-hour opportunistic auto-release, triggered by the next checkout attempt (no background timer). Encoded in **FR-022**.
+  - **Q9b (Saves during checkout)** → Explicit Save button; multiple saves per checkout allowed; check-in performs a final save. No continuous autosave. Encoded in **FR-023**.
+  - **Q9c (Cancel Checkout)** → Discards only in-session unsaved edits; previously-saved edits during the same checkout are kept; lock is released; `lastCheckedInBy` / `lastCheckedInAt` are NOT updated (Cancel is not a check-in). Encoded in **FR-021** and the corresponding edge case.
+  - **Q9d (Concurrent checkouts per reviewer)** → No system-imposed cap. Encoded in **FR-021**.
+- **Q10 (Record-level `reviewedBy` / `reviewedAt` vs. `lastCheckedInBy` / `lastCheckedInAt`)** → **Keep both, distinct meanings**. `lastCheckedInBy` / `lastCheckedInAt` track the most recent check-in (any check-in). `reviewedBy` / `reviewedAt` track the first transition to fully-reviewed and are immutable thereafter. Encoded in **FR-024** and **SC-012**.
+- **Q11 (Documents-list visibility)** → **Minimal + progress**. Columns: `reviewStatus` + `Fields reviewed` (e.g., `5/13`) + `Checked out by`; filterable by review status and checkout state. Encoded in **FR-025**.

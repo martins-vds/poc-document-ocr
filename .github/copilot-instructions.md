@@ -104,3 +104,8 @@ Docs: `ARCHITECTURE.md`, `QUICKSTART.md`, `DEPLOYMENT.md`
 `cd src/DocumentOcr.Processor && func azure functionapp publish <app-name>` or see `docs/DEPLOYMENT.md` for Azure setup.
 
 **Trust these verified instructions. Only explore further if incomplete or errors not documented here.**
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

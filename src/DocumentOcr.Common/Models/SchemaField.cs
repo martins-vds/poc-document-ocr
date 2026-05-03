@@ -15,6 +15,15 @@ public class SchemaField
     [JsonProperty("ocrValue")]
     public object? OcrValue { get; set; }
 
+    /// <summary>
+    /// Original OCR text for fields where <see cref="OcrValue"/> is a
+    /// parsed/derived value (currently the three date fields per
+    /// <c>ProcessedDocumentSchema.DateFields</c>). Always <c>null</c> for
+    /// string and bool fields. Immutable after creation by the mapper.
+    /// </summary>
+    [JsonProperty("ocrRawText", NullValueHandling = NullValueHandling.Ignore)]
+    public string? OcrRawText { get; set; }
+
     [JsonProperty("ocrConfidence")]
     public double? OcrConfidence { get; set; }
 
@@ -39,11 +48,12 @@ public class SchemaField
     /// <summary>
     /// Construct an initial Pending field as emitted by the mapper.
     /// </summary>
-    public static SchemaField CreateInitial(object? ocrValue, double? ocrConfidence)
+    public static SchemaField CreateInitial(object? ocrValue, double? ocrConfidence, string? ocrRawText = null)
     {
         return new SchemaField
         {
             OcrValue = ocrValue,
+            OcrRawText = ocrRawText,
             OcrConfidence = ocrConfidence,
             ReviewedValue = null,
             ReviewedAt = null,

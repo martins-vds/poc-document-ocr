@@ -116,6 +116,10 @@ public class DocumentReviewService : IDocumentReviewService
                     throw new InvalidOperationException(
                         $"Corrected edit for '{fieldName}' requires a non-null ReviewedValue.");
                 }
+                if (ProcessedDocumentSchema.IsDateField(fieldName))
+                {
+                    ValidateDateReviewedValue(edit.NewReviewedValue, fieldName, now);
+                }
                 if (ValuesEqual(edit.NewReviewedValue, current.OcrValue))
                 {
                     throw new InvalidOperationException(
@@ -140,5 +144,28 @@ public class DocumentReviewService : IDocumentReviewService
         if (a is null && b is null) return true;
         if (a is null || b is null) return false;
         return string.Equals(a.ToString(), b.ToString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// FR-002a: a reviewer-supplied date value MUST be a valid ISO
+    /// <c>yyyy-MM-dd</c> string and MUST NOT be in the future (UTC).
+    /// </summary>
+    private static void ValidateDateReviewedValue(object reviewedValue, string fieldName, DateTime now)
+    {
+        var s = reviewedValue.ToString();
+        if (string.IsNullOrWhiteSpace(s) ||
+            !DateOnly.TryParseExact(s, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var date))
+        {
+            throw new InvalidOperationException(
+                $"Date field '{fieldName}' requires a value in yyyy-MM-dd format; got '{s}'.");
+        }
+
+        var today = DateOnly.FromDateTime(now);
+        if (date > today)
+        {
+            throw new InvalidOperationException(
+                $"Date field '{fieldName}' cannot be in the future (got {s}, today is {today:yyyy-MM-dd}).");
+        }
     }
 }

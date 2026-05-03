@@ -32,7 +32,7 @@ public class ProcessedDocumentSchemaTests
             "agency",
             "accusedSex",
             "accusedName",
-            "accusedDatefBirth",
+            "accusedDateOfBirth",
             "mainCharge",
             "signedOn",
             "judgeSignature",
@@ -59,6 +59,24 @@ public class ProcessedDocumentSchemaTests
     {
         Assert.Equal(typeof(bool), ProcessedDocumentSchema.FieldTypes["judgeSignature"]);
         Assert.Equal(typeof(bool), ProcessedDocumentSchema.FieldTypes["endorsementSignature"]);
+    }
+
+    [Fact]
+    public void FieldTypes_DateFieldsAreDateOnly()
+    {
+        Assert.Equal(typeof(DateOnly), ProcessedDocumentSchema.FieldTypes["accusedDateOfBirth"]);
+        Assert.Equal(typeof(DateOnly), ProcessedDocumentSchema.FieldTypes["signedOn"]);
+        Assert.Equal(typeof(DateOnly), ProcessedDocumentSchema.FieldTypes["endorsementSignedOn"]);
+    }
+
+    [Fact]
+    public void DateFields_ContainExactlyTheThreeDateColumns()
+    {
+        Assert.Equal(
+            new[] { "accusedDateOfBirth", "endorsementSignedOn", "signedOn" },
+            ProcessedDocumentSchema.DateFields.OrderBy(s => s).ToArray());
+        Assert.True(ProcessedDocumentSchema.IsDateField("signedOn"));
+        Assert.False(ProcessedDocumentSchema.IsDateField("accusedName"));
     }
 
     [Fact]

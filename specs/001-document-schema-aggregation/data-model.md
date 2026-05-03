@@ -11,21 +11,21 @@ This document defines the persisted JSON shape and the in-memory C# models. The 
 
 The 14 schema fields are exactly those listed in spec FR-002. `pageCount` is a record-level integer (not a reviewable `SchemaField`); the remaining 13 are persisted as `SchemaField` objects.
 
-| Field name (camelCase) | OCR-value type                                        | Notes                                                |
-| ---------------------- | ----------------------------------------------------- | ---------------------------------------------------- |
-| `fileTkNumber`         | string                                                | Document identifier; partition key value             |
-| `criminalCodeForm`     | string                                                |                                                      |
-| `policeFileNumber`     | string                                                |                                                      |
-| `agency`               | string                                                |                                                      |
-| `accusedSex`           | string                                                |                                                      |
-| `accusedName`          | string                                                |                                                      |
-| `accusedDatefBirth`    | string (ISO date when DI returns date type, else raw) | Spec-preserved typo                                  |
-| `mainCharge`           | string                                                | Concatenated across pages (FR-005); confidence = min |
-| `signedOn`             | string (ISO date)                                     |                                                      |
-| `judgeSignature`       | bool                                                  | Derived from DI signature field (FR-006)             |
-| `endorsementSignature` | bool                                                  | Derived from DI signature field (FR-006)             |
-| `endorsementSignedOn`  | string (ISO date)                                     |                                                      |
-| `additionalCharges`    | string                                                | Concatenated across pages; confidence = min          |
+| Field name (camelCase) | OCR-value type                                                                          | Notes                                                |
+| ---------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `fileTkNumber`         | string                                                                                  | Document identifier; partition key value             |
+| `criminalCodeForm`     | string                                                                                  |                                                      |
+| `policeFileNumber`     | string                                                                                  |                                                      |
+| `agency`               | string                                                                                  |                                                      |
+| `accusedSex`           | string                                                                                  |                                                      |
+| `accusedName`          | string                                                                                  |                                                      |
+| `accusedDateOfBirth`   | DateOnly (ISO yyyy-MM-dd; `null` when raw OCR fails to parse, raw kept in `ocrRawText`) | FR-002a                                              |
+| `mainCharge`           | string                                                                                  | Concatenated across pages (FR-005); confidence = min |
+| `signedOn`             | string (ISO date)                                                                       |                                                      |
+| `judgeSignature`       | bool                                                                                    | Derived from DI signature field (FR-006)             |
+| `endorsementSignature` | bool                                                                                    | Derived from DI signature field (FR-006)             |
+| `endorsementSignedOn`  | string (ISO date)                                                                       |                                                      |
+| `additionalCharges`    | string                                                                                  | Concatenated across pages; confidence = min          |
 
 The catalog lives in code as `ProcessedDocumentSchema.FieldNames` (immutable `IReadOnlyList<string>`) so the mapper, the WebApp, and the tests share a single source of truth.
 

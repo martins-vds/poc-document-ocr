@@ -16,7 +16,7 @@ public static class ProcessedDocumentSchema
         "agency",
         "accusedSex",
         "accusedName",
-        "accusedDatefBirth",
+        "accusedDateOfBirth",
         "mainCharge",
         "signedOn",
         "judgeSignature",
@@ -26,9 +26,13 @@ public static class ProcessedDocumentSchema
     };
 
     /// <summary>
-    /// Mapping from field name → expected <c>OcrValue</c> CLR type. Strings
-    /// for free-form fields, <see cref="bool"/> for the two signature flags
-    /// (FR-006).
+    /// Mapping from field name → expected logical type of <c>OcrValue</c>.
+    /// Strings for free-form fields, <see cref="bool"/> for the two
+    /// signature flags (FR-006), <see cref="DateOnly"/> for the three date
+    /// fields (FR-002a). For date fields the persisted <c>OcrValue</c> is
+    /// the ISO <c>yyyy-MM-dd</c> string when parsing succeeds, otherwise
+    /// <c>null</c>; the original OCR text is preserved in
+    /// <c>OcrRawText</c>.
     /// </summary>
     public static IReadOnlyDictionary<string, Type> FieldTypes { get; } = new Dictionary<string, Type>
     {
@@ -38,12 +42,12 @@ public static class ProcessedDocumentSchema
         ["agency"] = typeof(string),
         ["accusedSex"] = typeof(string),
         ["accusedName"] = typeof(string),
-        ["accusedDatefBirth"] = typeof(string),
+        ["accusedDateOfBirth"] = typeof(DateOnly),
         ["mainCharge"] = typeof(string),
-        ["signedOn"] = typeof(string),
+        ["signedOn"] = typeof(DateOnly),
         ["judgeSignature"] = typeof(bool),
         ["endorsementSignature"] = typeof(bool),
-        ["endorsementSignedOn"] = typeof(string),
+        ["endorsementSignedOn"] = typeof(DateOnly),
         ["additionalCharges"] = typeof(string),
     };
 
@@ -56,4 +60,19 @@ public static class ProcessedDocumentSchema
         "mainCharge",
         "additionalCharges",
     };
+
+    /// <summary>
+    /// Fields whose OCR text is parsed into a <see cref="DateOnly"/> value
+    /// per FR-002a. Convenience accessor; equivalent to filtering
+    /// <see cref="FieldTypes"/> by <c>typeof(DateOnly)</c>.
+    /// </summary>
+    public static IReadOnlySet<string> DateFields { get; } = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "accusedDateOfBirth",
+        "signedOn",
+        "endorsementSignedOn",
+    };
+
+    /// <summary>True when the field is one of the three date fields.</summary>
+    public static bool IsDateField(string fieldName) => DateFields.Contains(fieldName);
 }

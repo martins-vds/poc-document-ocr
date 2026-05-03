@@ -1,4 +1,5 @@
 using DocumentOcr.Common.Models;
+using DocumentOcr.Common.Services;
 using DocumentOcr.Processor.Models;
 using Microsoft.Extensions.Logging;
 
@@ -114,6 +115,10 @@ public class DocumentSchemaMapperService : IDocumentSchemaMapperService
             {
                 schema[fieldName] = MergeSignatureField(contributions);
             }
+            else if (expectedType == typeof(DateOnly))
+            {
+                schema[fieldName] = MergeDateField(contributions);
+            }
             else if (ProcessedDocumentSchema.MultiValueFields.Contains(fieldName))
             {
                 schema[fieldName] = MergeConcatenatedField(contributions);
@@ -179,6 +184,36 @@ public class DocumentSchemaMapperService : IDocumentSchemaMapperService
             .OrderByDescending(c => c.Confidence ?? double.MinValue)
             .First();
         return SchemaField.CreateInitial(best.RawValue?.ToString(), best.Confidence);
+    }
+
+    /// <summary>
+    /// Date field merge (FR-002a): pick the highest-confidence page (same
+    /// rule as <see cref="MergeHighestConfidenceField"/>), then attempt to
+    /// parse the raw OCR text via <see cref="DateFieldParser"/>. On success
+    /// <c>OcrValue</c> is the ISO <c>yyyy-MM-dd</c> string; on failure it
+    /// is <c>null</c>. The original raw text is always preserved in
+    /// <c>OcrRawText</c> so the reviewer can see what was OCR'd.
+    /// </summary>
+    private SchemaField MergeDateField(List<FieldContribution> contributions)
+    {
+        var best = contributions
+            .OrderByDescending(c => c.Confidence ?? double.MinValue)
+            .First();
+        var raw = best.RawValue?.ToString();
+
+        if (DateFieldParser.TryParse(raw, out var parsed))
+        {
+            return SchemaField.CreateInitial(parsed.ToString("yyyy-MM-dd"), best.Confidence, raw);
+        }
+
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            _logger.LogWarning(
+                "Date field on page {Page} could not be parsed (raw='{Raw}'); persisting null OcrValue with raw text fallback.",
+                best.PageNumber, raw);
+        }
+
+        return SchemaField.CreateInitial(null, best.Confidence, raw);
     }
 
     private SchemaField MergeConcatenatedField(List<FieldContribution> contributions)

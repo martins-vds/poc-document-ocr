@@ -120,7 +120,17 @@ else
                                 Reviewed by @field.ReviewedBy at @field.ReviewedAt.Value.ToString("yyyy-MM-dd HH:mm")
                             </div>
                         }
-                        <div class="ocr-value">@(field.OcrValue?.ToString() ?? "(none)")</div>
+                        <div class="ocr-value">
+                            @if (ReviewUiHelpers.IsDateField(fieldName))
+                            {
+                                var disp = ReviewUiHelpers.GetDateOcrDisplay(field);
+                                @(string.IsNullOrEmpty(disp) ? "(none)" : disp)
+                            }
+                            else
+                            {
+                                @(field.OcrValue?.ToString() ?? "(none)")
+                            }
+                        </div>
                         <div class="reviewed-value">@(string.IsNullOrEmpty(reviewedDisplay) ? "no review yet" : reviewedDisplay)
                         </div>
                         @if (CanEdit)
@@ -133,6 +143,12 @@ else
                                     <option value="False">False</option>
                                 </select>
                             }
+                            else if (ReviewUiHelpers.IsDateField(fieldName))
+                            {
+                                <input type="date" class="form-control form-control-sm mb-2" value="@localValue"
+                                       max="@ReviewUiHelpers.TodayIsoUtc()"
+                                       @oninput="e => SetEdit(fieldName, e.Value?.ToString())" />
+                            }
                             else
                             {
                                 <input class="form-control form-control-sm mb-2" value="@localValue"
@@ -140,7 +156,7 @@ else
                             }
                             <div class="field-actions">
                                 <button class="btn btn-sm btn-outline-success" @onclick="() => MarkConfirmed(fieldName)"
-                                        disabled="@saving">Confirm</button>
+                                        disabled="@(saving || (ReviewUiHelpers.IsDateField(fieldName) && field.OcrValue is null))">Confirm</button>
                                 <button class="btn btn-sm btn-outline-warning" @onclick="() => MarkCorrected(fieldName)"
                                         disabled="@saving">Correct</button>
                                 @if (saving)

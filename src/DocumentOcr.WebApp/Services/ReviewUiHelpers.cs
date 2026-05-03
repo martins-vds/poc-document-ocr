@@ -152,6 +152,34 @@ public static class ReviewUiHelpers
     }
 
     /// <summary>
+    /// True when the schema field is one of the three date fields. Drives
+    /// whether the editor renders an <c>&lt;input type="date"&gt;</c>.
+    /// </summary>
+    public static bool IsDateField(string fieldName) => ProcessedDocumentSchema.IsDateField(fieldName);
+
+    /// <summary>
+    /// Today's date in UTC, formatted as <c>yyyy-MM-dd</c>. Used as the
+    /// <c>max</c> attribute on date inputs to enforce "present or past
+    /// only" client-side; server-side validation is in
+    /// <c>DocumentReviewService</c>.
+    /// </summary>
+    public static string TodayIsoUtc() => DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+
+    /// <summary>
+    /// Display string for a date field's OCR result. Returns the parsed
+    /// ISO date when available, otherwise the raw OCR text annotated as
+    /// unparsed, otherwise empty.
+    /// </summary>
+    public static string GetDateOcrDisplay(SchemaField? field)
+    {
+        if (field is null) return string.Empty;
+        var iso = field.OcrValue?.ToString();
+        if (!string.IsNullOrEmpty(iso)) return iso;
+        if (!string.IsNullOrEmpty(field.OcrRawText)) return $"(unparsed) {field.OcrRawText}";
+        return string.Empty;
+    }
+
+    /// <summary>
     /// Render the page-range expression for human consumption.
     /// Empty/null is the "all pages" sentinel (feature 002). Used by the
     /// Operations page and the Review metadata panel so the rule lives in

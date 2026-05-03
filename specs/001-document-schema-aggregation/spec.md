@@ -145,13 +145,20 @@ A reviewer takes exclusive ownership of a record by checking it out, makes any n
   - `agency` (string)
   - `accusedSex` (string)
   - `accusedName` (string)
-  - `accusedDatefBirth` (string) *— field name preserved exactly as provided by the user, including the typo, for parity with upstream OCR labels*
+  - `accusedDateOfBirth` (DateOnly) *— renamed 2026-05-03 to fix the original typo (`accusedDatefBirth`); the upstream Document Intelligence model emits this field as `accusedDateOfBirth` so no mapper alias is required. Persisted as ISO `yyyy-MM-dd` string when the OCR text matches one of the supported patterns, otherwise `null` with the raw OCR text preserved in the sibling `ocrRawText` property (FR-002a).*
   - `mainCharge` (string, concatenated across pages)
-  - `signedOn` (string)
+  - `signedOn` (DateOnly — see FR-002a)
   - `judgeSignature` (boolean)
   - `endorsementSignature` (boolean)
-  - `endorsementSignedOn` (string)
+  - `endorsementSignedOn` (DateOnly — see FR-002a)
   - `additionalCharges` (string, concatenated across pages)
+- **FR-002a**: For the three date fields (`accusedDateOfBirth`, `signedOn`, `endorsementSignedOn`), the page-level OCR text MUST be parsed by a deterministic two-pattern parser:
+
+  1. `^\s*(?<YEAR>\d{4})(?<MON>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(?<DAY>\d{1,2})\s*$` (case-insensitive)
+  2. `^\s*(?<DAY>\d{1,2})\s*(?:ST|ND|RD|TH)?\s*DAY\s*OF\s*(?<MONTH>JANUARY|...|DECEMBER)\s*,?\s*(?<YEAR>\d{4})\s*$` (case-insensitive)
+
+  When the highest-confidence page's text matches either pattern AND the resulting year/month/day is a valid calendar date, the persisted `ocrValue` MUST be the ISO `yyyy-MM-dd` string and the original raw OCR text MUST be persisted to `ocrRawText`. When the text fails to parse OR yields a calendar-invalid date, the persisted `ocrValue` MUST be `null`, the raw OCR text MUST still be persisted to `ocrRawText`, and the system MUST log a warning at information level. Reviewer-supplied date corrections MUST be valid ISO `yyyy-MM-dd` strings AND MUST NOT be in the future (UTC `today` inclusive); violations MUST be rejected before persistence. The Review UI MUST render an HTML `<input type="date">` (with a client-side `max=today`) for these fields, with the raw OCR text shown as the OCR display when parsing failed.
+
 - **FR-003**: The persisted record MUST NOT contain a per-page `pageNumber` field; the page count MUST be exposed as `pageCount` only.
 - **FR-004**: For single-value string fields, the system MUST select the canonical value as follows: (a) consider only pages where the field is present and non-empty; (b) pick the value from the page with the highest Document Intelligence confidence score for that field; (c) break ties by lowest page number; (d) if no page reports a confidence score, fall back to the first non-empty occurrence in page order.
 - **FR-005**: For `mainCharge` and `additionalCharges`, the system MUST concatenate `ocrValue` from all pages where the field is present and non-empty, in ascending page order, separated by a single newline (`\n`). The aggregated `ocrConfidence` for the concatenated field MUST be the **minimum** of the per-page confidence scores among the contributing pages; if no contributing page reports a confidence score, the aggregated `ocrConfidence` MUST be `null`.
@@ -225,7 +232,7 @@ A reviewer takes exclusive ownership of a record by checking it out, makes any n
 ## Assumptions
 
 - The aggregation identifier remains `fileTkNumber` (per the sample OCR data and the existing `DocumentProcessing:IdentifierFieldName` configuration). If a different field is required, it can be changed via configuration without re-specifying the feature.
-- Field names in the user's schema are reproduced verbatim, including `accusedDatefBirth` (apparent typo of "DateOfBirth"). Renaming would be a separate, breaking change requiring downstream coordination.
+- Field names in the user's schema are reproduced verbatim with one fix: `accusedDatefBirth` was the user's typo and was corrected to `accusedDateOfBirth` on 2026-05-03 after confirming the upstream Document Intelligence model emits the corrected name. The three date fields (`accusedDateOfBirth`, `signedOn`, `endorsementSignedOn`) were retyped from `string` to `DateOnly` at the same time.
 - The default concatenation separator for `mainCharge` and `additionalCharges` is a single newline (`\n`). A different separator (space, semicolon, custom) can be introduced later without changing the persisted shape.
 - `reviewedBy` stores the authenticated user principal supplied by the WebApp's existing Microsoft Entra ID integration (e.g., the user's UPN or object ID). The exact identifier shape is a planning-time decision.
 - The WebApp's existing record-level review-status / assignment fields (`assignedTo`, `reviewedBy`, `reviewedAt` on the document) are superseded for purposes of per-field tracking by the new `SchemaField` properties; the record-level fields remain for backward-compatible UI labels ("who last touched this record") but MUST be derived from the per-field state on save.

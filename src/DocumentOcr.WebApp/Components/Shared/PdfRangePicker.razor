@@ -14,7 +14,7 @@
     Emits OnEntryChanged whenever Selection / RangeError / TotalPages changes.
 *@
 
-<div class="pdf-range-picker border rounded p-2 mb-2">
+<div class="pdf-range-picker border rounded p-3 mb-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <span class="fw-bold text-truncate" title="@Entry.File.Name">
             <i class="bi bi-file-earmark-pdf text-danger"></i> @Entry.File.Name
@@ -29,47 +29,51 @@
         </div>
     }
 
-    <div class="row g-2 align-items-start">
-        <div class="col-md-5">
-            <div class="pdf-preview-wrapper border bg-light rounded p-1" style="min-height: 200px;">
-                <canvas @ref="canvasRef" style="width:100%; display:block;"></canvas>
+    <div class="row g-3 align-items-stretch">
+        <div class="col-lg-9">
+            <div class="pdf-preview-wrapper border bg-light rounded d-flex justify-content-center align-items-start p-2"
+                 style="min-height: 600px; max-height: 80vh; overflow: auto;">
+                <canvas @ref="canvasRef"
+                        style="max-width:100%; height:auto; display:block; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"></canvas>
             </div>
             @if (Entry.TotalPages is { } total && total > 0)
             {
-                <div class="d-flex justify-content-between align-items-center mt-1">
+                <div class="d-flex justify-content-center align-items-center gap-3 mt-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PrevPage"
                             disabled="@(currentPage <= 1 || isRendering)">
-                        <i class="bi bi-chevron-left"></i>
+                        <i class="bi bi-chevron-left"></i> Previous
                     </button>
-                    <small class="text-muted">Page @currentPage of @total</small>
+                    <span class="text-muted small">Page @currentPage of @total</span>
                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPage"
                             disabled="@(currentPage >= total || isRendering)">
-                        <i class="bi bi-chevron-right"></i>
+                        Next <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             }
         </div>
 
-        <div class="col-md-7">
-            <label class="form-label small mb-1">
-                Page range
-                <span class="text-muted">(blank = all pages, e.g. <code>3-12, 15</code>)</span>
-            </label>
-            <input type="text" class="form-control form-control-sm @(Entry.RangeError is not null ? "is-invalid" : "")"
-                   value="@Entry.RangeExpression" @oninput="OnRangeChanged" placeholder="all pages"
-                   disabled="@(Entry.TotalPages is null)" />
-            @if (Entry.RangeError is not null)
-            {
-                <small class="text-danger d-block mt-1 range-picker-error">@Entry.RangeError</small>
-            }
-            else if (Entry.TotalPages is not null)
-            {
-                <small class="text-muted d-block mt-1 range-picker-summary">@Summary</small>
-            }
-            else
-            {
-                <small class="text-muted d-block mt-1 range-picker-summary">Loading preview…</small>
-            }
+        <div class="col-lg-3">
+            <div class="d-flex flex-column h-100">
+                <label class="form-label fw-bold mb-1">Page range</label>
+                <small class="text-muted mb-2">
+                    Blank = all pages. Examples: <code>5</code>, <code>3-12</code>, <code>3-12, 15</code>
+                </small>
+                <input type="text" class="form-control @(Entry.RangeError is not null ? "is-invalid" : "")"
+                       value="@Entry.RangeExpression" @oninput="OnRangeChanged" placeholder="all pages"
+                       disabled="@(Entry.TotalPages is null)" />
+                @if (Entry.RangeError is not null)
+                {
+                    <small class="text-danger d-block mt-2 range-picker-error">@Entry.RangeError</small>
+                }
+                else if (Entry.TotalPages is not null)
+                {
+                    <small class="text-success d-block mt-2 range-picker-summary">@Summary</small>
+                }
+                else
+                {
+                    <small class="text-muted d-block mt-2 range-picker-summary">Loading preview…</small>
+                }
+            </div>
         </div>
     </div>
 </div>

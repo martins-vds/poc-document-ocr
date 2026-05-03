@@ -1,4 +1,6 @@
+using DocumentOcr.Common.Models;
 using DocumentOcr.Processor.Models;
+using Newtonsoft.Json;
 
 namespace DocumentOcr.Tests.Models;
 
@@ -81,5 +83,57 @@ public class OperationTests
 
         // Assert
         Assert.Equal(status, operation.Status);
+    }
+
+    [Fact]
+    public void Operation_DefaultPageSelection_IsNull()
+    {
+        Assert.Null(new Operation().PageSelection);
+    }
+
+    [Fact]
+    public void Operation_RoundTrip_NullPageSelection_StaysNull()
+    {
+        var op = new Operation { BlobName = "a.pdf", ContainerName = "c", PageSelection = null };
+
+        var json = JsonConvert.SerializeObject(op);
+        var restored = JsonConvert.DeserializeObject<Operation>(json)!;
+
+        Assert.Null(restored.PageSelection);
+        // NullValueHandling.Ignore on Operation.PageSelection: legacy documents
+        // (no "pageSelection" property at all) must still deserialize cleanly.
+        Assert.DoesNotContain("\"pageSelection\"", json);
+    }
+
+    [Fact]
+    public void Operation_RoundTrip_ExplicitPageSelection_PreservesExpressionAndPages()
+    {
+        Assert.True(PageSelection.TryParse("3-12, 15", maxPage: null, out var sel, out _));
+        var op = new Operation
+        {
+            BlobName = "a.pdf",
+            ContainerName = "c",
+            PageSelection = sel,
+        };
+
+        var json = JsonConvert.SerializeObject(op);
+        var restored = JsonConvert.DeserializeObject<Operation>(json)!;
+
+        Assert.NotNull(restored.PageSelection);
+        Assert.Equal("3-12, 15", restored.PageSelection!.Expression);
+        Assert.Equal(11, restored.PageSelection.Pages.Count);
+        Assert.Equal(new[] { 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15 }, restored.PageSelection.Pages);
+        Assert.False(restored.PageSelection.IsAllPages);
+    }
+
+    [Fact]
+    public void Operation_LegacyJson_WithoutPageSelection_DeserializesWithNull()
+    {
+        // A document persisted before feature 002 lacks the property entirely.
+        var legacy = "{\"id\":\"abc\",\"blobName\":\"a.pdf\",\"containerName\":\"c\"}";
+
+        var restored = JsonConvert.DeserializeObject<Operation>(legacy)!;
+
+        Assert.Null(restored.PageSelection);
     }
 }

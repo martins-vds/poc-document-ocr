@@ -1,0 +1,260 @@
+@using DocumentOcr.Common.Models
+@using DocumentOcr.WebApp.Models
+@using DocumentOcr.WebApp.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*
+    PdfRangePicker (feature 002, US1+US2)
+    -------------------------------------
+    Loads the file via pdf.js in the browser, shows a previewable canvas,
+    and binds a print-dialog-style range textbox to PageSelection.TryParse.
+    Emits OnEntryChanged whenever Selection / RangeError / TotalPages changes.
+*@
+
+<div class="pdf-range-picker border rounded p-2 mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-bold text-truncate" title="@Entry.File.Name">
+            <i class="bi bi-file-earmark-pdf text-danger"></i> @Entry.File.Name
+        </span>
+        <span class="badge bg-secondary">@FormatFileSize(Entry.File.Size)</span>
+    </div>
+
+    @if (loadError is not null)
+    {
+        <div class="alert alert-warning py-1 mb-2">
+            <small><i class="bi bi-exclamation-triangle"></i> @loadError</small>
+        </div>
+    }
+
+    <div class="row g-2 align-items-start">
+        <div class="col-md-5">
+            <div class="pdf-preview-wrapper border bg-light rounded p-1" style="min-height: 200px;">
+                <canvas @ref="canvasRef" style="width:100%; display:block;"></canvas>
+            </div>
+            @if (Entry.TotalPages is { } total && total > 0)
+            {
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PrevPage"
+                            disabled="@(currentPage <= 1 || isRendering)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <small class="text-muted">Page @currentPage of @total</small>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPage"
+                            disabled="@(currentPage >= total || isRendering)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            }
+        </div>
+
+        <div class="col-md-7">
+            <label class="form-label small mb-1">
+                Page range
+                <span class="text-muted">(blank = all pages, e.g. <code>3-12, 15</code>)</span>
+            </label>
+            <input type="text" class="form-control form-control-sm @(Entry.RangeError is not null ? "is-invalid" : "")"
+                   value="@Entry.RangeExpression" @oninput="OnRangeChanged" placeholder="all pages"
+                   disabled="@(Entry.TotalPages is null)" />
+            @if (Entry.RangeError is not null)
+            {
+                <small class="text-danger d-block mt-1 range-picker-error">@Entry.RangeError</small>
+            }
+            else if (Entry.TotalPages is not null)
+            {
+                <small class="text-muted d-block mt-1 range-picker-summary">@Summary</small>
+            }
+            else
+            {
+                <small class="text-muted d-block mt-1 range-picker-summary">Loading preview…</small>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public UploadFileEntry Entry { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<UploadFileEntry> OnEntryChanged { get; set; }
+
+    [Parameter]
+    public long MaxFileSize { get; set; } = 50 * 1024 * 1024;
+
+    private const long PreviewByteLimit = 50 * 1024 * 1024;
+
+    private ElementReference canvasRef;
+    private IJSObjectReference? module;
+    private int rendererId;
+    private int currentPage = 1;
+    private bool isRendering;
+    private string? loadError;
+    private bool initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || initialized) return;
+        initialized = true;
+
+        try
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "/lib/pdfjs/range-picker.js");
+
+            using var ms = new MemoryStream();
+            await using (var stream = Entry.File.OpenReadStream(PreviewByteLimit))
+            {
+                await stream.CopyToAsync(ms);
+            }
+            var bytes = ms.ToArray();
+
+            var result = await module.InvokeAsync<LoadResult>("loadDocument", bytes);
+            if (result.NumPages <= 0 || result.RendererId <= 0)
+            {
+                loadError = result.Error ?? "This file does not appear to be a valid PDF.";
+                Entry.TotalPages = null;
+                Entry.RangeError = loadError;
+                await OnEntryChanged.InvokeAsync(Entry);
+                StateHasChanged();
+                return;
+            }
+
+            rendererId = result.RendererId;
+            Entry.TotalPages = result.NumPages;
+            Recompute();
+            await OnEntryChanged.InvokeAsync(Entry);
+            await RenderCurrentPage();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Unable to preview PDF: {ex.Message}";
+            Entry.RangeError = loadError;
+            await OnEntryChanged.InvokeAsync(Entry);
+            StateHasChanged();
+        }
+    }
+
+    private async Task RenderCurrentPage()
+    {
+        if (module is null || rendererId <= 0) return;
+        try
+        {
+            isRendering = true;
+            await module.InvokeVoidAsync("renderPage", rendererId, currentPage, canvasRef);
+        }
+        finally
+        {
+            isRendering = false;
+        }
+    }
+
+    private async Task PrevPage()
+    {
+        if (currentPage > 1) { currentPage--; await RenderCurrentPage(); }
+    }
+
+    private async Task NextPage()
+    {
+        if (Entry.TotalPages is { } total && currentPage < total)
+        {
+            currentPage++;
+            await RenderCurrentPage();
+        }
+    }
+
+    private async Task OnRangeChanged(ChangeEventArgs e)
+    {
+        Entry.RangeExpression = e.Value?.ToString() ?? string.Empty;
+        Recompute();
+        await OnEntryChanged.InvokeAsync(Entry);
+    }
+
+    public async Task Set(string expression)
+    {
+        Entry.RangeExpression = expression ?? string.Empty;
+        Recompute();
+        await OnEntryChanged.InvokeAsync(Entry);
+        StateHasChanged();
+    }
+
+    private void Recompute()
+    {
+        if (PageSelection.TryParse(Entry.RangeExpression, Entry.TotalPages, out var sel, out var err))
+        {
+            Entry.Selection = sel;
+            Entry.RangeError = null;
+        }
+        else
+        {
+            Entry.Selection = null;
+            Entry.RangeError = err;
+        }
+    }
+
+    private string Summary
+    {
+        get
+        {
+            if (Entry.Selection is null) return string.Empty;
+            if (Entry.Selection.IsAllPages)
+            {
+                return Entry.TotalPages is { } total
+                    ? $"All pages ({total})"
+                    : "All pages";
+            }
+            return $"{Entry.Selection.Pages.Count} pages selected: {FormatRanges(Entry.Selection.Pages)}";
+        }
+    }
+
+    /// <summary>Re-collapse a sorted, deduped page list back to "N–M, P" notation for display.</summary>
+    private static string FormatRanges(IReadOnlyList<int> pages)
+    {
+        if (pages.Count == 0) return string.Empty;
+        var parts = new List<string>();
+        int start = pages[0], prev = pages[0];
+        for (int i = 1; i < pages.Count; i++)
+        {
+            if (pages[i] == prev + 1) { prev = pages[i]; continue; }
+            parts.Add(start == prev ? $"{start}" : $"{start}\u2013{prev}");
+            start = prev = pages[i];
+        }
+        parts.Add(start == prev ? $"{start}" : $"{start}\u2013{prev}");
+        return string.Join(", ", parts);
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1) { order++; len /= 1024; }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try
+            {
+                if (rendererId > 0)
+                {
+                    await module.InvokeVoidAsync("dispose", rendererId);
+                }
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { /* ignore */ }
+            catch (Exception) { /* swallow on teardown */ }
+        }
+    }
+
+    public sealed class LoadResult
+    {
+        public int RendererId { get; set; }
+        public int NumPages { get; set; }
+        public string? Error { get; set; }
+    }
+}

@@ -55,6 +55,17 @@ Once every field is non-`Pending`, the record-level `ReviewStatus`
 flips to `Reviewed` and the first-reviewer UPN + timestamp are stamped
 immutably (FR-017 / FR-018).
 
+### Page-range metadata (feature 002-upload-page-range-selection)
+
+The Review header now includes a **`Page range`** field next to the page count and review-status badge. It mirrors the `pageRange` returned by `GET /api/operations/{id}` for the operation that produced the document:
+
+- `All pages` when the operation processed every page (back-compat with operations that pre-date this feature, including those persisted with `PageSelection = null`).
+- The exact expression the user typed otherwise (e.g. `3-12, 15`).
+
+The expression is fetched lazily from the Operations API in `Review.razor` `OnInitializedAsync` using the new `OperationId` link on `DocumentOcrEntity`. If the operation can no longer be fetched, the field falls back to `All pages` rather than failing the page render.
+
+Document-local page citations (the `Page X` anchors used by the in-page PDF viewer) remain `1..N` regardless of which original PDF pages were processed (FR-011). This means the existing page-jump links in [`ReviewUiHelpers.GetPdfUrl`](../src/DocumentOcr.WebApp/Services/ReviewUiHelpers.cs) need no change.
+
 ---
 
 ## Legacy (pre-001-document-schema-aggregation)

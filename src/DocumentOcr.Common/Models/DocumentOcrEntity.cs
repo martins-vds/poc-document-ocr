@@ -16,6 +16,15 @@ public class DocumentOcrEntity
     [JsonProperty("identifier")]
     public string Identifier { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Originating operation identifier so the Review page can resolve the
+    /// operation's <c>PageRange</c> and other metadata (feature 002, US3).
+    /// Nullable for backward compatibility with documents persisted before
+    /// this field existed.
+    /// </summary>
+    [JsonProperty("operationId")]
+    public string? OperationId { get; set; }
+
     [JsonProperty("originalFileName")]
     public string OriginalFileName { get; set; } = string.Empty;
 

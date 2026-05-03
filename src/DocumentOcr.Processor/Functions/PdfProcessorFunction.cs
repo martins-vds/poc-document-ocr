@@ -105,48 +105,21 @@ public class PdfProcessorFunction
             var imageStreams = await _pdfToImageService.ConvertPdfPagesToImagesAsync(pdfStream);
             _logger.LogInformation("Converted {PageCount} pages to images", imageStreams.Count);
 
-            // Update operation with total count
-            operation.TotalDocuments = imageStreams.Count;
-            await _operationService.UpdateOperationAsync(operation);
-
-            // Step 3: Submit each image for OCR analysis in batch
-            _logger.LogInformation("Step 3: Submitting images for OCR analysis");
-            var pageResults = new List<PageOcrResult>();
-
-            for (int i = 0; i < imageStreams.Count; i++)
+            // Step 3: Submit each (selected) image for OCR analysis.
+            // Per feature 002, the page-loop is restricted to message.PageRange (default = all pages).
+            _logger.LogInformation("Step 3: Submitting images for OCR analysis (PageRange='{PageRange}')", message.PageRange ?? "<all>");
+            var pageResults = await RunOcrLoopAsync(imageStreams, message.PageRange, operation);
+            if (pageResults is null)
             {
-                // Check for cancellation before processing each page
-                var currentOp = await _operationService.GetOperationAsync(operation.Id);
-                if (currentOp?.CancelRequested == true)
-                {
-                    _logger.LogInformation("Operation {OperationId} cancelled during processing", operation.Id);
-                    operation.Status = OperationStatus.Cancelled;
-                    operation.CompletedAt = DateTime.UtcNow;
-                    await _operationService.UpdateOperationAsync(operation);
-
-                    // Clean up image streams
-                    foreach (var pageResult in pageResults)
-                    {
-                        pageResult.ImageStream.Dispose();
-                    }
-                    return;
-                }
-
-                var pageNumber = i + 1;
-                var imageStream = imageStreams[i];
-
-                _logger.LogInformation("Analyzing page {PageNumber} of {Total}", pageNumber, imageStreams.Count);
-                var extractedData = await _documentIntelligenceService.AnalyzeDocumentAsync(imageStream);
-
-                pageResults.Add(new PageOcrResult
-                {
-                    PageNumber = pageNumber,
-                    ImageStream = imageStream,
-                    ExtractedData = extractedData
-                });
+                // Operation already marked Failed or Cancelled by the helper.
+                return;
             }
 
-            _logger.LogInformation("OCR analysis completed for all {PageCount} pages", pageResults.Count);
+            // Update operation with selected-page count.
+            operation.TotalDocuments = pageResults.Count;
+            await _operationService.UpdateOperationAsync(operation);
+
+            _logger.LogInformation("OCR analysis completed for {PageCount} selected page(s)", pageResults.Count);
 
             // Step 4: Aggregate results by identifier property
             _logger.LogInformation("Step 4: Aggregating pages by identifier field: {IdentifierFieldName}", _identifierFieldName);
@@ -221,6 +194,7 @@ public class PdfProcessorFunction
                     message.BlobName,
                     blobUrl,
                     outputBlobName);
+                cosmosEntity.OperationId = operation.Id;
 
                 await _cosmosDbService.CreateDocumentAsync(cosmosEntity);
 
@@ -300,6 +274,85 @@ public class PdfProcessorFunction
             operationId, aggregatedDoc.Identifier, existing.Id);
         processingResult.SkippedDuplicateIdentifiers.Add(aggregatedDoc.Identifier);
         return true;
+    }
+
+    /// <summary>
+    /// Per feature 002 (FR-009 / FR-011 / SC-006): restricts the OCR page loop to the
+    /// pages selected by <paramref name="pageRange"/>. Disposes streams for excluded
+    /// pages up front; addresses the existing <paramref name="imageStreams"/> list
+    /// by <c>selectedPage - 1</c> (no re-decode). The per-page <c>PageNumber</c>
+    /// assigned to each <see cref="PageOcrResult"/> is the document-local index
+    /// (1..N) within the selected subset, NOT the original PDF page number, so
+    /// downstream provenance and citations remain document-local.
+    ///
+    /// Returns <c>null</c> when the operation was marked <c>Failed</c> (parse/bounds
+    /// error) or <c>Cancelled</c> (user requested cancellation mid-loop). The caller
+    /// must short-circuit in that case; the helper has already updated the operation.
+    /// </summary>
+    internal async Task<List<PageOcrResult>?> RunOcrLoopAsync(
+        IReadOnlyList<Stream> imageStreams,
+        string? pageRange,
+        Operation operation)
+    {
+        if (!PageSelection.TryParse(pageRange, maxPage: imageStreams.Count, out var selection, out var parseError))
+        {
+            foreach (var s in imageStreams) s.Dispose();
+            operation.Status = OperationStatus.Failed;
+            operation.CompletedAt = DateTime.UtcNow;
+            operation.Error = parseError;
+            await _operationService.UpdateOperationAsync(operation);
+            _logger.LogError("PageRange '{PageRange}' rejected for operation {OperationId}: {Error}", pageRange, operation.Id, parseError);
+            return null;
+        }
+
+        var selectedPages = selection.Resolve(imageStreams.Count);
+        var selectedSet = new HashSet<int>(selectedPages);
+
+        // Dispose streams for excluded pages immediately.
+        for (int i = 0; i < imageStreams.Count; i++)
+        {
+            if (!selectedSet.Contains(i + 1))
+            {
+                imageStreams[i].Dispose();
+            }
+        }
+
+        var pageResults = new List<PageOcrResult>(selectedPages.Count);
+        for (int i = 0; i < selectedPages.Count; i++)
+        {
+            var currentOp = await _operationService.GetOperationAsync(operation.Id);
+            if (currentOp?.CancelRequested == true)
+            {
+                _logger.LogInformation("Operation {OperationId} cancelled during processing", operation.Id);
+                operation.Status = OperationStatus.Cancelled;
+                operation.CompletedAt = DateTime.UtcNow;
+                await _operationService.UpdateOperationAsync(operation);
+
+                foreach (var pr in pageResults) pr.ImageStream.Dispose();
+                // Also dispose any not-yet-processed selected streams.
+                for (int j = i; j < selectedPages.Count; j++)
+                {
+                    imageStreams[selectedPages[j] - 1].Dispose();
+                }
+                return null;
+            }
+
+            var pageNumber = i + 1; // FR-011: document-local 1..N, NOT the original PDF page number.
+            var imageStream = imageStreams[selectedPages[i] - 1];
+
+            _logger.LogInformation(
+                "Analyzing page {PageNumber} of {Total} (source PDF page {SourcePage})",
+                pageNumber, selectedPages.Count, selectedPages[i]);
+            var extractedData = await _documentIntelligenceService.AnalyzeDocumentAsync(imageStream);
+
+            pageResults.Add(new PageOcrResult
+            {
+                PageNumber = pageNumber,
+                ImageStream = imageStream,
+                ExtractedData = extractedData,
+            });
+        }
+        return pageResults;
     }
 }
 

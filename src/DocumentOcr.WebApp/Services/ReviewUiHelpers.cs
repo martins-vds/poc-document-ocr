@@ -150,4 +150,13 @@ public static class ReviewUiHelpers
         return ProcessedDocumentSchema.FieldTypes.TryGetValue(fieldName, out var t)
                && t == typeof(bool);
     }
+
+    /// <summary>
+    /// Render the page-range expression for human consumption.
+    /// Empty/null is the "all pages" sentinel (feature 002). Used by the
+    /// Operations page and the Review metadata panel so the rule lives in
+    /// one place.
+    /// </summary>
+    public static string FormatPageRange(string? pageRange)
+        => string.IsNullOrWhiteSpace(pageRange) ? "All pages" : pageRange;
 }

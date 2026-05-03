@@ -53,118 +53,121 @@
                 Refresh
             </button>
             <div class="form-check form-switch ms-3">
-                <input class="form-check-input" type="checkbox" id="autoRefresh" @bind="autoRefresh" @bind:after="OnAutoRefreshChanged">
-                <label class="form-check-label" for="autoRefresh">Auto-refresh (every 10s)</label>
+                <input class="form-check-input" type="checkbox" id="autoRefresh" @bind="autoRefresh"
+                       @bind:after="OnAutoRefreshChanged">
+                    <label class="form-check-label" for="autoRefresh">Auto-refresh (every 10s)</label>
+                </div>
             </div>
         </div>
-    </div>
 
-    @if (isLoading && operations.Count == 0)
-    {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+        @if (isLoading && operations.Count == 0)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading operations...</p>
             </div>
-            <p class="mt-2">Loading operations...</p>
-        </div>
-    }
-    else if (operations.Count == 0)
-    {
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> No operations found.
-        </div>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Operation ID</th>
-                        <th>Status</th>
-                        <th>File</th>
-                        <th>Progress</th>
-                        <th>Created</th>
-                        <th>Duration</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var operation in operations.OrderByDescending(o => o.CreatedAt))
-                    {
+        }
+        else if (operations.Count == 0)
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No operations found.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
                         <tr>
-                            <td>
-                                <code class="small">@operation.OperationId.Substring(0, Math.Min(8, operation.OperationId.Length))</code>
-                            </td>
-                            <td>
-                                <span class="badge @GetStatusBadgeClass(operation.Status)">
-                                    @operation.Status
-                                </span>
-                                @if (operation.CancelRequested && operation.Status == "Running")
-                                {
-                                    <span class="badge bg-warning text-dark ms-1">Cancelling...</span>
-                                }
-                            </td>
-                            <td>
-                                <div class="small">@operation.BlobName</div>
-                                <div class="text-muted" style="font-size: 0.8rem;">@operation.ContainerName</div>
-                            </td>
-                            <td>
-                                @if (operation.Status == "Running" || operation.Status == "Succeeded")
-                                {
-                                    <div class="progress" style="min-width: 150px;">
-                                        <div class="progress-bar @GetProgressBarClass(operation.Status)" 
-                                             role="progressbar" 
-                                             style="width: @GetProgressPercentage(operation)%"
-                                             aria-valuenow="@operation.ProcessedDocuments" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="@operation.TotalDocuments">
-                                            @operation.ProcessedDocuments / @operation.TotalDocuments
-                                        </div>
-                                    </div>
-                                }
-                                else if (!string.IsNullOrEmpty(operation.Error))
-                                {
-                                    <span class="text-danger small" title="@operation.Error">
-                                        <i class="bi bi-exclamation-triangle"></i> Error
-                                    </span>
-                                }
-                            </td>
-                            <td>
-                                <small>@operation.CreatedAt.ToLocalTime().ToString("g")</small>
-                            </td>
-                            <td>
-                                <small>@GetDuration(operation)</small>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    @if (operation.Status == "Running" || operation.Status == "NotStarted")
-                                    {
-                                        <button class="btn btn-outline-warning" 
-                                                @onclick="() => CancelOperationAsync(operation.OperationId)"
-                                                disabled="@(isLoading || operation.CancelRequested)"
-                                                title="Cancel">
-                                            <i class="bi bi-x-circle"></i>
-                                        </button>
-                                    }
-                                    @if (operation.Status == "Failed" || operation.Status == "Cancelled" || operation.Status == "Succeeded")
-                                    {
-                                        <button class="btn btn-outline-primary" 
-                                                @onclick="() => RetryOperationAsync(operation.OperationId)"
-                                                disabled="@isLoading"
-                                                title="Retry">
-                                            <i class="bi bi-arrow-clockwise"></i>
-                                        </button>
-                                    }
-                                </div>
-                            </td>
+                            <th>Operation ID</th>
+                            <th>Status</th>
+                            <th>File</th>
+                            <th>Page range</th>
+                            <th>Progress</th>
+                            <th>Created</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-</div>
+                    </thead>
+                    <tbody>
+                        @foreach (var operation in operations.OrderByDescending(o => o.CreatedAt))
+                        {
+                            <tr>
+                                <td>
+                                    <code
+                                    class="small">@operation.OperationId.Substring(0, Math.Min(8, operation.OperationId.Length))</code>
+                                </td>
+                                <td>
+                                    <span class="badge @GetStatusBadgeClass(operation.Status)">
+                                        @operation.Status
+                                    </span>
+                                    @if (operation.CancelRequested && operation.Status == "Running")
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">Cancelling...</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="small">@operation.BlobName</div>
+                                    <div class="text-muted" style="font-size: 0.8rem;">@operation.ContainerName</div>
+                                </td>
+                                <td>
+                                    <small class="text-muted">@ReviewUiHelpers.FormatPageRange(operation.PageRange)</small>
+                                </td>
+                                <td>
+                                    @if (operation.Status == "Running" || operation.Status == "Succeeded")
+                                    {
+                                        <div class="progress" style="min-width: 150px;">
+                                            <div class="progress-bar @GetProgressBarClass(operation.Status)" role="progressbar"
+                                                 style="width: @GetProgressPercentage(operation)%"
+                                                 aria-valuenow="@operation.ProcessedDocuments" aria-valuemin="0"
+                                                 aria-valuemax="@operation.TotalDocuments">
+                                                @operation.ProcessedDocuments / @operation.TotalDocuments
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (!string.IsNullOrEmpty(operation.Error))
+                                    {
+                                        <span class="text-danger small" title="@operation.Error">
+                                            <i class="bi bi-exclamation-triangle"></i> Error
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <small>@operation.CreatedAt.ToLocalTime().ToString("g")</small>
+                                </td>
+                                <td>
+                                    <small>@GetDuration(operation)</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        @if (operation.Status == "Running" || operation.Status == "NotStarted")
+                                        {
+                                            <button class="btn btn-outline-warning"
+                                                    @onclick="() => CancelOperationAsync(operation.OperationId)"
+                                                    disabled="@(isLoading || operation.CancelRequested)" title="Cancel">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        }
+                                        @if (operation.Status == "Failed" || operation.Status == "Cancelled" || operation.Status ==
+                                                                    "Succeeded")
+                                        {
+                                            <button class="btn btn-outline-primary"
+                                                    @onclick="() => RetryOperationAsync(operation.OperationId)" disabled="@isLoading"
+                                                    title="Retry">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 
 @code {
     private List<OperationDto> operations = new();

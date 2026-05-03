@@ -27,7 +27,7 @@ The file upload feature allows you to submit PDF documents for OCR processing di
 2. Click "Choose PDF files to upload (up to 10)" and select one or more PDF documents
    - Maximum 10 files per upload session
    - Each file can be up to 50 MB
-3. Review the selected files in the list (showing file name and size)
+3. Each selected file shows an in-page preview rendered by [pdf.js](https://mozilla.github.io/pdf.js/) and a **Page range** input. See "Selecting which pages to process" below.
 4. Click "Upload and Start Extraction"
 5. Each file will be uploaded to blob storage sequentially
 6. A separate extraction operation will start for each file
@@ -41,7 +41,28 @@ The file upload feature allows you to submit PDF documents for OCR processing di
 - All operations can be monitored in parallel on the Operations page
 - Failed uploads are shown with error messages while successful uploads continue
 
-**Identifier Field:**
+### Selecting which pages to process
+
+Each previewed PDF on the Upload page exposes a **Page range** textbox using the same print-dialog grammar most users already know:
+
+| Input      | Meaning                                             |
+| ---------- | --------------------------------------------------- |
+| _(blank)_  | All pages (default)                                 |
+| `5`        | Page 5 only                                         |
+| `3-12`     | Pages 3 through 12 (inclusive)                      |
+| `3-12, 15` | Pages 3-12 plus page 15                             |
+| `   `      | Whitespace is treated the same as blank — all pages |
+
+Validation runs on every keystroke against the file's actual page count (resolved by the in-browser pdf.js probe). The picker shows either an inline error (`is-invalid`) or a normalized summary like `11 pages selected: 3–12, 15`. The Submit button stays disabled until every selected file has a valid range.
+
+When uploading more than one file, an **"Apply first file's range to all"** link appears above the list so a single expression can be propagated. Each file is then re-validated against its own page count, so an out-of-bounds expression is highlighted file by file.
+
+A file whose preview fails to load (corrupt or encrypted PDF) surfaces a warning and is excluded from submission (FR-015).
+
+The chosen range is forwarded to the operation as the `pageRange` field on `POST /api/operations` and persists on the operation document so the Operations and Review pages can display it later. **Page numbering inside the resulting extracted document remains 1..N** (document-local citation), independent of which original PDF pages were processed.
+
+### Identifier Field
+
 Pages are grouped into documents based on a configured identifier field extracted from OCR results. The field name is set on the Function App via the `DocumentProcessing:IdentifierFieldName` app setting (default: `"identifier"`) and is not exposed in the upload UI. Pages where the identifier field is not found, empty, or null are treated as individual single-page documents.
 
 ### Operations Monitoring

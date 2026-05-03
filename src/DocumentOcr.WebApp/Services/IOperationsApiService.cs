@@ -6,7 +6,7 @@ public interface IOperationsApiService
 {
     Task<List<OperationDto>> GetOperationsAsync(string? status = null, int? maxItems = null);
     Task<OperationDto?> GetOperationAsync(string operationId);
-    Task<OperationDto> StartOperationAsync(string blobName, string containerName);
+    Task<OperationDto> StartOperationAsync(string blobName, string containerName, string? pageRange = null);
     Task<OperationDto> CancelOperationAsync(string operationId);
     Task<OperationDto> RetryOperationAsync(string operationId);
 }

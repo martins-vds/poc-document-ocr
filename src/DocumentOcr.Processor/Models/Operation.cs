@@ -1,3 +1,4 @@
+using DocumentOcr.Common.Models;
 using Newtonsoft.Json;
 
 namespace DocumentOcr.Processor.Models;
@@ -42,6 +43,13 @@ public class Operation
 
     [JsonProperty("resourceUrl")]
     public string? ResourceUrl { get; set; }
+
+    /// <summary>
+    /// Per feature 002: the page-range selection used to start this operation.
+    /// <c>null</c> means "all pages" (default and back-compat for pre-feature operations).
+    /// </summary>
+    [JsonProperty("pageSelection", NullValueHandling = NullValueHandling.Ignore)]
+    public PageSelection? PageSelection { get; set; }
 
     public Operation()
     {

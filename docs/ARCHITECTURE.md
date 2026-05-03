@@ -210,9 +210,13 @@ The application groups pages into documents based on identifier fields found in 
    ```json
    {
      "BlobName": "upload-2025-01-10.pdf",
-     "ContainerName": "uploaded-pdfs"
+     "ContainerName": "uploaded-pdfs",
+     "PageRange": "3-12, 15"
    }
    ```
+
+   - `PageRange` is **optional**. When omitted, null, or whitespace, the worker processes every page (back-compat with messages enqueued before feature 002).
+   - When supplied, the parser ([`PageSelection`](../src/DocumentOcr.Common/Models/PageSelection.cs)) restricts the OCR loop to the chosen pages. Excluded image streams are disposed up front; document-local citations remain `1..N` (FR-011). See [contracts/queue-message.md](../specs/002-upload-page-range-selection/contracts/queue-message.md).
 
    The identifier field name used during aggregation is read from the Function App's `DocumentProcessing:IdentifierFieldName` setting and is not part of the message.
 

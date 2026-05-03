@@ -90,7 +90,7 @@ public class OperationsApiService : IOperationsApiService
         }
     }
 
-    public async Task<OperationDto> StartOperationAsync(string blobName, string containerName)
+    public async Task<OperationDto> StartOperationAsync(string blobName, string containerName, string? pageRange = null)
     {
         try
         {
@@ -101,7 +101,8 @@ public class OperationsApiService : IOperationsApiService
             var request = new
             {
                 blobName = blobName,
-                containerName = containerName
+                containerName = containerName,
+                pageRange = pageRange,
             };
 
             var content = new StringContent(

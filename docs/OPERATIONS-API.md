@@ -58,9 +58,16 @@ Starts a new document processing operation by uploading a PDF for processing.
 ```json
 {
   "blobName": "upload-2025-01-10.pdf",
-  "containerName": "uploaded-pdfs"
+  "containerName": "uploaded-pdfs",
+  "pageRange": "3-12, 15"
 }
 ```
+
+| Field           | Required | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blobName`      | yes      | Name of the PDF blob already uploaded to the input container.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `containerName` | yes      | Container holding the input blob.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `pageRange`     | no       | Print-dialog-style page selection (`5`, `3-12`, `3-12, 15`). Blank/null/whitespace = all pages. Validated against the parser shared with the worker; a malformed expression returns `400 Bad Request` with the parser error in the body. Document-local citations (page numbers stored on extracted documents) remain `1..N` regardless of which original PDF pages were selected. See [contracts/operations-api-start.md](../specs/002-upload-page-range-selection/contracts/operations-api-start.md). |
 
 The identifier field used to aggregate pages is configured server-side via the Function App's `DocumentProcessing:IdentifierFieldName` setting and cannot be overridden per request.
 
@@ -108,7 +115,8 @@ Retrieves the current status of a processing operation.
   "totalDocuments": 10,
   "resultBlobName": null,
   "error": null,
-  "cancelRequested": false
+  "cancelRequested": false,
+  "pageRange": "3-12, 15"
 }
 ```
 
@@ -129,7 +137,8 @@ Retrieves the current status of a processing operation.
   "totalDocuments": 10,
   "resultBlobName": "upload-2025-01-10_result.json",
   "error": null,
-  "cancelRequested": false
+  "cancelRequested": false,
+  "pageRange": "3-12, 15"
 }
 ```
 
@@ -147,7 +156,8 @@ Retrieves the current status of a processing operation.
   "totalDocuments": 10,
   "resultBlobName": null,
   "error": "Document Intelligence service unavailable",
-  "cancelRequested": false
+  "cancelRequested": false,
+  "pageRange": null
 }
 ```
 

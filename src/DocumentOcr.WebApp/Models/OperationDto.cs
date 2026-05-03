@@ -14,6 +14,12 @@ public class OperationDto
     public string? ResultBlobName { get; set; }
     public string? Error { get; set; }
     public bool CancelRequested { get; set; }
+
+    /// <summary>
+    /// Per feature 002: the original page-range expression. <c>null</c> or empty
+    /// means "All pages" (display rule for clients).
+    /// </summary>
+    public string? PageRange { get; set; }
 }
 
 public class OperationsListResponse

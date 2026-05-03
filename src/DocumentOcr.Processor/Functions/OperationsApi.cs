@@ -1,3 +1,4 @@
+using DocumentOcr.Common.Models;
 using DocumentOcr.Processor.Models;
 using DocumentOcr.Processor.Services;
 using Microsoft.Azure.Functions.Worker;
@@ -36,42 +37,25 @@ public class OperationsApi
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var startRequest = JsonSerializer.Deserialize<StartOperationRequest>(requestBody);
 
-            if (startRequest == null || string.IsNullOrEmpty(startRequest.BlobName) || string.IsNullOrEmpty(startRequest.ContainerName))
+            if (startRequest == null)
             {
                 var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
                 await badResponse.WriteStringAsync("BlobName and ContainerName are required");
                 return badResponse;
             }
 
-            // Create operation record.
-            var operation = await _operationService.CreateOperationAsync(
-                startRequest.BlobName,
-                startRequest.ContainerName);
-
-            // Queue the processing message
-            var queueMessage = new QueueMessage
-            {
-                BlobName = operation.BlobName,
-                ContainerName = operation.ContainerName
-            };
-
-            // Store operation ID in the queue message metadata using a wrapper
-            var queueMessageWrapper = new
-            {
-                OperationId = operation.Id,
-                Message = queueMessage
-            };
-            var messageWithId = JsonSerializer.Serialize(queueMessageWrapper);
-
-            await _queueService.SendMessageAsync(messageWithId);
-
-            // Set resource URL for status polling
             var baseUrl = req.Url.GetLeftPart(UriPartial.Authority);
-            operation.ResourceUrl = $"{baseUrl}/api/operations/{operation.Id}";
-            operation = await _operationService.UpdateOperationAsync(operation);
+            var (statusCode, errorBody, operation) = await ProcessStartRequestAsync(startRequest, baseUrl);
+
+            if (statusCode != 202 || operation is null)
+            {
+                var failResponse = req.CreateResponse((HttpStatusCode)statusCode);
+                await failResponse.WriteStringAsync(errorBody ?? "Bad request");
+                return failResponse;
+            }
 
             var response = req.CreateResponse(HttpStatusCode.Accepted);
-            response.Headers.Add("Location", operation.ResourceUrl);
+            response.Headers.Add("Location", operation.ResourceUrl!);
             await response.WriteAsJsonAsync(new
             {
                 operationId = operation.Id,
@@ -88,6 +72,51 @@ public class OperationsApi
             await errorResponse.WriteStringAsync("Error starting operation");
             return errorResponse;
         }
+    }
+
+    /// <summary>
+    /// Internal pure-logic entry point shared by <see cref="StartOperation"/>
+    /// and unit tests. Per feature 002: parses the optional <c>pageRange</c>,
+    /// persists the resulting <see cref="PageSelection"/> on the operation,
+    /// forwards the raw expression on the <see cref="QueueMessage"/>.
+    /// Returns (HTTP status code, plain-text error body or null, persisted operation or null).
+    /// </summary>
+    internal async Task<(int statusCode, string? errorBody, Operation? operation)> ProcessStartRequestAsync(
+        StartOperationRequest request,
+        string baseUrl)
+    {
+        if (string.IsNullOrEmpty(request.BlobName) || string.IsNullOrEmpty(request.ContainerName))
+        {
+            return (400, "BlobName and ContainerName are required", null);
+        }
+
+        if (!PageSelection.TryParse(request.PageRange, maxPage: null, out var selection, out var parseError))
+        {
+            return (400, parseError, null);
+        }
+
+        var operation = await _operationService.CreateOperationAsync(
+            request.BlobName,
+            request.ContainerName);
+        operation.PageSelection = selection.IsAllPages ? null : selection;
+
+        var queueMessage = new QueueMessage
+        {
+            BlobName = operation.BlobName,
+            ContainerName = operation.ContainerName,
+            PageRange = request.PageRange,
+        };
+        var queueMessageWrapper = new
+        {
+            OperationId = operation.Id,
+            Message = queueMessage
+        };
+        await _queueService.SendMessageAsync(JsonSerializer.Serialize(queueMessageWrapper));
+
+        operation.ResourceUrl = $"{baseUrl}/api/operations/{operation.Id}";
+        operation = await _operationService.UpdateOperationAsync(operation);
+
+        return (202, null, operation);
     }
 
     [Function("GetOperation")]
@@ -137,7 +166,8 @@ public class OperationsApi
                 totalDocuments = operation.TotalDocuments,
                 resultBlobName = operation.ResultBlobName,
                 error = operation.Error,
-                cancelRequested = operation.CancelRequested
+                cancelRequested = operation.CancelRequested,
+                pageRange = operation.PageSelection?.Expression
             });
 
             return response;
@@ -217,12 +247,15 @@ public class OperationsApi
             var newOperation = await _operationService.CreateOperationAsync(
                 operation.BlobName,
                 operation.ContainerName);
+            // Carry the original page-range selection forward on retry.
+            newOperation.PageSelection = operation.PageSelection;
 
             // Queue the processing message
             var queueMessage = new QueueMessage
             {
                 BlobName = newOperation.BlobName,
-                ContainerName = newOperation.ContainerName
+                ContainerName = newOperation.ContainerName,
+                PageRange = operation.PageSelection?.Expression,
             };
 
             // Store operation ID in the queue message metadata using a wrapper
@@ -302,7 +335,8 @@ public class OperationsApi
                     processedDocuments = op.ProcessedDocuments,
                     totalDocuments = op.TotalDocuments,
                     resultBlobName = op.ResultBlobName,
-                    error = op.Error
+                    error = op.Error,
+                    pageRange = op.PageSelection?.Expression
                 }).ToList(),
                 count = operations.Count
             });
@@ -325,4 +359,10 @@ public class StartOperationRequest
     public string BlobName { get; set; } = string.Empty;
     [JsonPropertyName("containerName")]
     public string ContainerName { get; set; } = string.Empty;
+    /// <summary>
+    /// Per feature 002: optional print-dialog–style expression (e.g. <c>"3-12, 15"</c>).
+    /// Omit / <c>null</c> / empty means "all pages".
+    /// </summary>
+    [JsonPropertyName("pageRange")]
+    public string? PageRange { get; set; }
 }

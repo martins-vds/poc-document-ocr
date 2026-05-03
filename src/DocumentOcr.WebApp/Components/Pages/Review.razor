@@ -10,6 +10,7 @@
 @inject IDocumentReviewService ReviewService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthState
+@inject IOperationsApiService OperationsApi
 @rendermode InteractiveServer
 
 <PageTitle>Review @Identifier</PageTitle>
@@ -38,6 +39,7 @@ else
                     <div class="text-muted small">
                         <strong>@document.OriginalFileName</strong>
                         &nbsp;|&nbsp;@document.PageCount page(s)
+                        &nbsp;|&nbsp;Page range: @ReviewUiHelpers.FormatPageRange(operationPageRange)
                         &nbsp;|&nbsp;<span class="badge @StatusBadge(document.ReviewStatus)">@document.ReviewStatus</span>
                     </div>
                 </div>
@@ -72,8 +74,8 @@ else
                 <div class="alert alert-warning py-2 mb-0 mt-2 small">
                     <strong>Page-boundary warning:</strong> @InferredPageCount of @document.PageCount pages had their identifier
                     forward-filled. Pages: @string.Join(", ", document.PageProvenance
-                                                                .Where(p => p.IdentifierSource == IdentifierSource.Inferred)
-                                                                .Select(p => p.PageNumber.ToString()))
+                                                                                    .Where(p => p.IdentifierSource == IdentifierSource.Inferred)
+                                                                                    .Select(p => p.PageNumber.ToString()))
                 </div>
             }
 
@@ -159,6 +161,7 @@ else
     [Parameter] public string Identifier { get; set; } = string.Empty;
 
     private DocumentOcrEntity? document;
+    private string? operationPageRange;
     private string? currentUser;
     private string? errorMessage;
     private bool loading = true;
@@ -184,6 +187,22 @@ else
                           ?? auth.User.Identity?.Name;
 
             document = await CosmosDbService.GetDocumentByIdAsync(Id, Identifier);
+
+            // US3 — fetch the originating operation so the Review metadata
+            // can show the page-range used for extraction. Best-effort: if
+            // the operation is no longer available we just show "All pages".
+            if (!string.IsNullOrEmpty(document?.OperationId))
+            {
+                try
+                {
+                    var op = await OperationsApi.GetOperationAsync(document.OperationId);
+                    operationPageRange = op?.PageRange;
+                }
+                catch
+                {
+                    operationPageRange = null;
+                }
+            }
         }
         catch (Exception ex)
         {

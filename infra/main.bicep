@@ -47,7 +47,7 @@ param documentProcessingIdentifierFieldName string = 'identifier'
 
 param allowedIps string = ''
 var ipRules = reduce(
-  filter(array(split(allowedIps, ';')), o => length(trim(o)) > 0),
+  filter(array(split(allowedIps, ',')), o => length(trim(o)) > 0),
   [],
   (cur, next) =>
     union(cur, [

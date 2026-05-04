@@ -31,9 +31,9 @@ The IaC deployment provides:
    # Follow instructions at: https://learn.microsoft.com/cli/azure/install-azure-cli
    ```
 
-3. **.NET 8.0 SDK**
+3. **.NET 10 SDK**
    ```bash
-   # Download from: https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+   # Download from: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
    ```
 
 4. **Azure Functions Core Tools v4**
@@ -190,18 +190,18 @@ $functionAppName = azd env get-value AZURE_FUNCTION_NAME
 
 The deployment creates the following Azure resources:
 
-| Resource | Purpose | SKU/Tier |
-|----------|---------|----------|
-| Virtual Network | Network isolation | 10.0.0.0/16 |
-| Storage Account | Blob, Queue, Table storage | Standard LRS |
-| Document Intelligence | OCR processing | S0 |
-| Cosmos DB | Document storage | Serverless |
-| Function App | Application hosting | Premium P1v3 |
-| App Service Plan | Function compute | Premium P1v3 (Linux) |
-| Application Insights | Monitoring | - |
-| Log Analytics | Centralized logging | PerGB2018 |
-| Private Endpoints | Private connectivity | 6 endpoints |
-| Private DNS Zones | DNS resolution | 6 zones |
+| Resource              | Purpose                    | SKU/Tier             |
+| --------------------- | -------------------------- | -------------------- |
+| Virtual Network       | Network isolation          | 10.0.0.0/16          |
+| Storage Account       | Blob, Queue, Table storage | Standard LRS         |
+| Document Intelligence | OCR processing             | S0                   |
+| Cosmos DB             | Document storage           | Serverless           |
+| Function App          | Application hosting        | Premium P1v3         |
+| App Service Plan      | Function compute           | Premium P1v3 (Linux) |
+| Application Insights  | Monitoring                 | -                    |
+| Log Analytics         | Centralized logging        | PerGB2018            |
+| Private Endpoints     | Private connectivity       | 6 endpoints          |
+| Private DNS Zones     | DNS resolution             | 6 zones              |
 
 ### Network Architecture
 
@@ -247,20 +247,46 @@ The Function App is granted the following roles:
 **Cosmos DB:**
 - `Cosmos DB Built-in Data Contributor` - Read/write to database
 
+The Bicep templates also create both Cosmos containers used by the solution:
+
+| Container            | Partition key | Purpose                                                                |
+| -------------------- | ------------- | ---------------------------------------------------------------------- |
+| `ProcessedDocuments` | `/identifier` | One document per consolidated identifier (FR-001..FR-018).             |
+| `Operations`         | `/id`         | Async request-reply state for the [Operations API](OPERATIONS-API.md). |
+
+If you need to create the Operations container manually (e.g. when deploying to a pre-existing Cosmos account), run:
+
+```bash
+az cosmosdb sql container create \
+  --account-name <cosmos-acct> --resource-group <rg> \
+  --database-name DocumentOcrDb \
+  --name Operations \
+  --partition-key-path "/id" \
+  --throughput 400
+```
+
+and make sure the Function App has these app settings:
+
+```
+CosmosDb__OperationsContainerName=Operations
+DocumentIntelligence__ModelId=prebuilt-document   # or your custom model id
+DocumentProcessing__IdentifierFieldName=identifier
+```
+
 ## Environment Variables
 
 After deployment, the following environment variables are automatically configured:
 
-| Variable | Description |
-|----------|-------------|
-| `FUNCTIONS_WORKER_RUNTIME` | Set to `dotnet-isolated` |
-| `FUNCTIONS_EXTENSION_VERSION` | Set to `~4` |
-| `AzureWebJobsStorage__accountName` | Storage account name (managed identity) |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection |
-| `DocumentIntelligence__Endpoint` | Document Intelligence endpoint |
-| `CosmosDb__Endpoint` | Cosmos DB endpoint |
-| `CosmosDb__DatabaseName` | Set to `DocumentOcrDb` |
-| `CosmosDb__ContainerName` | Set to `ProcessedDocuments` |
+| Variable                                | Description                             |
+| --------------------------------------- | --------------------------------------- |
+| `FUNCTIONS_WORKER_RUNTIME`              | Set to `dotnet-isolated`                |
+| `FUNCTIONS_EXTENSION_VERSION`           | Set to `~4`                             |
+| `AzureWebJobsStorage__accountName`      | Storage account name (managed identity) |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection         |
+| `DocumentIntelligence__Endpoint`        | Document Intelligence endpoint          |
+| `CosmosDb__Endpoint`                    | Cosmos DB endpoint                      |
+| `CosmosDb__DatabaseName`                | Set to `DocumentOcrDb`                  |
+| `CosmosDb__ContainerName`               | Set to `ProcessedDocuments`             |
 
 ## Customization
 
@@ -425,7 +451,7 @@ azd env get-value AZURE_RESOURCE_GROUP
 **Symptoms:** Build script returns errors
 
 **Solution:**
-1. Ensure .NET 8.0 SDK is installed: `dotnet --version`
+1. Ensure .NET 10 SDK is installed: `dotnet --version`
 2. Run from project root: `./infra/scripts/build-function.sh`
 3. Check for build errors: `cd src/DocumentOcr.Processor && dotnet build`
 
@@ -444,13 +470,13 @@ azd env get-value AZURE_RESOURCE_GROUP
 
 Based on moderate usage:
 
-| Resource | Estimated Cost |
-|----------|----------------|
-| App Service Plan (P1v3) | ~$200 |
-| Storage Account | ~$5-20 |
-| Document Intelligence (S0) | Pay-per-use |
-| Cosmos DB (Serverless) | Pay-per-request |
-| Application Insights | ~$0-10 |
+| Resource                       | Estimated Cost   |
+| ------------------------------ | ---------------- |
+| App Service Plan (P1v3)        | ~$200            |
+| Storage Account                | ~$5-20           |
+| Document Intelligence (S0)     | Pay-per-use      |
+| Cosmos DB (Serverless)         | Pay-per-request  |
+| Application Insights           | ~$0-10           |
 | Networking (Private Endpoints) | ~$7 per endpoint |
 
 **Total:** ~$250-300/month + usage-based costs

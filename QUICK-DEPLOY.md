@@ -7,7 +7,7 @@ Get the Document OCR Processor running in Azure in under 20 minutes.
 Install these tools (one-time setup):
 
 - [Azure Developer CLI (azd)](https://aka.ms/azd-install)
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 
 ## Deploy (5 commands)

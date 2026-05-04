@@ -1,402 +1,150 @@
-# Quick Start Guide
+# Quick Start (Local Development)
 
-This guide will help you get the Document OCR Processor running locally for development using **keyless authentication** with DefaultAzureCredential.
+Run the Function App, the Web App, and the test suite on your laptop using the helper scripts in [`scripts/`](../scripts/).
 
-> **🔐 Security:** This project uses keyless authentication - no API keys or connection strings in configuration!
+> 🔐 **Keyless auth.** All clients use `DefaultAzureCredential` and your `az login` identity. There are **no API keys** in any settings file.
 
 ## Prerequisites
 
-- .NET 8.0 SDK ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
-- Azure Functions Core Tools v4 ([Install Guide](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local))
-- Azure Storage Emulator or Azurite ([Install Guide](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite))
-- Azure CLI ([Install Guide](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli))
-- Active Azure subscription for AI services
-- **Azure credentials configured** (see Authentication Setup below)
+| Tool                                                                                                   | Why                                                           | Install                               |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- | ------------------------------------- |
+| [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)                                       | All projects target `net10.0`.                                | `dotnet --version` should print 10.x. |
+| [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local) | Hosts the `PdfProcessorFunction` and `OperationsApi` locally. | `func --version` should print 4.x.    |
+| [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite)                        | Local Azure Storage emulator (queues + blobs).                | `npm install -g azurite`              |
+| [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)                                   | Auth + role assignment.                                       | `az login`                            |
+| Active Azure subscription                                                                              | For Document Intelligence and Cosmos DB (no free emulator).   | —                                     |
 
-## Setup
+## 1. Sign in to Azure
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/martins-vds/poc-document-ocr.git
-cd poc-document-ocr/src/DocumentOcr.Processor
-```
-
-### 2. Configure Azure Authentication (Required for Keyless Auth)
-
-DefaultAzureCredential will attempt authentication in the following order:
-
-**Option A: Azure CLI (Recommended for local development)**
 ```bash
 az login
-# Set your subscription if you have multiple
-az account set --subscription "Your-Subscription-Name"
+az account set --subscription "<your-subscription>"
 ```
 
-**Option B: Environment Variables**
-```bash
-export AZURE_TENANT_ID="your-tenant-id"
-export AZURE_CLIENT_ID="your-client-id"
-export AZURE_CLIENT_SECRET="your-client-secret"
-```
+`DefaultAzureCredential` will pick up these credentials automatically.
 
-**Option C: Visual Studio / VS Code**
-- Sign in to Azure through the IDE
-- DefaultAzureCredential will use those credentials
+## 2. Configure local settings
 
-### 3. Configure Local Settings
-
-**Option A: Use azd Provision (Recommended for Azure deployments)**
-
-If you've deployed infrastructure using Azure Developer CLI:
+There is **no shared keys file** — each app has its own template.
 
 ```bash
-# The configuration is automatically set up after azd provision
-azd provision
+# Function App
+cp src/DocumentOcr.Processor/local.settings.json.template \
+   src/DocumentOcr.Processor/local.settings.json
+
+# Web App
+cp src/DocumentOcr.WebApp/appsettings.Development.json.template \
+   src/DocumentOcr.WebApp/appsettings.Development.json
 ```
 
-The postprovision hook automatically:
-1. Retrieves keys and connection strings from Azure
-2. Updates local configuration files for both Function App and Web App
-3. You're ready to develop locally!
+Fill in:
 
-**Option B: Use the Configuration Utility Script (Manual setup)**
+- **`DocumentIntelligence:Endpoint`** — must end with `/`.
+- **`CosmosDb:Endpoint`** — Cosmos account URI (`https://<acct>.documents.azure.com:443/`).
+- **`Storage:AccountName`** — `devstoreaccount1` for Azurite, real account name otherwise.
+- **`AzureAd:*`** (Web App only) — your Entra ID app registration.
+- **`DocumentProcessing:IdentifierFieldName`** — DI field used to group pages into documents (default `identifier`). See [CUSTOMIZING-SCHEMA.md](CUSTOMIZING-SCHEMA.md).
 
-Use the utility script to manually update both Function App and Web App settings (keyless mode):
+> If you ran `azd provision` already, the postprovision hook auto-fills both files via [`utils/update_settings.py`](../utils/update_settings.py).
+
+## 3. Grant your user the same RBAC the deployed app has
+
+Your `az login` identity needs read/write on the same resources the deployed Managed Identity uses:
+
+| Service                        | Role                                                                                          |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| Storage account (blob + queue) | `Storage Blob Data Contributor`, `Storage Queue Data Contributor`                             |
+| Document Intelligence          | `Cognitive Services User`                                                                     |
+| Cosmos DB account              | `Cosmos DB Built-in Data Contributor` (assigned via `az cosmosdb sql role assignment create`) |
+
+The [role-assignment recipe](#appendix-role-assignment-recipe) at the bottom is a copy-pasteable version.
+
+## 4. Start Azurite
 
 ```bash
-# From the project root
-cd utils
-python update_settings.py --interactive
+azurite --silent --location /tmp/azurite &
 ```
 
-This will prompt you for:
-- Storage account name (e.g., `devstoreaccount1` for local, or your Azure storage account name)
-- Document Intelligence endpoint
-- Cosmos DB endpoint
-- Azure AD configuration (for web app)
-
-**No API keys or connection strings needed!**
-
-For local development with emulators:
+Create the queue + containers it needs:
 
 ```bash
-python update_settings.py \
-  --storage-account "devstoreaccount1" \
-  --doc-intelligence-endpoint "https://YOUR-RESOURCE.cognitiveservices.azure.com/" \
-  --cosmosdb-endpoint "https://localhost:8081" \
-  --tenant-id "common" \
-  --client-id "your-dev-client-id" \
-  --domain "localhost"
+az storage queue     create --name pdf-processing-queue --connection-string "UseDevelopmentStorage=true"
+az storage container create --name uploaded-pdfs        --connection-string "UseDevelopmentStorage=true"
+az storage container create --name processed-documents  --connection-string "UseDevelopmentStorage=true"
 ```
 
-See [`utils/README.md`](../utils/README.md) for more examples and options.
-
-**Option C: Manual Configuration**
-
-Copy the template and fill in your Azure service configuration:
+## 5. Run things
 
 ```bash
-cp local.settings.json.template local.settings.json
+# Function App (queue trigger + Operations API on http://localhost:7071)
+./scripts/run-functions.sh        # bash
+./scripts/run-functions.ps1       # PowerShell
+
+# Blazor Web App (default https://localhost:7227)
+./scripts/run-webapp.sh           # bash
+./scripts/run-webapp.ps1          # PowerShell
+
+# Unit tests
+./scripts/run-tests.sh            # bash
+./scripts/run-tests.ps1           # PowerShell
 ```
 
-Edit `local.settings.json` and replace the placeholders (no keys needed):
+See [`scripts/README.md`](../scripts/README.md) for all flags (`--no-build`, `--filter`, `--coverage`, `--urls`, …).
 
-```json
-{
-    "IsEncrypted": false,
-    "Values": {
-        "AzureWebJobsStorage__accountName": "devstoreaccount1",
-        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "Storage:AccountName": "devstoreaccount1",
-        "DocumentIntelligence:Endpoint": "https://YOUR-RESOURCE.cognitiveservices.azure.com/",
-        "CosmosDb:Endpoint": "https://YOUR-COSMOSDB-ACCOUNT.documents.azure.com:443/",
-        "CosmosDb:DatabaseName": "DocumentOcrDb",
-        "CosmosDb:ContainerName": "ProcessedDocuments"
-    }
-}
-```
+## 6. Smoke-test the pipeline
 
-**Important:** Your Azure CLI credentials will be used for authentication!
+1. Open the Web App, sign in with Entra ID, go to **Upload**, drop a sample PDF.
+2. Watch progress on the **Operations** page (auto-refresh every 10 s).
+3. When the operation succeeds, open **Documents → Review** and verify the schema fields render with confidence badges.
 
-### 4. Assign Local Development Permissions
-
-For local development, your Azure user needs permissions on Azure resources:
-
-```bash
-# Get your user's object ID
-USER_ID=$(az ad signed-in-user show --query id --output tsv)
-
-# Assign Storage permissions (if using Azure Storage instead of emulator)
-az role assignment create \
-  --assignee $USER_ID \
-  --role "Storage Blob Data Contributor" \
-  --scope "/subscriptions/YOUR-SUB-ID/resourceGroups/YOUR-RG/providers/Microsoft.Storage/storageAccounts/YOUR-STORAGE"
-
-# Assign Document Intelligence permissions
-az role assignment create \
-  --assignee $USER_ID \
-  --role "Cognitive Services User" \
-  --scope "/subscriptions/YOUR-SUB-ID/resourceGroups/YOUR-RG/providers/Microsoft.CognitiveServices/accounts/YOUR-DOC-INTEL"
-
-# Assign Cosmos DB permissions
-az cosmosdb sql role assignment create \
-  --account-name YOUR-COSMOS-ACCOUNT \
-  --resource-group YOUR-RG \
-  --role-definition-name "Cosmos DB Built-in Data Contributor" \
-  --principal-id $USER_ID \
-  --scope "/subscriptions/YOUR-SUB-ID/resourceGroups/YOUR-RG/providers/Microsoft.DocumentDB/databaseAccounts/YOUR-COSMOS-ACCOUNT"
-```
-
-### 5. Start Azure Storage Emulator
-
-**Option A: Using Azurite (Recommended)**
-
-```bash
-# Install Azurite globally
-npm install -g azurite
-
-# Start Azurite
-azurite --silent --location /tmp/azurite --debug /tmp/azurite/debug.log
-```
-
-**Option B: Using Azure Storage Emulator (Windows only)**
-
-Start the Azure Storage Emulator from the Start menu or run:
-```cmd
-AzureStorageEmulator.exe start
-```
-
-### 6. Create Storage Queue and Containers
-
-Using Azure Storage Explorer or Azure CLI:
-
-```bash
-# Using Azure CLI with local emulator
-CONNECTION_STRING="UseDevelopmentStorage=true"
-
-# Create queue
-az storage queue create \
-  --name pdf-processing-queue \
-  --connection-string "$CONNECTION_STRING"
-
-# Create containers
-az storage container create \
-  --name uploaded-pdfs \
-  --connection-string "$CONNECTION_STRING"
-
-az storage container create \
-  --name processed-documents \
-  --connection-string "$CONNECTION_STRING"
-```
-
-Or using PowerShell with Azure Storage Emulator:
-
-```powershell
-# Install Azure.Storage PowerShell module if not already installed
-Install-Module -Name Az.Storage
-
-# Create queue and containers
-$ctx = New-AzStorageContext -Local
-New-AzStorageQueue -Name "pdf-processing-queue" -Context $ctx
-New-AzStorageContainer -Name "uploaded-pdfs" -Context $ctx
-New-AzStorageContainer -Name "processed-documents" -Context $ctx
-```
-
-### 7. Build and Run
-
-```bash
-# Restore packages
-dotnet restore
-
-# Build the project
-dotnet build
-
-# Start the function locally
-func start
-```
-
-You should see output indicating the function is running:
-
-```
-Azure Functions Core Tools
-Core Tools Version:       4.x.x
-Function Runtime Version: 4.x.x
-
-Functions:
-
-        PdfProcessorFunction: queueTrigger
-
-For detailed output, run func with --verbose flag.
-```
-
-## Testing Locally
-
-### Manual Test
-
-1. **Upload a PDF to the local storage**:
-
-```bash
-# Using Azure CLI
-az storage blob upload \
-  --account-name devstoreaccount1 \
-  --use-emulator \
-  --container-name uploaded-pdfs \
-  --name test.pdf \
-  --file /path/to/your/test.pdf
-```
-
-2. **Send a message to the queue**:
-
-```bash
-# Using Azure CLI
-az storage message put \
-  --account-name devstoreaccount1 \
-  --use-emulator \
-  --queue-name pdf-processing-queue \
-  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
-```
-
-> The identifier field used to aggregate pages is configured on the Function App via the `DocumentProcessing:IdentifierFieldName` app setting (default: `identifier`); it is not part of the queue message.
-
-Or using PowerShell:
-
-```powershell
-# Upload blob
-$ctx = New-AzStorageContext -Local
-Set-AzStorageBlobContent -File "C:\path\to\test.pdf" `
-  -Container "uploaded-pdfs" `
-  -Blob "test.pdf" `
-  -Context $ctx
-
-# Send queue message
-$queue = Get-AzStorageQueue -Name "pdf-processing-queue" -Context $ctx
-$queueMessage = '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
-$queue.CloudQueue.AddMessageAsync([Microsoft.Azure.Storage.Queue.CloudQueueMessage]::new($queueMessage))
-```
-
-3. **Watch the function logs**:
-
-The function will automatically process the message. You should see logs in the console indicating:
-- PDF download
-- PDF page to image conversion
-- Document Intelligence analysis (OCR)
-- Page aggregation by identifier field
-- PDF creation from aggregated pages
-- Results upload to blob storage and Cosmos DB
-
-4. **Check the results**:
-
-```bash
-# List processed documents
-az storage blob list \
-  --account-name devstoreaccount1 \
-  --use-emulator \
-  --container-name processed-documents \
-  --output table
-
-# Download result JSON
-az storage blob download \
-  --account-name devstoreaccount1 \
-  --use-emulator \
-  --container-name processed-documents \
-  --name test_result.json \
-  --file result.json
-
-# View the result
-cat result.json
-```
+You can also enqueue messages directly to bypass the Web App; see [docs/OPERATIONS-API.md](OPERATIONS-API.md) for the request body and the queue-message wrapper format.
 
 ## Debugging
 
-### Visual Studio
+- **VS Code** — open the workspace, press <kbd>F5</kbd>. The `DocumentOcr.slnLaunch.user` profile starts both projects.
+- **Visual Studio** — open `DocumentOcr.sln` and start both projects (set as multiple startup projects).
 
-1. Open `src/DocumentOcr.Processor/DocumentOcr.Processor.csproj` in Visual Studio
-2. Set breakpoints in the code
-3. Press F5 to start debugging
+## Common issues
 
-### Visual Studio Code
+| Symptom                                                       | Fix                                                                                                                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Function host won't start, "FUNCTIONS_WORKER_RUNTIME not set" | Confirm `local.settings.json` exists and contains `"FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"`.                                     |
+| `403` from Document Intelligence                              | Endpoint must end with `/`. Your CLI identity needs `Cognitive Services User`.                                                         |
+| `401`/`403` from Cosmos                                       | Run the `az cosmosdb sql role assignment create` command in the appendix.                                                              |
+| Queue trigger never fires                                     | Azurite isn't running, or queue `pdf-processing-queue` doesn't exist.                                                                  |
+| Web App shows "no documents"                                  | Are you signed in as a user the Function App processed under? Documents are filterable by reviewer assignment, not by tenant identity. |
 
-1. Open the `src/DocumentOcr.Processor` folder in VS Code
-2. Install the Azure Functions extension
-3. Press F5 to start debugging
-4. Set breakpoints as needed
-
-### Common Issues
-
-**Queue trigger not firing**:
-- Verify Azurite/Storage Emulator is running
-- Check configuration in `local.settings.json`
-- Ensure queue exists and has the correct name
-- Verify Azure credentials are configured (run `az account show`)
-
-**Document Intelligence errors**:
-- Verify endpoint URL ends with `/`
-- Ensure you're logged in with Azure CLI (`az login`)
-- Check that your user has "Cognitive Services User" role
-- Ensure service is accessible from your location
-
-**Cosmos DB errors**:
-- Verify endpoint format
-- Ensure you're logged in with Azure CLI
-- Check that your user has Cosmos DB data access role
-- Verify database and container exist
-
-**Authentication errors**:
-- Run `az account show` to verify you're logged in
-- Check that you have the required role assignments
-- Wait a few minutes for role assignments to propagate
-- Try `az account get-access-token --resource https://storage.azure.com/` to test token acquisition
-
-## Authentication Deep Dive
-
-The application uses `DefaultAzureCredential` which attempts to authenticate through (in order):
-
-1. **Environment variables** - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
-2. **Managed identity** - When running in Azure
-3. **Azure CLI** - Your `az login` credentials (best for local dev)
-4. **Azure PowerShell** - Your PowerShell Azure credentials
-5. **Visual Studio** - VS authentication
-6. **VS Code** - VS Code Azure Account extension
-
-For local development, we recommend using Azure CLI (`az login`).
-
-## Next Steps
-
-- See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
-- See [DEPLOYMENT.md](DEPLOYMENT.md) for Azure deployment instructions
-- Check the main [README.md](../README.md) for complete documentation
-
-## Useful Commands
+## Appendix: role-assignment recipe
 
 ```bash
-# Clean build
-dotnet clean && dotnet build
+USER_ID=$(az ad signed-in-user show --query id -o tsv)
+SUB=$(az account show --query id -o tsv)
+RG=<your-resource-group>
 
-# Run tests
-cd ../../tests
-dotnet test
+# Storage
+az role assignment create --assignee $USER_ID \
+  --role "Storage Blob Data Contributor" \
+  --scope "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.Storage/storageAccounts/<storage-account>"
+az role assignment create --assignee $USER_ID \
+  --role "Storage Queue Data Contributor" \
+  --scope "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.Storage/storageAccounts/<storage-account>"
 
-# Run tests with verbose output
-dotnet test --verbosity normal
+# Document Intelligence
+az role assignment create --assignee $USER_ID \
+  --role "Cognitive Services User" \
+  --scope "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/<doc-intel>"
 
-# Build and test in one command (from repository root)
-cd ../../ && dotnet build src/DocumentOcr.Processor && cd tests && dotnet test
-
-# View function help
-func --help
-
-# Check function version
-func --version
-
-# List all functions in the project
-func list
+# Cosmos DB (data plane RBAC, separate command)
+az cosmosdb sql role assignment create \
+  --account-name <cosmos-acct> --resource-group $RG \
+  --role-definition-name "Cosmos DB Built-in Data Contributor" \
+  --principal-id $USER_ID \
+  --scope "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-acct>"
 ```
 
-## Tips for Development
+## Next steps
 
-1. **Use verbose logging**: Set `FUNCTIONS_WORKER_RUNTIME_VERSION` to see detailed logs
-2. **Monitor storage**: Use Azure Storage Explorer to inspect queues, blobs, and messages
-3. **Test incrementally**: Test each service separately before running the full pipeline
-4. **Use sample PDFs**: Start with simple, small PDFs before testing complex documents
-5. **Check quotas**: Be aware of API rate limits for AI services during development
+- [docs/CUSTOMIZING-SCHEMA.md](CUSTOMIZING-SCHEMA.md) — change which fields the system reviews.
+- [docs/ARCHITECTURE.md](ARCHITECTURE.md) — full system design.
+- [docs/DEPLOYMENT-IAC.md](DEPLOYMENT-IAC.md) — deploy with `azd up`.
+- [docs/TESTING.md](TESTING.md) — test layout and how to add tests.

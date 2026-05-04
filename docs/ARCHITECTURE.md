@@ -205,16 +205,20 @@ The application groups pages into documents based on identifier fields found in 
 
 ## Data Flow
 
-1. **Input**: Queue message with blob reference
+1. **Input**: Queue messages are wrapped by the Operations API so the worker can attribute progress to an operation. The wrapper format is:
 
    ```json
    {
-     "BlobName": "upload-2025-01-10.pdf",
-     "ContainerName": "uploaded-pdfs",
-     "PageRange": "3-12, 15"
+     "OperationId": "123e4567-e89b-12d3-a456-426614174000",
+     "Message": {
+       "BlobName": "upload-2025-01-10.pdf",
+       "ContainerName": "uploaded-pdfs",
+       "PageRange": "3-12, 15"
+     }
    }
    ```
 
+   - The wrapper is produced by `OperationsApi.StartOperation`; if you publish messages directly you MUST emit the same shape.
    - `PageRange` is **optional**. When omitted, null, or whitespace, the worker processes every page (back-compat with messages enqueued before feature 002).
    - When supplied, the parser ([`PageSelection`](../src/DocumentOcr.Common/Models/PageSelection.cs)) restricts the OCR loop to the chosen pages. Excluded image streams are disposed up front; document-local citations remain `1..N` (FR-011). See [contracts/queue-message.md](../specs/002-upload-page-range-selection/contracts/queue-message.md).
 
@@ -290,7 +294,7 @@ A Blazor Server application that provides a user interface for reviewing and cor
 - **Review Workflow**: Mark documents as reviewed with reviewer tracking
 
 **Technology Stack:**
-- Blazor Server (.NET 8)
+- Blazor Server (.NET 10)
 - Microsoft.Identity.Web for authentication
 - Azure Cosmos DB SDK for data access
 - Azure Storage Blobs SDK for PDF access
@@ -316,7 +320,7 @@ A Blazor Server application that provides a user interface for reviewing and cor
 
 ## Security
 
-- **Managed Identity**: Recommended for production (not implemented in POC)
-- **API Keys**: Stored in Azure Key Vault or App Settings
-- **Storage Access**: Uses connection strings with appropriate permissions
-- **HTTPS**: All API communication over HTTPS
+- **Managed Identity (keyless)**: All Azure clients use `DefaultAzureCredential`. The Function App and Web App run with system-assigned managed identities; locally the Azure CLI identity is used. There are no API keys or connection strings in `local.settings.json` / `appsettings.Development.json` — only endpoints and account names.
+- **RBAC at the resource level**: see [DEPLOYMENT-IAC.md § Role assignments](DEPLOYMENT-IAC.md#role-assignments).
+- **HTTPS only**: enforced by the Bicep templates.
+- **Private endpoints**: the IaC deployment puts every PaaS service behind a VNet (Storage, Cosmos, Document Intelligence, Function App, Web App).

@@ -9,9 +9,11 @@ This guide walks through deploying the Document OCR Processor to Azure using man
 ## Prerequisites
 
 - Azure CLI installed
-- .NET 8.0 SDK
+- .NET 10 SDK
 - Azure Functions Core Tools v4
 - Active Azure subscription
+
+> 💡 The IaC deployment ([DEPLOYMENT-IAC.md](DEPLOYMENT-IAC.md)) is the recommended path. This guide is here as a reference when you need fine-grained control or are operating without `azd`.
 
 ## Step 1: Create Azure Resources
 
@@ -74,13 +76,21 @@ az cosmosdb sql database create \
   --resource-group rg-document-ocr \
   --name DocumentOcrDb
 
-# Create container with partition key
+# Create the documents container
 az cosmosdb sql container create \
   --account-name cosmos-document-ocr \
   --resource-group rg-document-ocr \
   --database-name DocumentOcrDb \
   --name ProcessedDocuments \
   --partition-key-path "/identifier"
+
+# Create the operations container (required by the Operations API)
+az cosmosdb sql container create \
+  --account-name cosmos-document-ocr \
+  --resource-group rg-document-ocr \
+  --database-name DocumentOcrDb \
+  --name Operations \
+  --partition-key-path "/id"
 ```
 
 ### 1.6 Create Function App
@@ -92,7 +102,7 @@ az functionapp create \
   --storage-account stdocumentocr \
   --consumption-plan-location eastus \
   --runtime dotnet-isolated \
-  --runtime-version 8 \
+  --runtime-version 10 \
   --functions-version 4 \
   --assign-identity [system]
 ```
@@ -192,9 +202,12 @@ az functionapp config appsettings set \
     "AzureWebJobsStorage__accountName=stdocumentocr" \
     "Storage:AccountName=stdocumentocr" \
     "DocumentIntelligence:Endpoint=$DOC_ENDPOINT" \
+    "DocumentIntelligence:ModelId=prebuilt-document" \
     "CosmosDb:Endpoint=$COSMOS_ENDPOINT" \
     "CosmosDb:DatabaseName=DocumentOcrDb" \
-    "CosmosDb:ContainerName=ProcessedDocuments"
+    "CosmosDb:ContainerName=ProcessedDocuments" \
+    "CosmosDb:OperationsContainerName=Operations" \
+    "DocumentProcessing:IdentifierFieldName=identifier"
 ```
 
 **Note:** No API keys or connection strings are configured! The function app uses its managed identity to authenticate.
@@ -287,11 +300,14 @@ az storage blob upload \
   --file /path/to/test.pdf
 
 # Send queue message
+# NOTE: the worker expects an Operations API wrapper. Either:
+#   (a) start the operation via POST /api/operations (preferred), or
+#   (b) emit the wrapper format directly:
 az storage message put \
   --auth-mode login \
   --account-name stdocumentocr \
   --queue-name pdf-processing-queue \
-  --content '{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}'
+  --content '{"OperationId":"00000000-0000-0000-0000-000000000001","Message":{"BlobName":"test.pdf","ContainerName":"uploaded-pdfs"}}'
 
 # Check logs
 az functionapp log tail --name func-document-ocr --resource-group rg-document-ocr

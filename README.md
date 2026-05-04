@@ -8,16 +8,17 @@ This is a complete Azure solution that processes PDF files containing multiple d
 
 - **[⚡ Quick Deploy Guide](QUICK-DEPLOY.md)** - Deploy to Azure in 5 commands (< 20 minutes)
 - [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
+- [Developer scripts](scripts/README.md) - bash + PowerShell helpers (`run-functions`, `run-webapp`, `run-tests`)
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
+- **[Customizing the schema](docs/CUSTOMIZING-SCHEMA.md)** - Change which fields the system extracts and reviews (POC swap-in guide)
 - **[Operations API](docs/OPERATIONS-API.md)** - Asynchronous request-reply API for managing operations
 - **[Operations Monitoring UI](docs/OPERATIONS-UI.md)** - Web UI for monitoring extraction operations
 - [Deployment (IaC)](docs/DEPLOYMENT-IAC.md) - **Recommended:** Automated deployment with Bicep and Azure Developer CLI
 - [Deployment (Manual)](docs/DEPLOYMENT.md) - Manual Azure deployment instructions
 - [Infrastructure as Code](infra/README.md) - IaC technical reference and Bicep modules
-- [Bicep Outputs Mapping](docs/BICEP-OUTPUTS-MAPPING.md) - Environment variables mapping for development setup
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
 - [Web Application Usage](docs/WEB-APP-USAGE.md) - Guide for using the document review web application
-- [Review Page UX](docs/REVIEW-PAGE-UX.md) - Enhanced review interface with confidence level indicators
+- [Review Page UX](docs/REVIEW-PAGE-UX.md) - Schema-driven review interface
 
 ## Architecture
 
@@ -58,9 +59,12 @@ See [Operations API Documentation](docs/OPERATIONS-API.md) for details on the as
 - **PdfToImageService**: Converts PDF pages into individual PNG images for processing
 - **DocumentIntelligenceService**: Uses Azure Document Intelligence to extract text, key-value pairs, and tables from document images
 - **DocumentAggregatorService**: Groups pages into documents based on identifier fields found in OCR results
+- **DocumentSchemaMapperService**: Folds the per-page OCR fields into a single consolidated `SchemaField` per identifier (highest-confidence-wins, multi-value concatenation, signature OR-fold, date parsing)
 - **ImageToPdfService**: Creates PDF documents from collections of page images
 - **BlobStorageService**: Handles all blob storage operations for uploading and downloading files
 - **CosmosDbService**: Manages document persistence and queries in Azure Cosmos DB
+- **QueueService**: Enqueues `OperationId`-wrapped messages to the processing queue
+- **DocumentReviewService** / **DocumentLockService** (Web App): Per-field state machine and pessimistic checkout used by the Review page
 
 **Models:**
 - **Operation**: Tracks status and progress of long-running operations
@@ -87,8 +91,9 @@ A Blazor Server application for manual document review:
 
 ## Prerequisites
 
-- .NET 8.0 SDK
+- .NET 10 SDK
 - Azure CLI (for authentication and deployment)
+- Azure Functions Core Tools v4 (for running the Function App locally)
 - Azure subscription with the following services:
   - Azure Storage Account
   - Azure Document Intelligence (formerly Form Recognizer)
@@ -150,16 +155,22 @@ The application aggregates pages into documents by extracting an identifier fiel
 
 ## Queue Message Format
 
-The function expects queue messages in the following JSON format:
+The Function App expects messages produced by the Operations API. The wrapper carries an `OperationId` so progress can be attributed back to the operation record in Cosmos DB:
 
 ```json
 {
-    "BlobName": "document.pdf",
-    "ContainerName": "uploaded-pdfs"
+    "OperationId": "123e4567-e89b-12d3-a456-426614174000",
+    "Message": {
+        "BlobName": "document.pdf",
+        "ContainerName": "uploaded-pdfs",
+        "PageRange": "3-12, 15"
+    }
 }
 ```
 
-The identifier field name is read from the Function App configuration; it is not part of the queue message or the API request.
+- Use `POST /api/operations` (see [docs/OPERATIONS-API.md](docs/OPERATIONS-API.md)) instead of enqueuing directly when possible.
+- `PageRange` is optional; omit it (or set to `null`/empty) to process every page.
+- The identifier field name is read from the Function App configuration; it is not part of the queue message or the API request.
 
 ## Utility Scripts
 
@@ -191,28 +202,17 @@ See [`utils/README.md`](utils/README.md) for detailed usage instructions for all
 
 ### Local Development
 
-1. Install dependencies:
-   ```bash
-   cd src/DocumentOcr.Processor
-   dotnet restore
-   ```
+Use the helper scripts in [`scripts/`](scripts/):
 
-2. Build the project:
-   ```bash
-   dotnet build
-   ```
+```bash
+./scripts/run-functions.sh   # Function App (queue trigger + Operations API)
+./scripts/run-webapp.sh      # Blazor Web App
+./scripts/run-tests.sh       # xUnit test suite
+```
 
-3. Run tests:
-   ```bash
-   cd ../../tests
-   dotnet test
-   ```
+PowerShell equivalents (`run-functions.ps1`, `run-webapp.ps1`, `run-tests.ps1`) work the same way on Windows or `pwsh` on macOS/Linux. See [scripts/README.md](scripts/README.md) for flags.
 
-4. Run locally:
-   ```bash
-   cd ../src/DocumentOcr.Processor
-   func start
-   ```
+Full setup walkthrough: [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
 ### Deployment to Azure
 

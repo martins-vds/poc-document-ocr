@@ -1,277 +1,115 @@
-# Review Page UX Enhancements
+# Review Page UX
 
-This document describes the user experience improvements made to the Review page for better document validation.
+> **Status:** current state of the Review page after feature
+> `001-document-schema-aggregation`. Earlier per-page tabbed and
+> confidence-only layouts are no longer used and have been removed
+> from this document.
 
-## Schema-driven layout (feature 001-document-schema-aggregation)
+The Review page (`/review/{identifier}`,
+[`Review.razor`](../src/DocumentOcr.WebApp/Components/Pages/Review.razor))
+is a single schema-driven form: one row per reviewable field as defined
+by [`ProcessedDocumentSchema.FieldNames`](../src/DocumentOcr.Common/Models/ProcessedDocumentSchema.cs).
+Cosmos stores exactly one consolidated `SchemaField` per field per
+identifier, so there are no per-page tabs.
 
-> **Update — May 2026:** the per-page tabbed layout described below was
-> superseded by a single schema-driven form. Each Cosmos record now stores
-> exactly one consolidated `SchemaField` per identifier, so the page no
-> longer needs to surface per-page tabs. The screenshots below remain for
-> historical context.
+## Page anatomy
 
-### Single-form layout
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  ← Back to Documents     Identifier: TK-2024-001     [ Reviewed ✓ ]  │
+│  Original: invoice-batch.pdf · Pages 2,3,5 (Page range: 3-12, 15)    │
+├──────────────────────────────────┬───────────────────────────────────┤
+│                                  │  ⚠ Pages 4, 5 had their           │
+│       PDF viewer                 │     identifier inferred           │
+│       (in-page pdf.js)           │  ─────────────────────────────    │
+│       deep-links to Page X       │  fileTkNumber       [Pending]    │
+│                                  │  OCR: TK-2024-001  conf 0.97     │
+│                                  │  [ Reviewed value ___________ ]  │
+│                                  │  [Confirm] [Correct]             │
+│                                  │  ─────────────────────────────    │
+│                                  │  signedOn           [Corrected]  │
+│                                  │  OCR: 2024-01-15   conf 0.62     │
+│                                  │  Raw text: "Jan 15 2024"         │
+│                                  │  [ 2024-01-16 ]                  │
+│                                  │  ─────────────────────────────    │
+│                                  │  judgeSignature     [Confirmed]  │
+│                                  │  OCR: true         conf 0.91     │
+│                                  │  ☑ Signed                         │
+│                                  │  ─────────────────────────────    │
+│                                  │  ... (every catalog field)       │
+│                                  │  [ Save & Check In ]             │
+└──────────────────────────────────┴───────────────────────────────────┘
+```
 
-The Review page renders all 13 reviewable fields from
-`ProcessedDocumentSchema.FieldNames` in catalog order. Each row shows:
+### Header metadata
 
-- the immutable `OcrValue`,
-- the `OcrConfidence` (0–1, two decimals),
-- a `FieldStatus` badge — `Pending` (warning), `Confirmed` (success),
-  `Corrected` (info),
-- an editable `ReviewedValue` input (visible only when the current user
-  holds the checkout),
-- per-row `[Confirm]` / `[Correct]` actions that accumulate into a
-  pending-edits buffer flushed by `[Save & Check In]`.
+- `Identifier` — partition key of the Cosmos record.
+- `Page count`, `Page numbers` — pages aggregated into this document.
+- `Page range` — mirrors the operation's `pageRange`. Shows `All pages`
+  for operations created before feature 002 or with a `null` selection
+  (back-compat).
+- `Reviewed` / `Pending` badge — record-level [`ReviewStatus`](../src/DocumentOcr.Common/Models/ReviewStatus.cs).
 
 ### Checkout banner (FR-021 / FR-025)
 
-When the document is loaded, a banner reflects the lock state:
-
-- **You hold the checkout** — informational banner, edits enabled.
-- **Held by another reviewer** — warning banner naming the holder UPN
-  and the timestamp; the form renders read-only.
-- **Free** — `[Check out for review]` button replaces the banner.
-
-### Page-boundary indicator (FR-020)
-
-If any entry in `PageProvenance` has
-`IdentifierSource == Inferred`, a yellow banner above the table lists
-the page numbers whose identifier was forward-filled. This is the
-visual surface for the `FR-020 inferred-identifier pages` warning that
-the processor logs.
-
-### Field-status badge palette
-
-| Status    | Bootstrap class | Meaning                                                  |
-| --------- | --------------- | -------------------------------------------------------- |
-| Pending   | `bg-warning`    | Reviewer has not touched the field.                      |
-| Confirmed | `bg-success`    | Reviewer accepted `OcrValue` (no value change recorded). |
-| Corrected | `bg-info`       | Reviewer overrode `OcrValue` with `ReviewedValue`.       |
-
-### Document-level review status
-
-Once every field is non-`Pending`, the record-level `ReviewStatus`
-flips to `Reviewed` and the first-reviewer UPN + timestamp are stamped
-immutably (FR-017 / FR-018).
-
-### Page-range metadata (feature 002-upload-page-range-selection)
-
-The Review header now includes a **`Page range`** field next to the page count and review-status badge. It mirrors the `pageRange` returned by `GET /api/operations/{id}` for the operation that produced the document:
-
-- `All pages` when the operation processed every page (back-compat with operations that pre-date this feature, including those persisted with `PageSelection = null`).
-- The exact expression the user typed otherwise (e.g. `3-12, 15`).
-
-The expression is fetched lazily from the Operations API in `Review.razor` `OnInitializedAsync` using the new `OperationId` link on `DocumentOcrEntity`. If the operation can no longer be fetched, the field falls back to `All pages` rather than failing the page render.
-
-Document-local page citations (the `Page X` anchors used by the in-page PDF viewer) remain `1..N` regardless of which original PDF pages were processed (FR-011). This means the existing page-jump links in [`ReviewUiHelpers.GetPdfUrl`](../src/DocumentOcr.WebApp/Services/ReviewUiHelpers.cs) need no change.
-
----
-
-## Legacy (pre-001-document-schema-aggregation)
-
-
-
-The Review page has been enhanced to provide reviewers with more context about the quality of extracted data, making it easier to identify fields that need attention and verify the accuracy of OCR results. The page now features a **tabbed interface** that organizes fields by page, making it easier to review multi-page documents.
-
-## Key Features
-
-### 1. Tabbed Interface for Multi-Page Documents (NEW)
-
-Documents with multiple pages are now displayed with a **tabbed interface**, where each tab represents a page from the original document. This organization makes it much easier to review and edit fields page-by-page.
-
-**Features:**
-- **Page Tabs**: Each page gets its own tab (e.g., "Page 1", "Page 2", "Page 3")
-- **Organized Fields**: Fields are grouped by the page they were extracted from
-- **Easy Navigation**: Click on any tab to switch between pages
-- **Visual Consistency**: The first page tab is active by default
-- **Bootstrap Integration**: Uses standard Bootstrap 5 tabs for familiarity
-
-**Screenshots:**
-
-![Page 1 Tab](https://github.com/user-attachments/assets/fdaea2b1-6453-497c-b3d5-ff1a98e11193)
-*Figure 1: Review page showing Page 1 with extracted fields like fileTkNumber, accusedName, etc.*
-
-![Page 2 Tab](https://github.com/user-attachments/assets/3070f44d-e0d2-4967-875f-a2a754c4f031)
-*Figure 2: Review page showing Page 2 with fields like criminalCodeForm, policeFileNumber, agency*
-
-![Page 3 Tab](https://github.com/user-attachments/assets/62cc151d-4288-41ec-aa24-37f809ff11d3)
-*Figure 3: Review page showing Page 3 with fields like mainCharge, signatures, and dates*
-
-### 2. Confidence Level Display
-
-Each extracted field now displays its confidence level as a percentage badge next to the field label. The confidence level is provided by Azure Document Intelligence and indicates how confident the OCR engine is about the accuracy of the extracted value.
-
-**Visual Indicators:**
-- **90%+ confidence**: Green badge (`bg-success`) - High confidence
-- **70-89% confidence**: Blue badge (`bg-info`) - Medium-high confidence
-- **50-69% confidence**: Yellow badge (`bg-warning`) - Medium confidence
-- **Below 50% confidence**: Red badge (`bg-danger`) - Low confidence
-
-### 3. Field Border Color Coding
-
-Input fields are color-coded based on their confidence level, providing an at-a-glance visual indicator:
-- **Green border**: High confidence (90%+)
-- **Blue border**: Medium-high confidence (70-89%)
-- **Yellow border**: Medium confidence (50-69%)
-- **Red border**: Low confidence (<50%)
-
-### 4. Low Confidence Warnings
-
-Fields with confidence levels below 70% display a warning message below the input field:
-> ⚠️ Low confidence - please verify carefully
-
-This ensures reviewers pay extra attention to fields that may contain errors.
-
-### 5. Field Type Display
-
-Each field shows its data type (e.g., String, Date, PhoneNumber, Double) in a subtle badge on the right side of the input field. This helps reviewers understand what type of data is expected and validate it accordingly.
-
-### 6. Improved Form Layout
-
-The form layout has been enhanced with:
-- **Bold field labels**: Makes field names more prominent
-- **Placeholder text**: Guides reviewers with "Enter or correct the value"
-- **Help text**: A subtitle explains the purpose of confidence levels
-- **Better spacing**: Improved visual hierarchy and readability
-
-## User Interface Details
-
-### Field Structure
-
-Each field in the review form now displays:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ FieldName                            [95.2% confidence]      │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │ Extracted value here                  │ [Field Type]    │ │
-│ └─────────────────────────────────────────────────────────┘ │
-│ ⚠️ Low confidence - please verify carefully (if < 70%)      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Color Scheme
-
-The confidence-based color scheme follows Bootstrap's standard colors:
-- **Green** (Success): Highly accurate, minimal review needed
-- **Blue** (Info): Good accuracy, standard verification recommended
-- **Yellow** (Warning): Moderate accuracy, careful review needed
-- **Red** (Danger): Low accuracy, thorough verification required
-
-## Technical Implementation
-
-### Page Data Structure
-
-The Review page now parses the `Pages` array from the document's `ExtractedData`. Each element in the `Pages` array represents one page from the original document and contains the OCR-extracted fields for that page.
-
-**Note**: The tab labels ("Page 1", "Page 2", etc.) are determined by the array index + 1, not by any `PageCount` field within the page object.
-
-```json
-{
-  "extractedData": {
-    "PageCount": 3,
-    "Pages": [
-      {
-        "Fields": {
-          "fileTkNumber": {
-            "type": "String",
-            "confidence": 0.953,
-            "content": "TK-2024-001",
-            "valueString": "TK-2024-001"
-          },
-          "accusedName": {
-            "type": "String",
-            "confidence": 0.652,
-            "content": "John Smith",
-            "valueString": "John Smith"
-          }
-        }
-      },
-      {
-        "Fields": {
-          "policeFileNumber": {
-            "type": "String",
-            "confidence": 0.948,
-            "content": "PF-2024-456789",
-            "valueString": "PF-2024-456789"
-          }
-        }
-      }
-    ]
-  }
-}
-```
-
-### New Helper Methods
-
-The following methods were added to the Review page component:
-
-1. **`GetFieldConfidence(object value)`**: Extracts confidence level from field data
-2. **`GetFieldType(object value)`**: Retrieves the field type from field data
-3. **`GetConfidenceBadgeClass(float? confidence)`**: Determines badge color class based on confidence
-4. **`GetFieldBorderClass(float? confidence)`**: Determines input border color class based on confidence
-5. **`UpdatePageFieldValue(int pageIndex, string fieldKey, string? newValue)`**: Updates field values in page-specific data
-6. **`SyncPageDataToEditedData()`**: Synchronizes changes from page tabs back to the main data structure
-
-### Page Data Class
-
-A new `PageData` class was added to represent each page:
-
-```csharp
-private class PageData
-{
-    public int PageNumber { get; set; }
-    public Dictionary<string, object> Fields { get; set; } = new();
-}
-```
-
-### Data Structure
-
-The extracted data from Azure Document Intelligence is stored in the following structure:
-
-```json
-{
-  "FieldName": {
-    "type": "String",
-    "confidence": 0.952,
-    "content": "Extracted text value",
-    "valueString": "Extracted text value"
-  }
-}
-```
-
-## Benefits for Reviewers
-
-1. **Better Organization**: Multi-page documents are now easy to navigate with tabs
-2. **Prioritization**: Quickly identify fields that need the most attention
-3. **Confidence**: Visual feedback about data quality increases trust in the system
-4. **Efficiency**: Spend more time on uncertain fields, less on high-confidence ones
-5. **Context**: Understanding field types helps validate data appropriately
-6. **Better UX**: Clear visual hierarchy and intuitive design reduces cognitive load
-7. **Page-by-Page Review**: Focus on one page at a time without distraction
-
-## Dependencies
-
-- **Bootstrap 5.3.0**: For styling and layout
-- **Bootstrap Icons 1.11.0**: For confidence and warning icons
-- **Blazor Server**: For interactive server-side rendering
-
-## Browser Compatibility
-
-The enhanced UI uses standard Bootstrap components and should work on all modern browsers:
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
-
-## Future Enhancements
-
-Potential improvements for future iterations:
-1. ~~Tabbed interface for multi-page documents~~ ✅ **Completed**
-2. Sortable fields by confidence level
-3. Filter to show only low-confidence fields
-4. Bulk edit mode for similar fields
-5. Confidence history tracking
-6. AI-assisted suggestions for corrections
-7. Keyboard shortcuts for faster navigation
-8. Page thumbnails in tabs for visual reference
+| Lock state               | UI                                                             |
+| ------------------------ | -------------------------------------------------------------- |
+| You hold the checkout    | Info banner; form inputs enabled.                              |
+| Held by another reviewer | Warning banner with holder UPN + timestamp; form is read-only. |
+| Free                     | `[Check out for review]` button replaces the banner.           |
+
+[`DocumentLockService`](../src/DocumentOcr.Common/Services/DocumentLockService.cs)
+opportunistically releases checkouts older than 24 h.
+
+### Page-boundary warning (FR-020)
+
+If any entry in `PageProvenance` has `IdentifierSource == Inferred`, a
+yellow banner above the form lists the page numbers whose identifier
+was forward-filled. This mirrors the
+`FR-020 inferred-identifier pages` warning the processor emits.
+
+## Per-field row
+
+| Element              | Source                               | Notes                                                                                               |
+| -------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Field name           | `ProcessedDocumentSchema.FieldNames` | Catalog order.                                                                                      |
+| `OCR value`          | `SchemaField.OcrValue`               | Immutable.                                                                                          |
+| `Raw text`           | `SchemaField.OcrRawText`             | Only emitted for date fields where parsing produced a normalized `OcrValue`.                        |
+| Confidence           | `SchemaField.OcrConfidence`          | Two decimals.                                                                                       |
+| Status badge         | `SchemaField.FieldStatus`            | See palette below.                                                                                  |
+| Reviewed value input | `SchemaField.ReviewedValue`          | Date input for `IsDateField`, checkbox for `bool`, textarea for `MultiValueFields`, otherwise text. |
+| Actions              | —                                    | `[Confirm]` / `[Correct]` accumulate in a pending-edits buffer; `[Save & Check In]` flushes them.   |
+
+### Status palette
+
+| Status      | Bootstrap class | Meaning                                                  |
+| ----------- | --------------- | -------------------------------------------------------- |
+| `Pending`   | `bg-warning`    | Reviewer has not touched the field.                      |
+| `Confirmed` | `bg-success`    | Reviewer accepted `OcrValue` (no value change recorded). |
+| `Corrected` | `bg-info`       | Reviewer overrode `OcrValue` with `ReviewedValue`.       |
+
+Confidence color hints (badge tinting) follow the standard scale:
+`≥0.90` green, `0.70–0.89` blue, `0.50–0.69` yellow, `<0.50` red.
+
+## Document-level transition
+
+When **every** field is non-`Pending`, the per-row save flips the
+record-level `ReviewStatus` to `Reviewed` and stamps the first
+reviewer's UPN + timestamp immutably (FR-017 / FR-018). Subsequent
+edits update `LastCheckedInBy` / `LastCheckedInAt` but never overwrite
+the original reviewer.
+
+## Customizing what shows up here
+
+The Review form is **schema-driven**. To add, remove, or re-order
+fields, edit `ProcessedDocumentSchema.cs` only — the form rebuilds
+itself. Full procedure in
+[CUSTOMIZING-SCHEMA.md](CUSTOMIZING-SCHEMA.md).
+
+## Related code
+
+- [`Review.razor`](../src/DocumentOcr.WebApp/Components/Pages/Review.razor) — page markup + handlers.
+- [`ReviewUiHelpers`](../src/DocumentOcr.WebApp/Services/ReviewUiHelpers.cs) — formatting + `IsDateField`.
+- [`DocumentReviewService`](../src/DocumentOcr.Common/Services/DocumentReviewService.cs) — per-field state machine, ETag-guarded writes.
+- [`DocumentLockService`](../src/DocumentOcr.Common/Services/DocumentLockService.cs) — pessimistic checkout with 24 h staleness.
+- [`PdfController`](../src/DocumentOcr.WebApp/Controllers/PdfController.cs) — streams the consolidated PDF for the in-page pdf.js viewer.

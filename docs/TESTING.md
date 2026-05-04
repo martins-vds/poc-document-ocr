@@ -1,240 +1,135 @@
 # Testing Guide
 
-This document provides comprehensive information about testing the Document OCR Processor application.
+The unit-test project is a single xUnit assembly:
+[`tests/DocumentOcr.Tests.csproj`](../tests/DocumentOcr.Tests.csproj). It
+covers the Common library, the Processor, and the WebApp.
 
-## Test Structure
+## Quickest path
 
-The test project is located in the `tests/` directory and follows this structure:
+```bash
+./scripts/run-tests.sh           # bash
+./scripts/run-tests.ps1          # PowerShell
+```
+
+Both wrap `dotnet test` and accept `--filter`, `--coverage`, and
+`--no-build`. See [`scripts/README.md`](../scripts/README.md).
+
+## Layout
 
 ```
 tests/
-├── DocumentOcr.Tests.csproj   # Test project file
-├── README.md                            # Test documentation
-├── Services/                            # Service layer tests
-│   └── BlobStorageServiceTests.cs      # Blob storage service tests
-└── Models/                              # Model tests
-    ├── QueueMessageTests.cs            # Queue message model tests
-    ├── DocumentResultTests.cs          # Document result model tests
-    └── ProcessingResultTests.cs        # Processing result model tests
+├── DocumentOcr.Tests.csproj     # xUnit + Moq + bUnit
+├── Models/                      # POCO + value-object tests
+│   ├── DocumentResultTests.cs
+│   ├── OperationTests.cs
+│   ├── PageProvenanceEntryTests.cs
+│   ├── PageSelectionTests.cs
+│   ├── ProcessedDocumentSchemaTests.cs   # schema catalog contract
+│   ├── ProcessingResultTests.cs
+│   ├── QueueMessageTests.cs
+│   └── SchemaFieldTests.cs
+├── Services/                    # Service-layer behavior tests
+│   ├── BlobStorageServiceTests.cs
+│   ├── BlobStorageServiceMockedTests.cs
+│   ├── CosmosDbServiceTests.cs
+│   ├── DateFieldParserTests.cs
+│   ├── DocumentAggregatorServiceTests.cs
+│   ├── DocumentIntelligenceServiceTests.cs
+│   ├── DocumentIntelligenceServiceAnalyzeTests.cs
+│   ├── DocumentListFilterTests.cs
+│   ├── DocumentLockServiceTests.cs
+│   ├── DocumentReviewServiceTests.cs
+│   ├── DocumentSchemaMapperServiceTests.cs
+│   ├── OperationServiceTests.cs
+│   ├── OperationsApiGetTests.cs
+│   ├── OperationsApiStartTests.cs
+│   ├── PdfProcessorFunctionTests.cs
+│   ├── PdfProcessorPageRangeTests.cs
+│   ├── QueueServiceTests.cs
+│   └── ReviewUiHelpersTests.cs
+└── WebApp/                      # bUnit Razor component tests
+    ├── PdfRangePickerTests.cs
+    └── UploadPageGatingTests.cs
 ```
 
-## Running Tests
+## Frameworks
 
-### Basic Commands
+| Package                  | Version | Purpose                 |
+| ------------------------ | ------- | ----------------------- |
+| `xunit`                  | 2.9.x   | Test framework          |
+| `Microsoft.NET.Test.Sdk` | 18.0.x  | VSTest host             |
+| `Moq`                    | 4.20.x  | Mocking                 |
+| `bunit`                  | 1.40.x  | Razor component testing |
+| `coverlet.collector`     | 6.0.x   | Cross-platform coverage |
+
+Target framework is `net10.0` — must match the rest of the solution.
+
+## Running subsets
 
 ```bash
-# Run all tests
-cd tests
-dotnet test
+# Run a single class
+./scripts/run-tests.sh --filter FullyQualifiedName~DocumentSchemaMapperServiceTests
 
-# Run tests with normal verbosity
-dotnet test --verbosity normal
+# Run a namespace
+./scripts/run-tests.sh --filter FullyQualifiedName~DocumentOcr.Tests.Models
 
-# Run tests with detailed output
-dotnet test --verbosity detailed
+# Run a single test
+./scripts/run-tests.sh --filter "FullyQualifiedName=DocumentOcr.Tests.Services.PdfProcessorPageRangeTests.Run_RestrictsLoopToSelectedPages"
+
+# Coverage
+./scripts/run-tests.sh --coverage
+# → emits TestResults/<guid>/coverage.cobertura.xml
 ```
 
-### Filtering Tests
+## Writing new tests
 
-```bash
-# Run tests from a specific class
-dotnet test --filter "FullyQualifiedName~BlobStorageServiceTests"
-
-# Run tests from a specific namespace
-dotnet test --filter "FullyQualifiedName~DocumentOcr.Tests.Services"
-
-# Run model tests only
-dotnet test --filter "FullyQualifiedName~DocumentOcr.Tests.Models"
-```
-
-### Test Coverage
-
-To generate code coverage reports:
-
-```bash
-# Install coverlet.msbuild if not already installed
-dotnet add package coverlet.msbuild
-
-# Run tests with coverage
-dotnet test /p:CollectCoverage=true
-
-# Generate detailed coverage report
-dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-```
-
-## Test Categories
-
-### Service Tests
-
-#### BlobStorageServiceTests (2 tests)
-
-Tests the blob storage service configuration validation:
-
-- **Configuration Tests**: Validates that proper connection string is required
-
-**Key Test Methods:**
-- `Constructor_WithMissingConnectionString_ThrowsException`
-- `Constructor_WithEmptyConnectionString_ThrowsException`
-
-### Model Tests
-
-#### QueueMessageTests (2 tests)
-
-Tests the queue message model:
-
-- **Initialization Tests**: Validates default values
-- **Property Tests**: Ensures all properties can be set correctly
-
-#### DocumentResultTests (2 tests)
-
-Tests the document result model:
-
-- **Initialization Tests**: Validates default collection initialization
-- **Property Tests**: Ensures all properties work correctly
-
-#### ProcessingResultTests (3 tests)
-
-Tests the processing result model:
-
-- **Initialization Tests**: Validates default values and timestamp
-- **Collection Tests**: Tests document list operations
-
-## Test Frameworks and Tools
-
-- **xUnit 2.9.2**: Main testing framework
-- **Moq 4.20.72**: Mocking framework for dependencies
-- **Microsoft.NET.Test.Sdk 17.12.0**: Test SDK
-- **coverlet.collector 6.0.2**: Code coverage collector
-
-## Writing New Tests
-
-### Test Naming Convention
-
-Follow the pattern: `MethodName_Scenario_ExpectedResult`
-
-Examples:
-- `ParseBoundaries_WithValidInput_ReturnsCorrectList`
-- `Constructor_WithMissingConfig_ThrowsException`
-
-### Test Structure (AAA Pattern)
+Convention: `MethodName_Scenario_ExpectedResult`, AAA structure.
 
 ```csharp
 [Fact]
-public void MethodName_Scenario_ExpectedResult()
+public void Map_FieldNotInOcr_RecordsPendingNull()
 {
-    // Arrange - Set up test data and dependencies
-    var mockLogger = new Mock<ILogger<ServiceClass>>();
-    var service = new ServiceClass(mockLogger.Object);
-    
-    // Act - Execute the method being tested
-    var result = service.MethodToTest(input);
-    
-    // Assert - Verify the expected outcome
-    Assert.Equal(expectedValue, result);
+    // Arrange
+    var aggregated = AggregatedDocumentBuilder.Empty();
+    var sut = new DocumentSchemaMapperService(NullLogger<DocumentSchemaMapperService>.Instance);
+
+    // Act
+    var entity = sut.Map(aggregated, 1, "f.pdf", "https://x", "f_doc_1.pdf");
+
+    // Assert
+    Assert.All(ProcessedDocumentSchema.FieldNames,
+        n => Assert.Equal(SchemaFieldStatus.Pending, entity.Schema[n].FieldStatus));
 }
 ```
 
-### Mocking Dependencies
+`Moq` for service interfaces, `bUnit`'s `TestContext` for Razor components, and `Microsoft.Extensions.Logging.Abstractions.NullLogger<T>.Instance` to satisfy logger constructors.
 
-Use Moq to create mock objects:
+## Schema-related tests
 
-```csharp
-// Mock a logger
-var mockLogger = new Mock<ILogger<MyService>>();
+[`ProcessedDocumentSchemaTests`](../tests/Models/ProcessedDocumentSchemaTests.cs)
+hard-codes the expected catalog (13 names, in order). **It must be updated
+in lock-step with `ProcessedDocumentSchema.cs`** — see
+[CUSTOMIZING-SCHEMA.md § 3.3](CUSTOMIZING-SCHEMA.md#33-update-the-schema-unit-tests).
 
-// Mock configuration
-var mockConfiguration = new Mock<IConfiguration>();
-mockConfiguration.Setup(c => c["Setting:Key"]).Returns("value");
-
-// Use mocks in constructor
-var service = new MyService(mockLogger.Object, mockConfiguration.Object);
-```
-
-## Continuous Testing
-
-For continuous testing during development, you can use:
+`DocumentSchemaMapperServiceTests`, `DocumentReviewServiceTests`, and `ReviewUiHelpersTests` reference some field names by literal string (e.g. `"fileTkNumber"`, `"signedOn"`). Grep before changing the catalog:
 
 ```bash
-# Watch mode - reruns tests on file changes
-dotnet watch test
+grep -RIn 'fileTkNumber\|signedOn\|judgeSignature' tests/
 ```
 
-## Best Practices
+## What is NOT tested
 
-1. **Test One Thing**: Each test should verify one specific behavior
-2. **Use Descriptive Names**: Test names should clearly indicate what they test
-3. **Arrange-Act-Assert**: Follow the AAA pattern consistently
-4. **Mock External Dependencies**: Use Moq to isolate the unit being tested
-5. **Test Edge Cases**: Include tests for boundary conditions and error cases
-6. **Keep Tests Fast**: Unit tests should run quickly
-7. **Make Tests Independent**: Tests should not depend on each other
+- Live calls to Azure Document Intelligence, Cosmos DB, or Blob Storage. The relevant service classes are tested with `Moq` doubles or in-memory streams.
+- End-to-end queue-trigger ↔ HTTP flow.
+- PDF rendering correctness (PdfSharpCore output is not pixel-diffed).
 
-## Known Limitations
-
-The current test suite focuses on:
-- Business logic in services (particularly parsing logic)
-- Configuration validation
-- Model initialization
-
-Not currently covered:
-- Integration tests with actual Azure services
-- End-to-end workflow tests
-- PDF manipulation operations (would require test PDF files)
-
-For integration testing with Azure services, consider:
-- Using Azure Storage Emulator or Azurite for blob storage
-- Mocking Azure AI services or using test endpoints
-- Creating dedicated test resources in Azure
+For an end-to-end smoke test, follow [docs/QUICKSTART.md § 6](QUICKSTART.md#6-smoke-test-the-pipeline).
 
 ## Troubleshooting
 
-### Tests Not Running
-
-```bash
-# Clean and rebuild
-dotnet clean
-dotnet build
-dotnet test
-```
-
-### Missing Dependencies
-
-```bash
-# Restore packages
-dotnet restore tests/DocumentOcr.Tests.csproj
-```
-
-### Test Discovery Issues
-
-Ensure:
-1. Test classes are public
-2. Test methods have `[Fact]` or `[Theory]` attributes
-3. Test project references the main project
-4. xUnit packages are properly installed
-
-## CI/CD Integration
-
-To integrate tests into a CI/CD pipeline:
-
-```yaml
-# Example for GitHub Actions
-- name: Run tests
-  run: dotnet test --no-build --verbosity normal
-
-# Example for Azure Pipelines
-- task: DotNetCoreCLI@2
-  displayName: 'Run Tests'
-  inputs:
-    command: test
-    projects: 'tests/**/*.csproj'
-```
-
-## Future Improvements
-
-Potential areas for expanding test coverage:
-
-1. **Integration Tests**: Tests that interact with actual Azure services
-2. **PDF Processing Tests**: Tests using sample PDF files
-3. **Performance Tests**: Validate processing time for large documents
-4. **End-to-End Tests**: Complete workflow validation
-5. **Contract Tests**: Validate Azure service responses
+| Symptom                                     | Fix                                                                                                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dotnet test` reports "no tests found"      | Run `dotnet build tests/DocumentOcr.Tests.csproj` first, or drop `--no-build`.                                                                                 |
+| `bUnit` test fails with "no renderer"       | Make sure the test class derives from `bunit.TestContext`.                                                                                                     |
+| Schema test fails after editing field names | Update [`tests/Models/ProcessedDocumentSchemaTests.cs`](../tests/Models/ProcessedDocumentSchemaTests.cs) — see [CUSTOMIZING-SCHEMA.md](CUSTOMIZING-SCHEMA.md). |
+| Coverage report missing                     | Use `--coverage` (script wraps `--collect "XPlat Code Coverage"`). The Cobertura XML lands under `tests/TestResults/<guid>/`.                                  |

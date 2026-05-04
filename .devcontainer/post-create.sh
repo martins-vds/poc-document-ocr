@@ -90,65 +90,13 @@ az storage queue create \
 if [[ "${SKIP_COSMOS:-0}" != "1" ]]; then
     log "Provisioning Cosmos database '${COSMOS_DATABASE}' and containers..."
     # The Azure CLI `az cosmosdb` commands target the ARM control plane, which
-    # the emulator does not implement. Use the data-plane REST API via a
-    # short inline Python script that talks directly to the emulator gateway.
-    python3 - <<PY
-import base64, datetime, hashlib, hmac, json, ssl, sys, urllib.parse, urllib.request
-
-ENDPOINT = "${COSMOS_ENDPOINT}"
-KEY      = "${COSMOS_KEY}"
-DB       = "${COSMOS_DATABASE}"
-CONTAINERS = [tuple(spec.split(":", 1)) for spec in """${COSMOS_CONTAINERS[@]}""".split()]
-
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-
-def auth_header(verb, resource_type, resource_id, date):
-    text = f"{verb.lower()}\n{resource_type.lower()}\n{resource_id}\n{date.lower()}\n\n"
-    sig = base64.b64encode(hmac.new(base64.b64decode(KEY), text.encode("utf-8"), hashlib.sha256).digest()).decode()
-    return urllib.parse.quote(f"type=master&ver=1.0&sig={sig}", safe="")
-
-def request(verb, path, resource_type, resource_id, body=None, extra_headers=None):
-    date = datetime.datetime.now(datetime.UTC).strftime("%a, %d %b %Y %H:%M:%S GMT")
-    headers = {
-        "Authorization": auth_header(verb, resource_type, resource_id, date),
-        "x-ms-date": date,
-        "x-ms-version": "2018-12-31",
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
-    if extra_headers:
-        headers.update(extra_headers)
-    data = json.dumps(body).encode("utf-8") if body is not None else None
-    req = urllib.request.Request(f"{ENDPOINT}{path}", data=data, headers=headers, method=verb)
-    try:
-        with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
-            return resp.status, resp.read()
-    except urllib.error.HTTPError as e:
-        return e.code, e.read()
-
-# Database
-status, body = request("POST", "/dbs", "dbs", "", {"id": DB})
-if status in (201, 409):
-    print(f"[post-create]   database '{DB}': {'created' if status == 201 else 'already exists'}")
-else:
-    print(f"[post-create]   ERROR creating database: HTTP {status} {body}")
-    sys.exit(1)
-
-# Containers
-for name, pk in CONTAINERS:
-    body = {"id": name, "partitionKey": {"paths": [pk], "kind": "Hash"}}
-    status, resp = request(
-        "POST", f"/dbs/{DB}/colls", "colls", f"dbs/{DB}",
-        body, extra_headers={"x-ms-offer-throughput": "400"},
-    )
-    if status in (201, 409):
-        print(f"[post-create]   container '{name}' (pk={pk}): {'created' if status == 201 else 'already exists'}")
-    else:
-        print(f"[post-create]   ERROR creating container '{name}': HTTP {status} {resp}")
-        sys.exit(1)
-PY
+    # the emulator does not implement. Delegate to a small Python helper that
+    # talks directly to the emulator's data-plane REST API.
+    COSMOS_ENDPOINT="${COSMOS_ENDPOINT}" \
+    COSMOS_KEY="${COSMOS_KEY}" \
+    COSMOS_DATABASE="${COSMOS_DATABASE}" \
+    COSMOS_CONTAINERS="${COSMOS_CONTAINERS[*]}" \
+    python3 "$(dirname "$0")/provision-cosmos.py"
 fi
 
 log "Provisioning complete."

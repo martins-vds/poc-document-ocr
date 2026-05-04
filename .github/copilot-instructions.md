@@ -56,6 +56,9 @@ dotnet clean && dotnet build
 
 ### Local Development Setup
 
+**Preferred: VS Code dev container** (`.devcontainer/`). Compose-based; spins up `dev` + `azurite` + `cosmos` services with shared network namespace. `postCreateCommand` runs `.devcontainer/post-create.sh` which idempotently creates the queue (`pdf-processing-queue`), blob containers (`uploaded-pdfs`, `processed-documents`), Cosmos database `DocumentOcrDb`, and Cosmos containers (`ProcessedDocuments` PK `/identifier`, `Operations` PK `/id`) via `.devcontainer/provision-cosmos.py`. Settings templates already point at the emulators. See `.devcontainer/README.md`.
+
+**Bare metal alternative**:
 1. `cp local.settings.json.template local.settings.json`
 2. Edit with Azure credentials: `AzureWebJobsStorage` (use `UseDevelopmentStorage=true`), `DocumentIntelligence` endpoint/key (endpoint must end with `/`), `CosmosDb` endpoint/key
 3. Start Azurite: `azurite --silent --location /tmp/azurite &`

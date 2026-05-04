@@ -2,9 +2,53 @@
 
 Run the Function App, the Web App, and the test suite on your laptop using the helper scripts in [`scripts/`](../scripts/).
 
-> 🔐 **Keyless auth.** All clients use `DefaultAzureCredential` and your `az login` identity. There are **no API keys** in any settings file.
+> 🔐 **Keyless auth (production path).** Deployed clients use `DefaultAzureCredential` against managed identities. For local development against the emulators, the settings templates ship with the well-known Azurite connection string and Cosmos DB emulator key — see [Option A](#option-a-recommended--vs-code-dev-container) below.
 
-## Prerequisites
+## Two ways to run locally
+
+- **[Option A — VS Code dev container](#option-a-recommended--vs-code-dev-container)** (recommended). Spins up the .NET 10 SDK, Azurite, and the Cosmos DB emulator side-by-side and auto-provisions queues, blob containers, and Cosmos containers. No Azure subscription is required for storage or Cosmos.
+- **[Option B — Bare metal](#option-b-bare-metal)**. Install the SDKs locally and run Azurite manually. Use this if you cannot use Docker.
+
+Document Intelligence has no emulator either way — you still need an Azure endpoint for OCR, but the rest of the pipeline runs offline.
+
+## Option A (recommended) — VS Code dev container
+
+The [`.devcontainer/`](../.devcontainer/) folder defines a Compose-based environment with three services that stay up for the lifetime of the container:
+
+| Service   | Image                                                                  | Endpoint inside the container                                       |
+| --------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `dev`     | `mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble`                  | (your shell)                                                        |
+| `azurite` | `mcr.microsoft.com/azure-storage/azurite:latest`                       | `http://127.0.0.1:10000` (blob), `:10001` (queue), `:10002` (table) |
+| `cosmos`  | `mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview` | `https://127.0.0.1:8081`                                            |
+
+Both emulators share the dev container's network namespace via `network_mode: service:dev`, so the WebApp and Functions reach them on `localhost` exactly like a developer laptop.
+
+### Steps
+
+1. **Open the workspace in the dev container.** VS Code will prompt to reopen in container, or run **Dev Containers: Reopen in Container** from the command palette.
+2. **Wait for `postCreateCommand` to finish.** It runs [`.devcontainer/post-create.sh`](../.devcontainer/post-create.sh), which (idempotently):
+   - waits for both emulators to be responsive,
+   - imports the Cosmos emulator's self-signed certificate into the system trust store,
+   - creates the Azurite blob containers `uploaded-pdfs` and `processed-documents`,
+   - creates the Azurite queue `pdf-processing-queue`,
+   - creates the Cosmos database `DocumentOcrDb` with containers `ProcessedDocuments` (PK `/identifier`) and `Operations` (PK `/id`) by calling [`provision-cosmos.py`](../.devcontainer/provision-cosmos.py).
+3. **Copy the settings templates** (their defaults already point at the emulators):
+   ```bash
+   cp src/DocumentOcr.Processor/local.settings.json.template \
+      src/DocumentOcr.Processor/local.settings.json
+   cp src/DocumentOcr.WebApp/appsettings.Development.json.template \
+      src/DocumentOcr.WebApp/appsettings.Development.json
+   ```
+4. **Fill in the Azure-only values** that have no emulator:
+   - `DocumentIntelligence:Endpoint` (must end with `/`),
+   - `AzureAd:*` (Web App only) — your Entra ID app registration.
+5. **Skip to [§5 Run things](#5-run-things).** RBAC (§3) and the Azurite bootstrap (§4) are unnecessary.
+
+Re-run the provisioning script any time with `bash .devcontainer/post-create.sh` — it is fully idempotent.
+
+## Option B — bare metal
+
+### Prerequisites
 
 | Tool                                                                                                   | Why                                                           | Install                               |
 | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- | ------------------------------------- |
@@ -61,9 +105,7 @@ The [role-assignment recipe](#appendix-role-assignment-recipe) at the bottom is 
 
 ## 4. Start Azurite
 
-```bash
-azurite --silent --location /tmp/azurite &
-```
+> Skip this section if you are on the dev container \u2014 Azurite is already running and the queue + containers were created automatically.\n\n```bash\nazurite --silent --location /tmp/azurite &\n```
 
 Create the queue + containers it needs:
 
@@ -106,13 +148,14 @@ You can also enqueue messages directly to bypass the Web App; see [docs/OPERATIO
 
 ## Common issues
 
-| Symptom                                                       | Fix                                                                                                                                    |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Function host won't start, "FUNCTIONS_WORKER_RUNTIME not set" | Confirm `local.settings.json` exists and contains `"FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"`.                                     |
-| `403` from Document Intelligence                              | Endpoint must end with `/`. Your CLI identity needs `Cognitive Services User`.                                                         |
-| `401`/`403` from Cosmos                                       | Run the `az cosmosdb sql role assignment create` command in the appendix.                                                              |
-| Queue trigger never fires                                     | Azurite isn't running, or queue `pdf-processing-queue` doesn't exist.                                                                  |
-| Web App shows "no documents"                                  | Are you signed in as a user the Function App processed under? Documents are filterable by reviewer assignment, not by tenant identity. |
+| Symptom                                                       | Fix                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Function host won't start, "FUNCTIONS_WORKER_RUNTIME not set" | Confirm `local.settings.json` exists and contains `"FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"`.                                                                                                                                                                |
+| `403` from Document Intelligence                              | Endpoint must end with `/`. Your CLI identity needs `Cognitive Services User`.                                                                                                                                                                                    |
+| `401`/`403` from Cosmos                                       | Run the `az cosmosdb sql role assignment create` command in the appendix.                                                                                                                                                                                         |
+| Queue trigger never fires                                     | Azurite isn't running, or queue `pdf-processing-queue` doesn't exist.                                                                                                                                                                                             |
+| Cosmos emulator returns SSL/TLS error                         | The dev-container `post-create.sh` imports the emulator cert into the system trust store. Outside the dev container, set `CosmosDb:Key` in the WebApp / Functions settings to the well-known emulator key \u2014 the client will then trust the self-signed cert. |
+| Web App shows "no documents"                                  | Are you signed in as a user the Function App processed under? Documents are filterable by reviewer assignment, not by tenant identity.                                                                                                                            |
 
 ## Appendix: role-assignment recipe
 
@@ -144,6 +187,7 @@ az cosmosdb sql role assignment create \
 
 ## Next steps
 
+- [.devcontainer/README.md](../.devcontainer/README.md) — dev-container layout, emulator endpoints, and provisioning details.
 - [docs/CUSTOMIZING-SCHEMA.md](CUSTOMIZING-SCHEMA.md) — change which fields the system reviews.
 - [docs/ARCHITECTURE.md](ARCHITECTURE.md) — full system design.
 - [docs/DEPLOYMENT-IAC.md](DEPLOYMENT-IAC.md) — deploy with `azd up`.

@@ -7,7 +7,8 @@ This is a complete Azure solution that processes PDF files containing multiple d
 ## Documentation
 
 - **[⚡ Quick Deploy Guide](QUICK-DEPLOY.md)** - Deploy to Azure in 5 commands (< 20 minutes)
-- [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development
+- [Quick Start Guide](docs/QUICKSTART.md) - Get started with local development (includes the VS Code dev container with Azurite + Cosmos DB emulator)
+- [Dev container](.devcontainer/README.md) - Compose-based dev environment with Azurite, Cosmos DB emulator, and an idempotent provisioning script
 - [Developer scripts](scripts/README.md) - bash + PowerShell helpers (`run-functions`, `run-webapp`, `run-tests`)
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - **[Customizing the schema](docs/CUSTOMIZING-SCHEMA.md)** - Change which fields the system extracts and reviews (POC swap-in guide)

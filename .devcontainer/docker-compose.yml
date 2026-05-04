@@ -1,0 +1,41 @@
+services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+
+  # Both emulators share the dev container's network namespace so the
+  # WebApp / Functions running inside `dev` can reach them on `localhost`,
+  # matching a developer's laptop setup and avoiding hostname juggling.
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    restart: unless-stopped
+    network_mode: service:dev
+    command:
+      - azurite
+      - --blobHost
+      - 0.0.0.0
+      - --queueHost
+      - 0.0.0.0
+      - --tableHost
+      - 0.0.0.0
+      - --location
+      - /data
+      - --skipApiVersionCheck
+    volumes:
+      - azurite-data:/data
+    depends_on:
+      - dev
+
+  cosmos:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+    restart: unless-stopped
+    network_mode: service:dev
+    environment:
+      PROTOCOL: https
+    depends_on:
+      - dev
+
+volumes:
+  azurite-data:

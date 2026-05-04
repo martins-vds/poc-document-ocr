@@ -33,8 +33,25 @@ namespace DocumentOcr.WebApp
             builder.Services.AddSingleton<CosmosClient>(sp =>
             {
                 var endpoint = builder.Configuration["CosmosDb:Endpoint"] ?? throw new InvalidOperationException("CosmosDb:Endpoint is not configured");
-                var cosmosClient = new CosmosClient(endpoint, new DefaultAzureCredential());
-                return cosmosClient;
+
+                // Local-development fallback: a shared key (e.g. the Cosmos
+                // emulator's well-known key) takes precedence so the WebApp
+                // can target the emulator without provisioning Managed Identity.
+                var key = builder.Configuration["CosmosDb:Key"];
+                if (!string.IsNullOrEmpty(key))
+                {
+                    var options = new CosmosClientOptions
+                    {
+                        ConnectionMode = ConnectionMode.Gateway,
+                        HttpClientFactory = () => new HttpClient(new HttpClientHandler
+                        {
+                            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+                        }),
+                    };
+                    return new CosmosClient(endpoint, key, options);
+                }
+
+                return new CosmosClient(endpoint, new DefaultAzureCredential());
             });
 
             // Register Cosmos DB service

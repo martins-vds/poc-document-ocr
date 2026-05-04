@@ -1,0 +1,51 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/dotnet
+{
+	"name": "DocumentOcr (.NET + Azurite + Cosmos)",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "dev",
+	"workspaceFolder": "/workspaces/poc-document-ocr",
+	// Keep the emulators running for the entire lifetime of the dev container.
+	"shutdownAction": "stopCompose",
+	"runServices": [
+		"dev",
+		"azurite",
+		"cosmos"
+	],
+	"features": {
+		"ghcr.io/devcontainers/features/azure-cli:1": {
+			"installBicep": true,
+			"version": "latest",
+			"bicepVersion": "latest"
+		},
+		"ghcr.io/devcontainers/features/powershell:2": {
+			"version": "latest"
+		},
+		"ghcr.io/azure/azure-dev/azd:0": {
+			"version": "stable"
+		},
+		"ghcr.io/azure/azure-dev/azd-persistence:0": {}
+	},
+	// 10000-10002: Azurite (blob/queue/table). 8081: Cosmos emulator gateway.
+	"forwardPorts": [
+		10000,
+		10001,
+		10002,
+		8081
+	],
+	"portsAttributes": {
+		"10000": {
+			"label": "Azurite Blob"
+		},
+		"10001": {
+			"label": "Azurite Queue"
+		},
+		"10002": {
+			"label": "Azurite Table"
+		},
+		"8081": {
+			"label": "Cosmos Emulator"
+		}
+	},
+	"postCreateCommand": "bash .devcontainer/post-create.sh"
+}

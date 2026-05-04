@@ -15,6 +15,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="DocumentOcr.Tests" />
+		<InternalsVisibleTo Include="DocumentOcr.UnitTests" />
+		<InternalsVisibleTo Include="DocumentOcr.IntegrationTests" />
 	</ItemGroup>
 </Project>

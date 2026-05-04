@@ -1,93 +1,72 @@
-# Document OCR Processor - Unit Tests
+# Tests
 
-This directory contains unit tests for the Document OCR Processor application.
+The Document OCR test suite is split into two projects:
 
-## FR → Test Coverage (feature 001-document-schema-aggregation)
+| Project                                                       | Scope                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [DocumentOcr.UnitTests](DocumentOcr.UnitTests/)               | Pure in-process unit tests. Models, services, helpers, and fine-grained Blazor component tests via bUnit. Uses Moq + bUnit fakes — no external dependencies. Runs in CI on every push.                                                                                                                |
+| [DocumentOcr.IntegrationTests](DocumentOcr.IntegrationTests/) | Full-stack integration tests. Hosts the WebApp in-process via `WebApplicationFactory<Program>`, exercises Blazor pages end-to-end via bUnit, and (optionally) round-trips storage / persistence through Azurite + the Cosmos DB Emulator. Emulator-bound tests are skipped when emulators are absent. |
 
-| FR     | Behaviour                                           | Test class / case                                                                                                                           |
-| ------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| FR-001 | Persist consolidated document per identifier        | `DocumentSchemaMapperServiceTests.Map_AlwaysPopulatesAll13SchemaKeys`                                                                       |
-| FR-002 | Forward-fill identifier across pages                | `DocumentAggregatorServiceTests.Aggregate_GapsAreForwardFilled`                                                                             |
-| FR-003 | Synthetic identifier when none extracted            | `DocumentSchemaMapperServiceTests.Map_BlankIdentifier_UsesSyntheticFallback` + `Aggregate_LeadingPagesWithoutIdentifier_FormSyntheticGroup` |
-| FR-004 | Single-value: highest-confidence wins               | `DocumentSchemaMapperServiceTests.Map_HighestConfidencePageWins_ForSingleValueFields`                                                       |
-| FR-005 | Multi-value: page-ordered concat + min confidence   | `DocumentSchemaMapperServiceTests.Map_MultiValueFields_ConcatenatedInPageOrder_WithMinConfidence`                                           |
-| FR-006 | Signatures map to bool                              | `DocumentSchemaMapperServiceTests.Map_SignatureField_PresentMapsToTrue` + `_AbsentMapsToFalse`                                              |
-| FR-007 | Always emit all 13 schema keys                      | `ProcessedDocumentSchemaTests.FieldNames_AreInCatalogOrder` + `Map_AlwaysPopulatesAll13SchemaKeys`                                          |
-| FR-008 | `pageCount` populated                               | `DocumentSchemaMapperServiceTests.Map_InitialState_AllFieldsPending_DocumentReviewPending`                                                  |
-| FR-009 | `_etag` for optimistic concurrency                  | `CosmosDbServiceTests.ReplaceWithETagAsync_PassesIfMatchEtag` + `_OnETagMismatch_ThrowsPreconditionFailed`                                  |
-| FR-010 | One record per identifier                           | `DocumentSchemaMapperServiceTests.Map_AlwaysPopulatesAll13SchemaKeys`                                                                       |
-| FR-012 | TDD discipline                                      | The whole test suite — 77 cases authored before/with implementation                                                                         |
-| FR-013 | Structured consolidation logging                    | Manual verification (see PdfProcessorFunction `FR-013 consolidation outcome` log)                                                           |
-| FR-014 | SchemaField invariants                              | `SchemaFieldTests` (10 cases)                                                                                                               |
-| FR-015 | OCR fields immutable                                | `DocumentReviewServiceTests.ApplyEdits_*` indirectly via state-machine                                                                      |
-| FR-016 | Per-field state machine Pending/Confirmed/Corrected | `SchemaFieldTests` + `DocumentReviewServiceTests.ApplyEdits_PendingTransition_Throws`                                                       |
-| FR-017 | Record-level Pending → Reviewed                     | `DocumentReviewServiceTests.ApplyEdits_FinalFieldReviewed_TransitionsRecordToReviewed`                                                      |
-| FR-018 | First-Reviewer stamp immutable                      | `DocumentReviewServiceTests.ApplyEdits_AlreadyReviewed_DoesNotOverwriteReviewedStamp`                                                       |
-| FR-019 | Duplicate identifier skip                           | `CosmosDbServiceTests.GetByIdentifierAsync_*` (covers the lookup that backs the skip)                                                       |
-| FR-020 | Page provenance Extracted/Inferred                  | `PageProvenanceEntryTests` + `DocumentAggregatorServiceTests.Aggregate_GapsAreForwardFilled`                                                |
-| FR-021 | Pessimistic checkout                                | `DocumentLockServiceTests.TryCheckout_*`                                                                                                    |
-| FR-022 | 24h stale-checkout opportunistic release            | `DocumentLockServiceTests.TryCheckout_HeldByOtherStale_Acquires_AndLogs`                                                                    |
-| FR-023 | Check-in stamps LastCheckedIn                       | `DocumentLockServiceTests.Checkin_ByHolder_StampsLastCheckedIn_AndClearsCheckout`                                                           |
-| FR-024 | Cancel does NOT stamp LastCheckedIn                 | `DocumentLockServiceTests.CancelCheckout_DoesNotUpdateLastCheckedInStamps`                                                                  |
-| FR-025 | UI surfaces checkout state                          | `DocumentListFilterTests` + manual Razor verification                                                                                       |
-
-## Test Coverage
-
-### Services Tests
-
-#### BlobStorageServiceTests
-- Tests configuration validation
-- Validates that service requires proper connection string
-
-### Models Tests
-
-#### QueueMessageTests
-- Tests default values initialization
-- Validates property setters
-
-#### DocumentResultTests
-- Tests default values initialization
-- Validates all properties can be set correctly
-
-#### ProcessingResultTests
-- Tests default values initialization
-- Validates timestamp is set to UTC
-- Tests document collection operations
-
-## Running Tests
+## Run
 
 ```bash
-# Run all tests
-dotnet test
+# All tests
+./scripts/run-tests.sh
 
-# Run tests with verbose output
-dotnet test --verbosity normal
+# Unit tests only (fast)
+./scripts/run-tests.sh --unit
 
-# Run tests with detailed output
-dotnet test --verbosity detailed
+# Integration tests only
+./scripts/run-tests.sh --integration
 
-# Run specific test class
-dotnet test --filter "FullyQualifiedName~BlobStorageServiceTests"
+# Filter
+./scripts/run-tests.sh --filter 'FullyQualifiedName~PdfControllerTests'
 ```
 
-## Test Framework
+The same options are available in `scripts/run-tests.ps1` via `-Scope Unit | Integration | All`.
 
-- **xUnit**: Test framework
-- **Moq**: Mocking framework for dependencies
+## Folder layout
 
-## Adding New Tests
+```
+tests/
+├── DocumentOcr.UnitTests/              # fast, isolated tests (no external deps)
+│   ├── Models/                         # POCO + invariants
+│   ├── Services/                       # service unit tests with Moq
+│   └── WebApp/                         # bUnit + helper unit tests
+└── DocumentOcr.IntegrationTests/       # end-to-end / boundary tests
+    ├── Fixtures/
+    │   ├── AzuriteFixture.cs           # detects Azurite on 10000/10001
+    │   ├── CosmosEmulatorFixture.cs    # detects Cosmos emulator on 8081
+    │   ├── DocumentIntelligenceStub.cs # in-process IDocumentIntelligenceService double
+    │   └── WebAppFactory.cs            # WebApplicationFactory<Program> + test auth
+    ├── Processor/                      # storage/persistence round-trip tests
+    ├── WebApp/Api/                     # WAF tests for PdfController + ReviewController
+    ├── WebApp/Auth/                    # auth-pipeline boundary tests
+    └── WebApp/Pages/                   # full-render bUnit tests for Blazor pages
+```
 
-When adding new tests:
+## Conventions
 
-1. Create test class in the appropriate subdirectory (`Services/`, `Models/`, etc.)
-2. Follow the naming convention: `{ClassName}Tests.cs`
-3. Use AAA pattern (Arrange, Act, Assert)
-4. Name tests descriptively: `MethodName_Scenario_ExpectedResult`
+- `[Fact]` / `[Theory]` for in-process tests that always run.
+- `[SkippableFact]` (`Xunit.SkippableFact`) + `Skip.IfNot(...)` for tests that
+  require Azurite or the Cosmos emulator. The fixture's `IsAvailable` flag
+  drives the skip.
+- WebApp tests use the per-scenario factory pattern:
+  `_factory.ForScenario(authenticatedUpn: ..., configureServices: ...)` —
+  never mutate state on the shared `IClassFixture` instance because
+  `WebApplicationFactory` caches the host on first `CreateClient`.
+- Integration tests should `using var factory = _factory.ForScenario(...)`
+  to dispose the per-test host.
 
-## Coverage Summary
+## Local emulator setup (optional)
 
-- **Total Tests**: 9
-- **Service Tests**: 2
-- **Model Tests**: 7
+```bash
+# Azurite (for storage round-trip tests)
+azurite --silent --location /tmp/azurite &
 
-Critical model validation, default value initialization, and service configuration validation are covered.
+# Cosmos DB emulator — run via Docker if not on Windows
+# https://learn.microsoft.com/azure/cosmos-db/how-to-develop-emulator
+```
+
+When neither is running, integration tests still pass — emulator-bound
+cases simply report as **skipped**.

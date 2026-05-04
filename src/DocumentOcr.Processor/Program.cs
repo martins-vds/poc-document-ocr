@@ -34,6 +34,23 @@ builder.Services.AddSingleton(sp =>
         throw new InvalidOperationException("Cosmos DB configuration is missing. Please configure CosmosDb:Endpoint.");
     }
 
+    // Local-development fallback: when CosmosDb:Key is set (e.g. the Cosmos
+    // emulator's well-known key), authenticate with the shared key and
+    // accept the emulator's self-signed cert. Production stays on AAD.
+    var key = configuration["CosmosDb:Key"];
+    if (!string.IsNullOrEmpty(key))
+    {
+        var options = new Microsoft.Azure.Cosmos.CosmosClientOptions
+        {
+            ConnectionMode = Microsoft.Azure.Cosmos.ConnectionMode.Gateway,
+            HttpClientFactory = () => new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+            }),
+        };
+        return new Microsoft.Azure.Cosmos.CosmosClient(endpoint, key, options);
+    }
+
     return new Microsoft.Azure.Cosmos.CosmosClient(endpoint, new DefaultAzureCredential());
 });
 

@@ -47,7 +47,12 @@ dotnet build
 dotnet clean && dotnet build
 ```
 
-**Unit tests exist** (9 tests). Run with `cd tests && dotnet test`.
+**Unit + integration tests exist** under `tests/`:
+
+- `tests/DocumentOcr.UnitTests/` — fast, isolated unit tests (Moq + bUnit fakes). Run with `./scripts/run-tests.sh --unit`.
+- `tests/DocumentOcr.IntegrationTests/` — in-process WebApp tests via `WebApplicationFactory<Program>`, full bUnit page tests, auth-pipeline tests, and Azurite/Cosmos round-trips (skipped when emulators are absent). Run with `./scripts/run-tests.sh --integration`.
+
+`./scripts/run-tests.sh` (or `scripts/run-tests.ps1`) runs both. See `tests/README.md` for the layout and conventions.
 
 ### Local Development Setup
 

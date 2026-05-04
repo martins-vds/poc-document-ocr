@@ -28,11 +28,21 @@ public class BlobStorageService : IBlobStorageService
 
     internal static BlobServiceClient CreateClient(IConfiguration configuration)
     {
+        // Local-development fallback: a full connection string (e.g. Azurite's
+        // "UseDevelopmentStorage=true" or an explicit DefaultEndpointsProtocol=...)
+        // takes precedence so the WebApp can target the storage emulator
+        // without provisioning Managed Identity.
+        var connectionString = configuration["Storage:ConnectionString"];
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            return new BlobServiceClient(connectionString);
+        }
+
         var storageAccountName = configuration["Storage:AccountName"];
 
         if (string.IsNullOrEmpty(storageAccountName))
         {
-            throw new InvalidOperationException("Storage account name is missing. Please configure Storage:AccountName.");
+            throw new InvalidOperationException("Storage account name is missing. Please configure Storage:AccountName or Storage:ConnectionString.");
         }
 
         var blobServiceUri = new Uri($"https://{storageAccountName}.blob.core.windows.net");
